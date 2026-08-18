@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">TVBox</string>
     <string name="app_home">Home</string>
-    <string name="app_source">https://cdn.jsdelivr.net/gh/dwdfj/Box@main/app/src/main/assets/xiaojia_providers.json</string>
+    <string name="app_source">https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json</string>
 
     // Home Page //
     <string name="hm_ok">Load Complete</string>
