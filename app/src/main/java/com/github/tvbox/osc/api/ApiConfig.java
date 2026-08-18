@@ -388,19 +388,26 @@ public class ApiConfig {
             sourceBeanList.put(siteKey, sb);
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
-            // 小贾影视仓: 线路变化时强制用新线路首站, 避免旧线路首页源残留导致推荐消失
+            // 小贾影视仓: 线路变化时清空旧引擎缓存, 修复切换线路后搜索无结果
             boolean lineChanged = !apiUrl.equals(lastApiUrl);
             lastApiUrl = apiUrl;
             if (lineChanged) {
-                setSourceBean(firstSite);
-            } else {
-                String home = Hawk.get(HawkConfig.HOME_API, "");
-                SourceBean sh = getSource(home);
-                if (sh == null || sh.getHide() == 1)
-                    setSourceBean(firstSite);
-                else
-                    setSourceBean(sh);
+                clearJarLoader();
             }
+            // 小贾影视仓: 首页推荐源优先固定为"豆瓣"类站点(不随线路变化), 避免切换线路后推荐消失
+            String home = Hawk.get(HawkConfig.HOME_API, "");
+            SourceBean sh = getSource(home);
+            if (sh == null || sh.getHide() == 1) {
+                sh = null;
+                for (SourceBean sb : sourceBeanList.values()) {
+                    if (sb.getName() != null && sb.getName().contains("豆瓣")) {
+                        sh = sb;
+                        break;
+                    }
+                }
+                if (sh == null) sh = firstSite;
+            }
+            setSourceBean(sh);
         }
         // 需要使用vip解析的flag
         vipParseFlags = DefaultConfig.safeJsonStringList(infoJson, "flags");
