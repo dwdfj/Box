@@ -351,7 +351,8 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         if (globalWp != null) {
             getWindow().setBackgroundDrawable(globalWp);
         } else {
-            getWindow().setBackgroundDrawableResource(R.drawable.app_bg);
+            // 小贾影视仓: 默认使用内置壁纸
+            getWindow().setBackgroundDrawableResource(R.drawable.home_wallpaper);
         }
     }
 }
