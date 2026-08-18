@@ -217,16 +217,35 @@
             app:textPaddingV="@dimen/vs_10"
             app:verticalSpacing="@dimen/vs_20" />        
 
-        <com.owen.tvrecyclerview.widget.TvRecyclerView
-            android:id="@+id/mGridView"
+        <!-- 小贾影视仓: 搜索结果显示(左侧来源渠道 + 右侧结果) -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
+            android:orientation="horizontal">
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/mSearchSourceList"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:visibility="gone"
+                android:paddingTop="@dimen/vs_5"
+                android:paddingRight="@dimen/vs_15"
+                app:tv_verticalSpacingWithMargins="@dimen/vs_10" />
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/mGridView"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
             android:clipToPadding="false"
             android:visibility="invisible"
             android:padding="@dimen/vs_25"
             app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5"
             app:tv_selectedItemIsCentered="true" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>
