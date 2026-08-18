@@ -368,6 +368,7 @@ public class HomeActivity extends BaseActivity {
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
                 // 小贾影视仓: 预置线路(名称, 地址)
                 String[][] presetLines = new String[][]{
+                        {"瓜子·HGYX", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/hgyx.json"},
                         {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
                         {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
                         {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
@@ -999,6 +1000,7 @@ public class HomeActivity extends BaseActivity {
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
+                {"瓜子·HGYX", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/hgyx.json"},
                 {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
                 {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
