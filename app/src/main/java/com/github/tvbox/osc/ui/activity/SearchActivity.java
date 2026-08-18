@@ -780,6 +780,8 @@ public class SearchActivity extends BaseActivity {
             for (Movie.Video video : absXml.movie.videoList) {
                 data.add(video);
             }
+            // 小贾影视仓: 标题包含搜索词的结果排前面
+            sortByRelevance(data);
             if (searchAdapter.getData().size() > 0) {
                 searchAdapter.addData(data);
             } else {
@@ -797,8 +799,33 @@ public class SearchActivity extends BaseActivity {
             if (searchAdapter.getData().size() <= 0) {
                 showEmpty();
             }
+            // 小贾影视仓: 所有源返回后, 全局再按相关度排序一次
+            List<Movie.Video> all = searchAdapter.getData();
+            if (all != null && all.size() > 1) {
+                sortByRelevance(all);
+                searchAdapter.notifyDataSetChanged();
+            }
             cancel();
         }
+    }
+
+    // 小贾影视仓: 标题包含搜索关键词的优先显示
+    private void sortByRelevance(List<Movie.Video> list) {
+        if (list == null || list.size() <= 1 || searchTitle == null || searchTitle.isEmpty())
+            return;
+        final String kw = searchTitle.toLowerCase();
+        list.sort(new java.util.Comparator<Movie.Video>() {
+            @Override
+            public int compare(Movie.Video a, Movie.Video b) {
+                String na = a.name == null ? "" : a.name.toLowerCase();
+                String nb = b.name == null ? "" : b.name.toLowerCase();
+                boolean ca = na.contains(kw);
+                boolean cb = nb.contains(kw);
+                if (ca && !cb) return -1;
+                if (!ca && cb) return 1;
+                return 0;
+            }
+        });
     }
 
     private void cancel() {
