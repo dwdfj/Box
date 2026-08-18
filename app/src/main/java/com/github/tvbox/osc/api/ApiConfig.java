@@ -345,6 +345,8 @@ public class ApiConfig {
 
     private static  String jarCache ="true";
     private void parseJson(String apiUrl, String jsonStr) {
+        // 小贾影视仓: 切换线路时清空旧站点, 防止多个线路的站点累积混在一起
+        sourceBeanList.clear();
 //        pyLoader.setConfig(jsonStr);
         JsonObject infoJson = new Gson().fromJson(jsonStr, JsonObject.class);
         jarCache = DefaultConfig.safeJsonString(infoJson, "jarCache", "true");
