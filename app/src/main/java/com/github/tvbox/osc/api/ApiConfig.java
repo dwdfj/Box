@@ -65,6 +65,7 @@ public class ApiConfig {
     private static ApiConfig instance;
     private final LinkedHashMap<String, SourceBean> sourceBeanList;
     private SourceBean mHomeSource;
+    private String lastApiUrl = "";   // 小贾影视仓: 记录上次加载的线路, 用于切换线路时重置首页源
     private ParseBean mDefaultParse;
     private final List<LiveChannelGroup> liveChannelGroupList;
     private final List<ParseBean> parseBeanList;
@@ -387,12 +388,19 @@ public class ApiConfig {
             sourceBeanList.put(siteKey, sb);
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
-            String home = Hawk.get(HawkConfig.HOME_API, "");
-            SourceBean sh = getSource(home);
-            if (sh == null || sh.getHide() == 1)
+            // 小贾影视仓: 线路变化时强制用新线路首站, 避免旧线路首页源残留导致推荐消失
+            boolean lineChanged = !apiUrl.equals(lastApiUrl);
+            lastApiUrl = apiUrl;
+            if (lineChanged) {
                 setSourceBean(firstSite);
-            else
-                setSourceBean(sh);
+            } else {
+                String home = Hawk.get(HawkConfig.HOME_API, "");
+                SourceBean sh = getSource(home);
+                if (sh == null || sh.getHide() == 1)
+                    setSourceBean(firstSite);
+                else
+                    setSourceBean(sh);
+            }
         }
         // 需要使用vip解析的flag
         vipParseFlags = DefaultConfig.safeJsonStringList(infoJson, "flags");
