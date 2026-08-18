@@ -407,6 +407,8 @@ public class HomeActivity extends BaseActivity {
                                     Hawk.put(HawkConfig.API_HISTORY, hist);
                                     Hawk.put(HawkConfig.API_URL, url);
                                     Toast.makeText(HomeActivity.this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
+                                    // 小贾影视仓: 重置首页源, 让新线路显示自己的推荐/分类
+                                    Hawk.put(HawkConfig.HOME_API, "");
                                     reloadHome();
                                 }
                             }
@@ -426,6 +428,8 @@ public class HomeActivity extends BaseActivity {
                     @Override
                     public void onchange(String api) {
                         Hawk.put(HawkConfig.API_URL, api);
+                        // 小贾影视仓: 切换接口时也重置首页源
+                        Hawk.put(HawkConfig.HOME_API, "");
                     }
                 });
                 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
@@ -485,7 +489,7 @@ public class HomeActivity extends BaseActivity {
                 }
                 initViewPager(absXml);
                 // 小贾影视仓: 标题显示当前线路名(红底白字)
-                tvName.setText(getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+                tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
                 tvName.clearAnimation();
             }
         });
@@ -767,7 +771,7 @@ public class HomeActivity extends BaseActivity {
         super.onResume();
 
         // 小贾影视仓: 标题显示当前线路名(红底白字)
-        tvName.setText(getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+        tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
         tvName.clearAnimation();
 
         // takagen99: Icon Placement
