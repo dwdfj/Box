@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
@@ -318,6 +319,20 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
 
     protected static BitmapDrawable globalWp = null;
 
+    // 小贾影视仓: 壁纸压暗, 让白色文字清晰
+    private static Bitmap darkenWallpaper(Bitmap src) {
+        if (src == null) return null;
+        try {
+            Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(out);
+            c.drawBitmap(src, 0f, 0f, null);
+            c.drawColor(android.graphics.Color.argb(115, 0, 0, 0));
+            return out;
+        } catch (Throwable t) {
+            return src;
+        }
+    }
+
     public void changeWallpaper(boolean force) {
         if (!force && globalWp != null) {
             getWindow().setBackgroundDrawable(globalWp);
@@ -340,7 +355,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 opts.inJustDecodeBounds = false;
                 // 采样率
                 opts.inSampleSize = scale;
-                globalWp = new BitmapDrawable(BitmapFactory.decodeFile(wp.getAbsolutePath(), opts));
+                globalWp = new BitmapDrawable(darkenWallpaper(BitmapFactory.decodeFile(wp.getAbsolutePath(), opts)));
             } else {
                 globalWp = null;
             }
@@ -351,8 +366,13 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         if (globalWp != null) {
             getWindow().setBackgroundDrawable(globalWp);
         } else {
-            // 小贾影视仓: 默认使用内置壁纸
-            getWindow().setBackgroundDrawableResource(R.drawable.home_wallpaper);
+            // 小贾影视仓: 默认使用内置壁纸(压暗, 白字清晰)
+            Bitmap bmp = BitmapFactory.decodeResource(getResources(), R.drawable.home_wallpaper);
+            if (bmp != null) {
+                getWindow().setBackgroundDrawable(new BitmapDrawable(getResources(), darkenWallpaper(bmp)));
+            } else {
+                getWindow().setBackgroundDrawableResource(R.drawable.app_bg);
+            }
         }
     }
 }
