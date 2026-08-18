@@ -475,11 +475,11 @@ public class HomeActivity extends BaseActivity {
                     sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<>(), true));
                 }
                 initViewPager(absXml);
-                // takagen99 : Switch to show / hide source title
+                // 小贾影视仓: 标题固定显示"小贾影视仓", 不再随线路变化
                 SourceBean home = ApiConfig.get().getHomeSourceBean();
                 if (HomeShow) {
-                    if (home != null && home.getName() != null && !home.getName().isEmpty()) tvName.setText(home.getName());
-                        tvName.clearAnimation();
+                    tvName.setText(R.string.app_name);
+                    tvName.clearAnimation();
                 }
             }
         });
@@ -760,16 +760,9 @@ public class HomeActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
 
-        // takagen99 : Switch to show / hide source title
-        SourceBean home = ApiConfig.get().getHomeSourceBean();
-        if (Hawk.get(HawkConfig.HOME_SHOW_SOURCE, false)) {
-            if (home != null && home.getName() != null && !home.getName().isEmpty()) {
-                tvName.setText(home.getName());
-                tvName.clearAnimation();
-            }
-        } else {
-            tvName.setText(R.string.app_name);
-        }
+        // 小贾影视仓: 标题固定显示"小贾影视仓"
+        tvName.setText(R.string.app_name);
+        tvName.clearAnimation();
 
         // takagen99: Icon Placement
         if (Hawk.get(HawkConfig.HOME_SEARCH_POSITION, true)) {
@@ -987,7 +980,7 @@ public class HomeActivity extends BaseActivity {
         Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
         Bundle bundle = new Bundle();
-        bundle.putBoolean("useCache", true);
+        bundle.putBoolean("useCache", false);   // 小贾影视仓: 强制重新拉取线路配置
         intent.putExtras(bundle);
         HomeActivity.this.startActivity(intent);
     }
