@@ -366,38 +366,47 @@ public class HomeActivity extends BaseActivity {
                 FastClickCheckUtil.check(v);
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                // 小贾影视仓: 预置线路
-                String[] presetLines = new String[]{
-                        "https://9280.kstore.vip/newwex.json",
-                        "https://9877.kstore.space/ONE/one.json",
-                        "https://9763.kstore.vip/aowu.json",
-                        "https://zhangqun1818.serv00.net/zq/api.json",
-                        "http://肥猫.net/tv",
-                        "https://9877.kstore.space/one.json",
-                        "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json",
-                        "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"
+                // 小贾影视仓: 预置线路(名称, 地址)
+                String[][] presetLines = new String[][]{
+                        {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
+                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                        {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
+                        {"肥猫", "http://肥猫.net/tv"},
+                        {"潇洒", "https://9877.kstore.space/one.json"},
+                        {"南风", "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json"},
+                        {"汇总·含直播", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"}
                 };
-                java.util.LinkedHashSet<String> lines = new java.util.LinkedHashSet<>();
-                if (current != null && !current.isEmpty())
-                    lines.add(current);
-                for (String p : presetLines)
-                    lines.add(p);
-                for (String h : history)
-                    lines.add(h);
+                // 显示名 -> 地址
+                final java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
+                for (String[] p : presetLines) {
+                    if (!lines.containsValue(p[1])) lines.put(p[0], p[1]);
+                }
+                for (String h : history) {          // 历史/手动添加的线路(始终保留)
+                    if (!lines.containsValue(h)) lines.put(h, h);
+                }
+                if (current != null && !current.isEmpty() && !lines.containsValue(current)) {
+                    lines.put(getLineName(current), current);
+                }
                 if (lines.isEmpty()) {
                     Toast.makeText(HomeActivity.this, "暂无其他线路，请先点\"配置\"添加", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                final String[] items = lines.toArray(new String[0]);
+                final String[] items = lines.keySet().toArray(new String[0]);
                 new AlertDialog.Builder(HomeActivity.this)
                         .setTitle("切换线路")
                         .setItems(items, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                String url = items[which];
-                                if (!url.equals(current)) {
+                                String url = lines.get(items[which]);
+                                String name = items[which];
+                                if (url != null && !url.equals(current)) {
+                                    // 加入历史, 保证之后重启也在线路列表里
+                                    ArrayList<String> hist = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+                                    if (!hist.contains(url)) hist.add(0, url);
+                                    if (hist.size() > 20) hist.remove(20);
+                                    Hawk.put(HawkConfig.API_HISTORY, hist);
                                     Hawk.put(HawkConfig.API_URL, url);
-                                    Toast.makeText(HomeActivity.this, "已切换线路，正在加载...", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(HomeActivity.this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
                                     reloadHome();
                                 }
                             }
@@ -475,12 +484,9 @@ public class HomeActivity extends BaseActivity {
                     sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<>(), true));
                 }
                 initViewPager(absXml);
-                // 小贾影视仓: 标题固定显示"小贾影视仓", 不再随线路变化
-                SourceBean home = ApiConfig.get().getHomeSourceBean();
-                if (HomeShow) {
-                    tvName.setText(R.string.app_name);
-                    tvName.clearAnimation();
-                }
+                // 小贾影视仓: 标题显示当前线路名(红底白字)
+                tvName.setText(getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+                tvName.clearAnimation();
             }
         });
     }
@@ -760,8 +766,8 @@ public class HomeActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
 
-        // 小贾影视仓: 标题固定显示"小贾影视仓"
-        tvName.setText(R.string.app_name);
+        // 小贾影视仓: 标题显示当前线路名(红底白字)
+        tvName.setText(getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
         tvName.clearAnimation();
 
         // takagen99: Icon Placement
@@ -983,6 +989,30 @@ public class HomeActivity extends BaseActivity {
         bundle.putBoolean("useCache", false);   // 小贾影视仓: 强制重新拉取线路配置
         intent.putExtras(bundle);
         HomeActivity.this.startActivity(intent);
+    }
+
+    // 小贾影视仓: 根据线路地址返回显示名称
+    public static String getLineName(String url) {
+        if (url == null || url.isEmpty()) return "";
+        String[][] presetLines = new String[][]{
+                {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
+                {"肥猫", "http://肥猫.net/tv"},
+                {"潇洒", "https://9877.kstore.space/one.json"},
+                {"南风", "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json"},
+                {"汇总·含直播", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"}
+        };
+        for (String[] p : presetLines) {
+            if (url.equals(p[1])) return p[0];
+        }
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String host = uri.getHost();
+            if (host != null && !host.isEmpty()) return host;
+        } catch (Exception ignored) {
+        }
+        return url;
     }
 
     private void refreshEmpty() {
