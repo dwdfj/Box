@@ -1639,7 +1639,7 @@ public class LivePlayActivity extends BaseActivity {
 //                        ArrayList<String> liveHistory = Hawk.get(HawkConfig.LIVE_HISTORY, new ArrayList<String>());
 //                        if (liveHistory.isEmpty())
 //                            return;
-//                        String current = Hawk.get(HawkConfig.LIVE_URL, "");
+//                        String current = Hawk.get(HawkConfig.LIVE_URL, "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/live.m3u");
 //                        int idx = 0;
 //                        if (liveHistory.contains(current))
 //                            idx = liveHistory.indexOf(current);
@@ -1677,7 +1677,7 @@ public class LivePlayActivity extends BaseActivity {
                         ArrayList<String> liveHistory = Hawk.get(HawkConfig.LIVE_HISTORY, new ArrayList<String>());
                         if (liveHistory.isEmpty())
                             return;
-                        String current = Hawk.get(HawkConfig.LIVE_URL, "");
+                        String current = Hawk.get(HawkConfig.LIVE_URL, "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/live.m3u");
                         int idx = 0;
                         if (liveHistory.contains(current))
                             idx = liveHistory.indexOf(current);
