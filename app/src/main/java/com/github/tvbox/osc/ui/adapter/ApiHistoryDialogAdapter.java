@@ -93,10 +93,17 @@ public class ApiHistoryDialogAdapter extends ListAdapter<String, ApiHistoryDialo
         holder.itemView.findViewById(R.id.tvDel).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (select.equals(value))
-                    return;
-                notifyItemRemoved(data.indexOf(value));
+                // 小贾影视仓: 允许删除当前选中的项(含最后一条), 删除后选中态自动切换
+                if (select.equals(value)) {
+                    int idx = data.indexOf(value);
+                    if (data.size() > 1) {
+                        select = data.get(idx == 0 ? 1 : 0);
+                    } else {
+                        select = "";
+                    }
+                }
                 data.remove(value);
+                notifyDataSetChanged();
                 dialogInterface.del(value, data);
             }
         });
