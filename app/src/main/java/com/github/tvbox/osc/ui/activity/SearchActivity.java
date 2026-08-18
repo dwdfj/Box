@@ -44,6 +44,7 @@ import com.github.tvbox.osc.event.ServerEvent;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchAdapter;
+import com.github.tvbox.osc.ui.adapter.SearchSourceAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.RemoteDialog;
 import com.github.tvbox.osc.ui.dialog.SearchCheckboxDialog;
@@ -120,6 +121,13 @@ public class SearchActivity extends BaseActivity {
     private static ArrayList<String> hots = new ArrayList<>();
     private HashMap<String, String> mCheckSources = null;
     private SearchCheckboxDialog mSearchCheckboxDialog = null;
+
+    // 小贾影视仓: 搜索结果按来源分组(左侧渠道列表)
+    private TvRecyclerView mSearchSourceList = null;
+    private SearchSourceAdapter sourceAdapter = null;
+    private final java.util.LinkedHashMap<String, java.util.ArrayList<Movie.Video>> searchResultMap = new java.util.LinkedHashMap<>();
+    private final java.util.LinkedHashMap<String, String> sourceKeyByName = new java.util.LinkedHashMap<>();
+    private String currentFilterKey = null;
 
     @Override
     protected int getLayoutResID() {
@@ -278,6 +286,21 @@ public class SearchActivity extends BaseActivity {
                     bundle.putString("sourceKey", video.sourceKey);
                     jumpActivity(DetailActivity.class, bundle);
                 }
+            }
+        });
+        // 小贾影视仓: 搜索结果来源渠道列表(左侧)
+        mSearchSourceList = findViewById(R.id.mSearchSourceList);
+        sourceAdapter = new SearchSourceAdapter();
+        mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
+        mSearchSourceList.setAdapter(sourceAdapter);
+        sourceAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                FastClickCheckUtil.check(view);
+                String name = sourceAdapter.getData().get(position);
+                String key = sourceKeyByName.get(name);
+                currentFilterKey = (key != null && key.equals(currentFilterKey)) ? null : key;
+                showFilteredResults();
             }
         });
         tvSearch.setOnClickListener(new View.OnClickListener() {
@@ -711,6 +734,14 @@ public class SearchActivity extends BaseActivity {
         this.searchTitle = title;
         mGridView.setVisibility(View.GONE);
         searchAdapter.setNewData(new ArrayList<>());
+        // 小贾影视仓: 清空上次分组的搜索结果
+        searchResultMap.clear();
+        sourceKeyByName.clear();
+        currentFilterKey = null;
+        if (mSearchSourceList != null) {
+            mSearchSourceList.setVisibility(View.GONE);
+            if (sourceAdapter != null) sourceAdapter.setNewData(new ArrayList<>());
+        }
         refreshSearchHistory(title);
         searchResult();
     }
@@ -776,37 +807,66 @@ public class SearchActivity extends BaseActivity {
 
     private void searchData(AbsXml absXml) {
         if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
-            List<Movie.Video> data = new ArrayList<>();
+            // 小贾影视仓: 按来源渠道分组收集
             for (Movie.Video video : absXml.movie.videoList) {
-                data.add(video);
+                String sk = video.sourceKey == null || video.sourceKey.isEmpty() ? "未知" : video.sourceKey;
+                java.util.ArrayList<Movie.Video> group = searchResultMap.get(sk);
+                if (group == null) {
+                    group = new java.util.ArrayList<>();
+                    searchResultMap.put(sk, group);
+                }
+                group.add(video);
             }
-            // 小贾影视仓: 标题包含搜索词的结果排前面
-            sortByRelevance(data);
-            if (searchAdapter.getData().size() > 0) {
-                searchAdapter.addData(data);
-            } else {
-                showSuccess();
-                searchAdapter.setNewData(data);
-                tv_history.setVisibility(View.GONE);
-                searchTips.setVisibility(View.GONE);
-                llWord.setVisibility(View.GONE);
-                mGridView.setVisibility(View.VISIBLE);
+            showSuccess();
+            tv_history.setVisibility(View.GONE);
+            searchTips.setVisibility(View.GONE);
+            llWord.setVisibility(View.GONE);
+            mGridView.setVisibility(View.VISIBLE);
+            updateSourceList();
+            if (mSearchSourceList != null && !sourceAdapter.getData().isEmpty()) {
+                mSearchSourceList.setVisibility(View.VISIBLE);
             }
+            showFilteredResults();
         }
 
         int count = allRunCount.decrementAndGet();
         if (count <= 0) {
-            if (searchAdapter.getData().size() <= 0) {
+            if (searchResultMap.isEmpty()) {
                 showEmpty();
-            }
-            // 小贾影视仓: 所有源返回后, 全局再按相关度排序一次
-            List<Movie.Video> all = searchAdapter.getData();
-            if (all != null && all.size() > 1) {
-                sortByRelevance(all);
-                searchAdapter.notifyDataSetChanged();
+            } else {
+                showFilteredResults();
             }
             cancel();
         }
+    }
+
+    // 小贾影视仓: 更新左侧来源渠道列表
+    private void updateSourceList() {
+        java.util.ArrayList<String> names = new java.util.ArrayList<>();
+        sourceKeyByName.clear();
+        for (String sk : searchResultMap.keySet()) {
+            int n = searchResultMap.get(sk).size();
+            String display = sk + " (" + n + ")";
+            sourceKeyByName.put(display, sk);
+            names.add(display);
+        }
+        sourceAdapter.setNewData(names);
+    }
+
+    // 小贾影视仓: 根据当前选中的渠道显示结果(全部/单个渠道)
+    private void showFilteredResults() {
+        if (searchResultMap.isEmpty()) return;
+        java.util.ArrayList<Movie.Video> show = new java.util.ArrayList<>();
+        if (currentFilterKey == null) {
+            for (java.util.ArrayList<Movie.Video> group : searchResultMap.values()) {
+                show.addAll(group);
+            }
+        } else {
+            java.util.ArrayList<Movie.Video> group = searchResultMap.get(currentFilterKey);
+            if (group != null) show.addAll(group);
+        }
+        sortByRelevance(show);
+        searchAdapter.setNewData(show);
     }
 
     // 小贾影视仓: 标题包含搜索关键词的优先; B站来源的结果放后面
