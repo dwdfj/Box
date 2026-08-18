@@ -366,13 +366,29 @@ public class HomeActivity extends BaseActivity {
                 FastClickCheckUtil.check(v);
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                if (current != null && !current.isEmpty() && !history.contains(current))
-                    history.add(0, current);
-                if (history.isEmpty()) {
+                // 小贾影视仓: 预置线路
+                String[] presetLines = new String[]{
+                        "https://9280.kstore.vip/newwex.json",
+                        "https://9877.kstore.space/ONE/one.json",
+                        "https://9763.kstore.vip/aowu.json",
+                        "https://zhangqun1818.serv00.net/zq/api.json",
+                        "http://肥猫.net/tv",
+                        "https://9877.kstore.space/one.json",
+                        "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json",
+                        "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"
+                };
+                java.util.LinkedHashSet<String> lines = new java.util.LinkedHashSet<>();
+                if (current != null && !current.isEmpty())
+                    lines.add(current);
+                for (String p : presetLines)
+                    lines.add(p);
+                for (String h : history)
+                    lines.add(h);
+                if (lines.isEmpty()) {
                     Toast.makeText(HomeActivity.this, "暂无其他线路，请先点\"配置\"添加", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                final String[] items = history.toArray(new String[0]);
+                final String[] items = lines.toArray(new String[0]);
                 new AlertDialog.Builder(HomeActivity.this)
                         .setTitle("切换线路")
                         .setItems(items, new DialogInterface.OnClickListener() {
