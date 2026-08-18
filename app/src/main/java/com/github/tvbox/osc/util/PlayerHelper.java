@@ -14,7 +14,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import tv.danmaku.ijk.media.player.IjkMediaPlayer;
-import xyz.doikki.videoplayer.aliplayer.AliyunMediaPlayerFactory;
 import xyz.doikki.videoplayer.player.AndroidMediaPlayerFactory;
 import xyz.doikki.videoplayer.player.PlayerFactory;
 import xyz.doikki.videoplayer.player.VideoView;
@@ -58,8 +57,6 @@ public class PlayerHelper {
                     return new EXOmPlayer(context);
                 }
             };
-        } else if (playerType == 3) {
-            playerFactory = AliyunMediaPlayerFactory.create();
         } else {
             playerFactory = AndroidMediaPlayerFactory.create();
         }
@@ -101,8 +98,6 @@ public class PlayerHelper {
                     return new EXOmPlayer(context);
                 }
             };
-        } else if (playType == 3) {
-            playerFactory = AliyunMediaPlayerFactory.create();
         } else {
             playerFactory = AndroidMediaPlayerFactory.create();
         }
