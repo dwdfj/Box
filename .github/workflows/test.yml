@@ -13,8 +13,13 @@ jobs:
       - name: Create local.properties
         run: |
           echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+      - name: Setup Python 3.10 (for Chaquopy)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
       - name: Build With Gradle
         run: |
+          export CHAQUOPY_PYTHON=$(which python)
           chmod +x gradlew
           ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all
       - name: Prepare App
