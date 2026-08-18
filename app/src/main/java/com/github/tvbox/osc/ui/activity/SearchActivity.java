@@ -809,23 +809,32 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓: 标题包含搜索关键词的优先显示
+    // 小贾影视仓: 标题包含搜索关键词的优先; B站来源的结果放后面
     private void sortByRelevance(List<Movie.Video> list) {
-        if (list == null || list.size() <= 1 || searchTitle == null || searchTitle.isEmpty())
+        if (list == null || list.size() <= 1)
             return;
-        final String kw = searchTitle.toLowerCase();
+        final String kw = searchTitle == null ? "" : searchTitle.toLowerCase();
         list.sort(new java.util.Comparator<Movie.Video>() {
             @Override
             public int compare(Movie.Video a, Movie.Video b) {
                 String na = a.name == null ? "" : a.name.toLowerCase();
                 String nb = b.name == null ? "" : b.name.toLowerCase();
-                boolean ca = na.contains(kw);
-                boolean cb = nb.contains(kw);
-                if (ca && !cb) return -1;
-                if (!ca && cb) return 1;
-                return 0;
+                boolean ca = kw.isEmpty() || na.contains(kw);
+                boolean cb = kw.isEmpty() || nb.contains(kw);
+                boolean ba = isBiliSource(a.sourceKey);
+                boolean bb = isBiliSource(b.sourceKey);
+                int sa = (ca ? 10 : 0) + (ba ? 0 : 5);
+                int sb = (cb ? 10 : 0) + (bb ? 0 : 5);
+                return sb - sa;
             }
         });
+    }
+
+    // 小贾影视仓: 判断是否B站来源(搜索结果放后面)
+    private static boolean isBiliSource(String key) {
+        if (key == null) return false;
+        String k = key.toLowerCase();
+        return k.contains("bili") || k.contains("哔哩") || k.contains("b站");
     }
 
     private void cancel() {
