@@ -7,6 +7,7 @@ import android.animation.AnimatorSet;
 import android.animation.IntEvaluator;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -50,6 +51,7 @@ import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.ui.adapter.HomePageAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.adapter.SortAdapter;
+import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.ui.fragment.GridFragment;
@@ -100,6 +102,8 @@ public class HomeActivity extends BaseActivity {
     private ImageView tvStyle;
     private ImageView tvDraw;
     private ImageView tvMenu;
+    private TextView tvLine;
+    private TextView tvApi;
     private TextView tvDate;
     private TvRecyclerView mGridView;
     private NoScrollViewPager mViewPager;
@@ -166,6 +170,8 @@ public class HomeActivity extends BaseActivity {
         this.tvStyle = findViewById(R.id.tvStyle);
         this.tvDraw = findViewById(R.id.tvDrawer);
         this.tvMenu = findViewById(R.id.tvMenu);
+        this.tvLine = findViewById(R.id.tvLine);
+        this.tvApi = findViewById(R.id.tvApi);
         this.tvDate = findViewById(R.id.tvDate);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
@@ -351,6 +357,60 @@ public class HomeActivity extends BaseActivity {
             public boolean onLongClick(View view) {
                 startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", getPackageName(), null)));
                 return true;
+            }
+        });
+        // Button : Line >> Switch between saved API lines --------------
+        tvLine.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+                String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+                if (current != null && !current.isEmpty() && !history.contains(current))
+                    history.add(0, current);
+                if (history.isEmpty()) {
+                    Toast.makeText(HomeActivity.this, "暂无其他线路，请先点\"配置\"添加", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                final String[] items = history.toArray(new String[0]);
+                new AlertDialog.Builder(HomeActivity.this)
+                        .setTitle("切换线路")
+                        .setItems(items, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String url = items[which];
+                                if (!url.equals(current)) {
+                                    Hawk.put(HawkConfig.API_URL, url);
+                                    Toast.makeText(HomeActivity.this, "已切换线路，正在加载...", Toast.LENGTH_SHORT).show();
+                                    reloadHome();
+                                }
+                            }
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            }
+        });
+        // Button : API Config >> Open API config dialog ---------------
+        tvApi.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                ApiDialog dialog = new ApiDialog(HomeActivity.this);
+                EventBus.getDefault().register(dialog);
+                dialog.setOnListener(new ApiDialog.OnListener() {
+                    @Override
+                    public void onchange(String api) {
+                        Hawk.put(HawkConfig.API_URL, api);
+                    }
+                });
+                dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface d) {
+                        EventBus.getDefault().unregister(d);
+                        reloadHome();
+                    }
+                });
+                dialog.show();
             }
         });
         // Button : Date >> Go into Android Date Settings --------------
