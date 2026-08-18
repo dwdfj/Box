@@ -1,0 +1,103 @@
+{
+  "sites": [
+    {
+      "key": "feimao",
+      "name": "肥猫",
+      "api": "http://hello．肥猫．net",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "kstore",
+      "name": "kstore",
+      "api": "https://9280.kstore.vip/newwex.json",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "fantaiying_cc",
+      "name": "饭太硬.cc",
+      "api": "http://www．饭太硬．cc/tv",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "kstore_one",
+      "name": "kstore-ONE",
+      "api": "https://9877.kstore.space/ONE/one.json",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "rihou",
+      "name": "日后",
+      "api": "http://rihou.cc:88/demo.php",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "fantaiying_art",
+      "name": "饭太硬.art",
+      "api": "http://www.饭太硬.art/tv",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "zhangqun",
+      "name": "张群",
+      "api": "https://zhangqun1818.serv00.net/zq/api.json",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "itv666",
+      "name": "itv666",
+      "api": "http://itv666.cc/aowu/config.webp",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "wangerxiao",
+      "name": "王二小",
+      "api": "http://tvbox.王二小放牛娃.top/",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "xiaobudian",
+      "name": "小不点",
+      "api": "http://www.小不点.com",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    },
+    {
+      "key": "catvod",
+      "name": "catvod.site",
+      "api": "https://jk.catvod.site/",
+      "type": 0,
+      "searchable": 1,
+      "quickSearch": 1,
+      "filter": 1
+    }
+  ]
+}
