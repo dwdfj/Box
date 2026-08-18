@@ -125,6 +125,7 @@ public class SearchActivity extends BaseActivity {
     // 小贾影视仓: 搜索结果按来源分组(左侧渠道列表)
     private TvRecyclerView mSearchSourceList = null;
     private SearchSourceAdapter sourceAdapter = null;
+    private LinearLayout llSearchPanel = null;
     private final java.util.LinkedHashMap<String, java.util.ArrayList<Movie.Video>> searchResultMap = new java.util.LinkedHashMap<>();
     private final java.util.LinkedHashMap<String, String> sourceKeyByName = new java.util.LinkedHashMap<>();
     private String currentFilterKey = null;
@@ -290,6 +291,7 @@ public class SearchActivity extends BaseActivity {
         });
         // 小贾影视仓: 搜索结果来源渠道列表(左侧)
         mSearchSourceList = findViewById(R.id.mSearchSourceList);
+        llSearchPanel = findViewById(R.id.llSearchPanel);
         sourceAdapter = new SearchSourceAdapter();
         mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         mSearchSourceList.setAdapter(sourceAdapter);
@@ -742,6 +744,8 @@ public class SearchActivity extends BaseActivity {
             mSearchSourceList.setVisibility(View.GONE);
             if (sourceAdapter != null) sourceAdapter.setNewData(new ArrayList<>());
         }
+        // 小贾影视仓: 重新搜索时恢复搜索面板
+        if (llSearchPanel != null) llSearchPanel.setVisibility(View.VISIBLE);
         refreshSearchHistory(title);
         searchResult();
     }
@@ -821,6 +825,8 @@ public class SearchActivity extends BaseActivity {
             tv_history.setVisibility(View.GONE);
             searchTips.setVisibility(View.GONE);
             llWord.setVisibility(View.GONE);
+            // 小贾影视仓: 有结果后隐藏左侧搜索面板, 给结果腾空间
+            if (llSearchPanel != null) llSearchPanel.setVisibility(View.GONE);
             mGridView.setVisibility(View.VISIBLE);
             updateSourceList();
             if (mSearchSourceList != null && !sourceAdapter.getData().isEmpty()) {
@@ -846,7 +852,13 @@ public class SearchActivity extends BaseActivity {
         sourceKeyByName.clear();
         for (String sk : searchResultMap.keySet()) {
             int n = searchResultMap.get(sk).size();
-            String display = sk + " (" + n + ")";
+            // 小贾影视仓: 渠道显示中文源名
+            String display = sk;
+            SourceBean sb = ApiConfig.get().getSource(sk);
+            if (sb != null && sb.getName() != null && !sb.getName().isEmpty()) {
+                display = sb.getName();
+            }
+            display = display + " (" + n + ")";
             sourceKeyByName.put(display, sk);
             names.add(display);
         }
