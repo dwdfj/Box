@@ -138,10 +138,21 @@ public class ApiConfig {
         return "".getBytes();
     }
 
+    // 小贾影视仓: 默认线路(图片/失效)加载失败时自动回退的内置可用 JSON 线路, 保证首页一定能出来
+    private static final String[] FALLBACK_LINES = new String[]{
+            "https://9280.kstore.vip/newwex.json",
+            "https://api.hgyx.vip/hgyx.json",
+            "https://zhangqun1818.serv00.net/zq/api.json"
+    };
+
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
-        // Embedded Source : Update in Strings.xml if required
         String apiUrl = Hawk.get(HawkConfig.API_URL, HomeActivity.getRes().getString(R.string.app_source));
-        if (apiUrl.isEmpty()) {
+        loadConfigUrl(useCache, apiUrl, callback, activity, false);
+    }
+
+    private void loadConfigUrl(boolean useCache, String apiUrl, LoadConfigCallback callback, Activity activity, boolean isFallback) {
+        // Embedded Source : Update in Strings.xml if required
+        if (apiUrl == null || apiUrl.isEmpty()) {
             callback.error("源地址为空");
             return;
         }
@@ -200,6 +211,16 @@ public class ApiConfig {
                             callback.success();
                         } catch (Throwable th) {
                             th.printStackTrace();
+                            // 小贾影视仓: 默认线路解析失败(如图片配置 itv666.webp), 同样回退到可用 JSON 线路
+                            if (!isFallback) {
+                                String def = "";
+                                if (HomeActivity.getRes() != null)
+                                    def = HomeActivity.getRes().getString(R.string.app_source);
+                                if (apiUrl.equals(def)) {
+                                    tryFallback(0, useCache, callback, activity);
+                                    return;
+                                }
+                            }
                             callback.error("解析配置失败");
                         }
                     }
@@ -214,6 +235,16 @@ public class ApiConfig {
                                 return;
                             } catch (Throwable th) {
                                 th.printStackTrace();
+                            }
+                        }
+                        // 小贾影视仓: 默认线路(图片/失效)加载失败时, 自动回退到可用的 JSON 线路, 保证首页一定能出来
+                        if (!isFallback) {
+                            String def = "";
+                            if (HomeActivity.getRes() != null)
+                                def = HomeActivity.getRes().getString(R.string.app_source);
+                            if (apiUrl.equals(def)) {
+                                tryFallback(0, useCache, callback, activity);
+                                return;
                             }
                         }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));
@@ -233,6 +264,32 @@ public class ApiConfig {
                         return result;
                     }
                 });
+    }
+
+    // 小贾影视仓: 依次尝试回退线路; 成功则把生效线路记为当前 API_URL(标题与内容一致), 全部失败才报错
+    private void tryFallback(int index, boolean useCache, LoadConfigCallback callback, Activity activity) {
+        if (index >= FALLBACK_LINES.length) {
+            callback.error("所有内置线路均加载失败，请检查网络或切换其它线路");
+            return;
+        }
+        final String fb = FALLBACK_LINES[index];
+        loadConfigUrl(useCache, fb, new LoadConfigCallback() {
+            @Override
+            public void success() {
+                Hawk.put(HawkConfig.API_URL, fb);
+                callback.success();
+            }
+
+            @Override
+            public void retry() {
+                callback.retry();
+            }
+
+            @Override
+            public void error(String msg) {
+                tryFallback(index + 1, useCache, callback, activity);
+            }
+        }, activity, true);
     }
 
     public void loadJar(boolean useCache, String spider, LoadConfigCallback callback) {
@@ -349,6 +406,8 @@ public class ApiConfig {
         // 小贾影视仓: 切换线路时清空旧站点, 防止多个线路的站点累积混在一起
         sourceBeanList.clear();
 //        pyLoader.setConfig(jsonStr);
+        // 小贾影视仓: 去掉配置里的 // 与 /* */ 注释(不少源如 hgyx 带注释), 否则 Gson 解析直接失败
+        jsonStr = stripJsonComments(jsonStr);
         JsonObject infoJson = new Gson().fromJson(jsonStr, JsonObject.class);
         jarCache = DefaultConfig.safeJsonString(infoJson, "jarCache", "true");
         // spider
@@ -388,11 +447,13 @@ public class ApiConfig {
             sourceBeanList.put(siteKey, sb);
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
-            // 小贾影视仓: 线路变化时清空旧引擎缓存, 修复切换线路后搜索无结果
+            // 小贾影视仓: 切换线路时只清空"按站点key缓存的 spider 实例"(clearSpiderCache),
+            // 保留已加载的 jar(classLoader)。这样既不会因复用旧线路同名站点的 stale spider 而搜索无结果,
+            // 又不必重新下载/重dex jar —— 解决"切线路慢"与"首页加载不出来/推荐消失"。
             boolean lineChanged = !apiUrl.equals(lastApiUrl);
             lastApiUrl = apiUrl;
             if (lineChanged) {
-                clearJarLoader();
+                jarLoader.clearSpiderCache();
             }
             // 小贾影视仓: 首页推荐源优先固定为"豆瓣"类站点(不随线路变化), 避免切换线路后推荐消失
             String home = Hawk.get(HawkConfig.HOME_API, "");
@@ -681,6 +742,43 @@ public class ApiConfig {
                 ijkCodes.get(0).selected(true);
             }
         }
+    }
+
+    // 小贾影视仓: 安全地去掉 JSON 里的 // 行注释 与 /* */ 块注释, 但保留字符串内的 // (如 http://)
+    private static String stripJsonComments(String json) {
+        if (json == null) return null;
+        StringBuilder out = new StringBuilder();
+        boolean inString = false;
+        boolean inLine = false;
+        boolean inBlock = false;
+        char prev = 0;
+        int n = json.length();
+        for (int i = 0; i < n; i++) {
+            char c = json.charAt(i);
+            if (inLine) {
+                if (c == '\n') { inLine = false; out.append(c); }
+                prev = c;
+                continue;
+            }
+            if (inBlock) {
+                if (c == '/' && prev == '*') inBlock = false;
+                prev = c;
+                continue;
+            }
+            if (c == '"' && prev != '\\') {
+                inString = !inString;
+                out.append(c);
+                prev = c;
+                continue;
+            }
+            if (!inString) {
+                if (c == '/' && i + 1 < n && json.charAt(i + 1) == '/') { inLine = true; prev = c; continue; }
+                if (c == '/' && i + 1 < n && json.charAt(i + 1) == '*') { inBlock = true; prev = c; continue; }
+            }
+            out.append(c);
+            prev = c;
+        }
+        return out.toString();
     }
 
     private void putLiveHistory(String url) {
