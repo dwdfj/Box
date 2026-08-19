@@ -366,13 +366,12 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         if (globalWp != null) {
             getWindow().setBackgroundDrawable(globalWp);
         } else {
-            // 小贾影视仓: 默认使用内置壁纸(压暗, 白字清晰)
-            Bitmap bmp = BitmapFactory.decodeResource(getResources(), R.drawable.home_wallpaper);
-            if (bmp != null) {
-                getWindow().setBackgroundDrawable(new BitmapDrawable(getResources(), darkenWallpaper(bmp)));
-            } else {
-                getWindow().setBackgroundDrawableResource(R.drawable.app_bg);
-            }
+            // 小贾影视仓: 取消内置壁纸, 不再加载 home_wallpaper 图片, 改用主题纯色背景(不黑屏)
+            android.util.TypedValue tv = new android.util.TypedValue();
+            getTheme().resolveAttribute(R.attr.color_theme, tv, true);
+            int themeColor = (tv.resourceId != 0) ? tv.data : android.graphics.Color.BLACK;
+            globalWp = new android.graphics.drawable.ColorDrawable(themeColor);
+            getWindow().setBackgroundDrawable(globalWp);
         }
     }
 }
