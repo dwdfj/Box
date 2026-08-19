@@ -139,10 +139,11 @@ public class ApiConfig {
     }
 
     // 小贾影视仓: 默认线路(图片/失效)加载失败时自动回退的内置可用 JSON 线路, 保证首页一定能出来
+    // 顺序按"资源多少"排: newwex(88站,资源全) > 张群(19站) > HGYX(资源少,垫底)
     private static final String[] FALLBACK_LINES = new String[]{
             "https://9280.kstore.vip/newwex.json",
-            "https://api.hgyx.vip/hgyx.json",
-            "https://zhangqun1818.serv00.net/zq/api.json"
+            "https://zhangqun1818.serv00.net/zq/api.json",
+            "https://api.hgyx.vip/hgyx.json"
     };
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
