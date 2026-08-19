@@ -255,7 +255,17 @@ public class ApiConfig {
                         if (response.body() == null) {
                             result = "";
                         } else {
-                            result = FindResult(response.body().string(), configKey);
+                            byte[] raw = response.body().bytes();
+                            // 小贾影视仓: 支持图片配置(如 itv666.cc/aowu/config.webp 把 base64 配置藏在图片后面)
+                            if (isImageConfig(raw)) {
+                                String imgCfg = extractImageConfig(raw);
+                                if (imgCfg != null && !imgCfg.isEmpty()) {
+                                    result = fixContentPath(apiUrl, imgCfg);
+                                    return result;
+                                }
+                            }
+                            String text = new String(raw, "UTF-8");
+                            result = FindResult(text, configKey);
                         }
                         if (apiUrl.startsWith("clan")) {
                             result = clanContentFix(clanToAddress(apiUrl), result);
@@ -779,6 +789,50 @@ public class ApiConfig {
             prev = c;
         }
         return out.toString();
+    }
+
+    // 小贾影视仓: 判断响应字节是否为图片配置(图片二进制后面藏了 base64 编码的 JSON 配置)
+    private static boolean isImageConfig(byte[] raw) {
+        if (raw == null || raw.length < 8) return false;
+        // PNG
+        if (raw[0] == (byte) 0x89 && raw[1] == 0x50 && raw[2] == 0x4E && raw[3] == 0x47) return true;
+        // JPEG
+        if (raw[0] == (byte) 0xFF && raw[1] == (byte) 0xD8 && raw[2] == (byte) 0xFF) return true;
+        // GIF
+        if (raw[0] == 0x47 && raw[1] == 0x49 && raw[2] == 0x46) return true;
+        // BMP
+        if (raw[0] == 0x42 && raw[1] == 0x4D) return true;
+        // WEBP (RIFF....WEBP)
+        if (raw[0] == 0x52 && raw[1] == 0x49 && raw[2] == 0x46 && raw[3] == 0x46
+                && raw[4] == 0x57 && raw[5] == 0x45 && raw[6] == 0x42 && raw[7] == 0x50) return true;
+        return false;
+    }
+
+    // 小贾影视仓: 从图片字节里提取藏在后面的 base64 配置(取最长 base64 串并尝试解码为合法 JSON)
+    private static String extractImageConfig(byte[] raw) {
+        try {
+            // 图片二进制用 Latin1 映射, base64 字符(ASCII)1:1 保留, 二进制高位字节不会误命中
+            String s = new String(raw, "ISO-8859-1");
+            Pattern p = Pattern.compile("[A-Za-z0-9+/]{40,}={0,2}");
+            Matcher m = p.matcher(s);
+            List<String> runs = new ArrayList<>();
+            while (m.find()) runs.add(m.group());
+            // 长度降序, 优先尝试最长的一段(图片本体为压缩数据, 几乎不会出现这么长的连续 base64)
+            runs.sort((a, b) -> Integer.compare(b.length(), a.length()));
+            for (String cand : runs) {
+                try {
+                    byte[] dec = Base64.decode(cand, Base64.DEFAULT);
+                    String json = new String(dec, "UTF-8");
+                    String t = json.trim();
+                    if (t.startsWith("{") && (t.contains("\"sites\"") || t.contains("\"spider\"") || t.contains("\"video\""))) {
+                        return json;
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private void putLiveHistory(String url) {
