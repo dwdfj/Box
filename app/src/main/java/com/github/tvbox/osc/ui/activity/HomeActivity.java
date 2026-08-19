@@ -366,16 +366,18 @@ public class HomeActivity extends BaseActivity {
                 FastClickCheckUtil.check(v);
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                // 小贾影视仓: 预置线路(名称, 地址)
+                // 小贾影视仓: 预置线路(名称, 地址) —— 与 播放源.txt 对齐, itv666 默认排第一
                 String[][] presetLines = new String[][]{
-                        {"瓜子·HGYX", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/hgyx.json"},
-                        {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
-                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                        {"itv666·嗷呜", "http://itv666.cc/aowu/config.webp"},
+                        {"潇洒·ONE", "https://9877.kstore.space/ONE/one.json"},
+                        {"日后", "http://rihou.cc:88/demo.php"},
+                        {"饭太硬", "http://www.饭太硬.art/tv"},
                         {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
-                        {"肥猫", "http://肥猫.net/tv"},
-                        {"潇洒", "https://9877.kstore.space/one.json"},
-                        {"南风", "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json"},
-                        {"汇总·含直播", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"}
+                        {"王二小", "http://tvbox.王二小放牛娃.top/"},
+                        {"小不点", "http://www.小不点.com"},
+                        {"JK·catvod", "https://jk.catvod.site/"},
+                        {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"}
                 };
                 // 显示名 -> 地址
                 final java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
@@ -1000,14 +1002,16 @@ public class HomeActivity extends BaseActivity {
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
-                {"瓜子·HGYX", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/hgyx.json"},
-                {"嗷呜·87站", "https://9763.kstore.vip/aowu.json"},
-                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"itv666·嗷呜", "http://itv666.cc/aowu/config.webp"},
+                {"潇洒·ONE", "https://9877.kstore.space/ONE/one.json"},
+                {"日后", "http://rihou.cc:88/demo.php"},
+                {"饭太硬", "http://www.饭太硬.art/tv"},
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
-                {"肥猫", "http://肥猫.net/tv"},
-                {"潇洒", "https://9877.kstore.space/one.json"},
-                {"南风", "https://gh-proxy.com/https://raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json"},
-                {"汇总·含直播", "https://a9828bdfc5df47239936c04f6cd73104.app.workbuddy.link/xiaojia_providers.json"}
+                {"王二小", "http://tvbox.王二小放牛娃.top/"},
+                {"小不点", "http://www.小不点.com"},
+                {"JK·catvod", "https://jk.catvod.site/"},
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"}
         };
         for (String[] p : presetLines) {
             if (url.equals(p[1])) return p[0];
