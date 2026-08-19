@@ -317,7 +317,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         return themeColor;
     }
 
-    protected static BitmapDrawable globalWp = null;
+    protected static android.graphics.drawable.Drawable globalWp = null;
 
     // 小贾影视仓: 壁纸压暗, 让白色文字清晰
     private static Bitmap darkenWallpaper(Bitmap src) {
@@ -369,7 +369,12 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             // 小贾影视仓: 取消内置壁纸, 不再加载 home_wallpaper 图片, 改用主题纯色背景(不黑屏)
             android.util.TypedValue tv = new android.util.TypedValue();
             getTheme().resolveAttribute(R.attr.color_theme, tv, true);
-            int themeColor = (tv.resourceId != 0) ? tv.data : android.graphics.Color.BLACK;
+            int themeColor;
+            if (tv.resourceId != 0) {
+                themeColor = getResources().getColor(tv.resourceId);
+            } else {
+                themeColor = tv.data;
+            }
             globalWp = new android.graphics.drawable.ColorDrawable(themeColor);
             getWindow().setBackgroundDrawable(globalWp);
         }
