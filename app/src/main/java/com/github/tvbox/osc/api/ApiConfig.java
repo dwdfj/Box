@@ -428,7 +428,9 @@ public class ApiConfig {
         // 直播播放请求头
         livePlayHeaders = infoJson.getAsJsonArray("livePlayHeaders");
         // 远端站点源
+        // 小贾影视仓: 额外记录"第一个非 meta 的内容站", 避免兜底时把公告/配置站当首页(导致"推荐消失")
         SourceBean firstSite = null;
+        SourceBean firstContentSite = null;
         JsonArray sites = infoJson.has("video") ? infoJson.getAsJsonObject("video").getAsJsonArray("sites") : infoJson.get("sites").getAsJsonArray();
         for (JsonElement opt : sites) {
             JsonObject obj = (JsonObject) opt;
@@ -455,6 +457,9 @@ public class ApiConfig {
             sb.setStyle(DefaultConfig.safeJsonString(obj, "style", ""));
             if (firstSite == null && sb.getHide() == 0)
                 firstSite = sb;
+            // 小贾影视仓: 记录第一个非 meta 的内容站, 供首页兜底
+            if (firstContentSite == null && sb.getHide() == 0 && !isMetaSite(sb))
+                firstContentSite = sb;
             sourceBeanList.put(siteKey, sb);
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
@@ -477,7 +482,8 @@ public class ApiConfig {
                         break;
                     }
                 }
-                if (sh == null) sh = firstSite;
+                // 小贾影视仓: 优先第一个非 meta 内容站, 都没有才退到 firstSite(避免显示"🐮配置中心"等公告)
+                if (sh == null) sh = firstContentSite != null ? firstContentSite : firstSite;
             }
             setSourceBean(sh);
         }
@@ -834,6 +840,18 @@ public class ApiConfig {
         } catch (Throwable ignored) {
         }
         return null;
+    }
+
+    // 小贾影视仓: 判断是否为 meta 公告/配置/网盘等非内容站(避免被当首页导致"推荐消失")
+    private static boolean isMetaSite(SourceBean sb) {
+        if (sb == null) return true;
+        String n = sb.getName();
+        if (n == null || n.isEmpty()) return true;
+        String[] metaKw = {"配置中心", "配置┃", "设置", "网盘", "盘搜", "公告", "指南", "扫码", "导航", "我的网盘", "更新日期", "声明"};
+        for (String k : metaKw) if (n.contains(k)) return true;
+        // 牛二/王二小系列公告站 "🐮【...】" "⬇️【...】"
+        if (n.startsWith("🐮【") || n.startsWith("⬇️【")) return true;
+        return false;
     }
 
     private void putLiveHistory(String url) {
