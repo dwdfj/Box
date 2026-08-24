@@ -121,7 +121,7 @@ public class ImgUtil {
     }
 
     public static void load(String url, ImageView view, int roundingRadius, int newWidth, int newHeight) {
-        view.setScaleType(ImageView.ScaleType.CENTER);
+        // 小贾影视仓: 删除 setScaleType(CENTER) 防止搜索封面在加载前后缩放跳变("闪烁跳动"根因)
         if (TextUtils.isEmpty(url)) {
             view.setImageResource(R.drawable.img_loading_placeholder);
         } else {
@@ -264,7 +264,7 @@ public class ImgUtil {
 
             @Override
             public boolean onResourceReady(Bitmap resource, Object model, Target < Bitmap > target, DataSource dataSource, boolean isFirstResource) {
-                view.setScaleType(scaleType);
+                // 小贾影视仓: 不再 setScaleType(scaleType), 保持 XML 的 FIT_XY, 避免封面缩放跳
                 return false;
             }
         };
