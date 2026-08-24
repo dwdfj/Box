@@ -1025,7 +1025,7 @@ public class HomeActivity extends BaseActivity {
                     initData();
                 });
             }
-        });
+        }, this);
     }
 
     // 小贾影视仓: 根据线路地址返回显示名称
