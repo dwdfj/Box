@@ -295,7 +295,7 @@ public class HomeActivity extends BaseActivity {
         tvName.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                reloadHome();
+                reloadHomeFresh();
                 return true;
             }
         });
@@ -366,18 +366,20 @@ public class HomeActivity extends BaseActivity {
                 FastClickCheckUtil.check(v);
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                // 小贾影视仓: 预置线路(名称, 地址) —— 与 播放源.txt 对齐, itv666 默认排第一
+                // 小贾影视仓: 预置线路(名称, 地址) —— 2026-08-24 v13 筛选
+                // 新增: 牛二凯速(wex)、安卓三代(aiwex)、饭太硬.net镜像、魔力云播(cat)
+                // 剔除: 潇洒(9877/ONE 404)、王二小(HTML)、小不点(HTML)、JK·catvod(HTML)
                 String[][] presetLines = new String[][]{
-                        {"itv666·嗷呜", "http://itv666.cc/aowu/config.webp"},
-                        {"潇洒·ONE", "https://9877.kstore.space/ONE/one.json"},
-                        {"日后", "http://rihou.cc:88/demo.php"},
-                        {"饭太硬", "http://www.饭太硬.art/tv"},
+                        {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                        {"饭太硬·主", "http://www.饭太硬.art/tv"},
+                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                        {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
+                        {"牛二·凯速", "https://9280.kstore.vip/wex.json"},
                         {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
-                        {"王二小", "http://tvbox.王二小放牛娃.top/"},
-                        {"小不点", "http://www.小不点.com"},
-                        {"JK·catvod", "https://jk.catvod.site/"},
+                        {"日后", "http://rihou.cc:88/demo.php"},
+                        {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
                         {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
-                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"}
+                        {"魔力云播·cat", "https://9280.kstore.vip/cat/index.js.md5"}
                 };
                 // 显示名 -> 地址
                 final java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
@@ -410,8 +412,7 @@ public class HomeActivity extends BaseActivity {
                                     Hawk.put(HawkConfig.API_HISTORY, hist);
                                     Hawk.put(HawkConfig.API_URL, url);
                                     Toast.makeText(HomeActivity.this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
-                                    // 小贾影视仓: 重置首页源, 让新线路显示自己的推荐/分类
-                                    Hawk.put(HawkConfig.HOME_API, "");
+                                    // 小贾影视仓: 不再清空 HOME_API(让"豆瓣"推荐跨线路固定), parseJson 兜底选第一个非 meta 内容站
                                     reloadHome();
                                 }
                             }
@@ -431,8 +432,7 @@ public class HomeActivity extends BaseActivity {
                     @Override
                     public void onchange(String api) {
                         Hawk.put(HawkConfig.API_URL, api);
-                        // 小贾影视仓: 切换接口时也重置首页源
-                        Hawk.put(HawkConfig.HOME_API, "");
+                        // 小贾影视仓: 不再清空 HOME_API(让"豆瓣"推荐跨线路固定), parseJson 兜底选第一个非 meta 内容站
                     }
                 });
                 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
@@ -989,29 +989,59 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
+    // 小贾影视仓: in-place 重载(不重启 Activity), useCache=true 让配置从磁盘秒读, 切线路接近秒切且无闪屏
     void reloadHome() {
-        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        Bundle bundle = new Bundle();
-        bundle.putBoolean("useCache", false);   // 小贾影视仓: 强制重新拉取线路配置
-        intent.putExtras(bundle);
-        HomeActivity.this.startActivity(intent);
+        doReloadInPlace(true);
+    }
+
+    // 小贾影视仓: 强制从网络重拉(忽略磁盘缓存), 用于长按标题"刷新"
+    void reloadHomeFresh() {
+        doReloadInPlace(false);
+    }
+
+    private void doReloadInPlace(boolean useCache) {
+        dataInitOk = false;
+        jarInitOk = false;
+        skipNextUpdate = false;
+        tvNameAnimation();
+        showLoading();
+        ApiConfig.get().loadConfig(useCache, new ApiConfig.LoadConfigCallback() {
+            @Override
+            public void retry() {
+                mHandler.post(() -> initData());
+            }
+            @Override
+            public void success() {
+                dataInitOk = true;
+                if (ApiConfig.get().getSpider().isEmpty()) jarInitOk = true;
+                mHandler.postDelayed(() -> initData(), 50);
+            }
+            @Override
+            public void error(String msg) {
+                mHandler.post(() -> {
+                    showSuccess();
+                    if (msg != null && !msg.isEmpty())
+                        Toast.makeText(HomeActivity.this, msg, Toast.LENGTH_SHORT).show();
+                    initData();
+                });
+            }
+        });
     }
 
     // 小贾影视仓: 根据线路地址返回显示名称
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
-                {"itv666·嗷呜", "http://itv666.cc/aowu/config.webp"},
-                {"潇洒·ONE", "https://9877.kstore.space/ONE/one.json"},
-                {"日后", "http://rihou.cc:88/demo.php"},
-                {"饭太硬", "http://www.饭太硬.art/tv"},
+                {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                {"饭太硬·主", "http://www.饭太硬.art/tv"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
+                {"牛二·凯速", "https://9280.kstore.vip/wex.json"},
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
-                {"王二小", "http://tvbox.王二小放牛娃.top/"},
-                {"小不点", "http://www.小不点.com"},
-                {"JK·catvod", "https://jk.catvod.site/"},
+                {"日后", "http://rihou.cc:88/demo.php"},
+                {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
                 {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
-                {"kstore·88站", "https://9280.kstore.vip/newwex.json"}
+                {"魔力云播·cat", "https://9280.kstore.vip/cat/index.js.md5"}
         };
         for (String[] p : presetLines) {
             if (url.equals(p[1])) return p[0];
