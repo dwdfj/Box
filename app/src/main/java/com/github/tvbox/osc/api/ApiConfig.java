@@ -66,6 +66,10 @@ public class ApiConfig {
     private final LinkedHashMap<String, SourceBean> sourceBeanList;
     private SourceBean mHomeSource;
     private String lastApiUrl = "";   // 小贾影视仓: 记录上次加载的线路, 用于切换线路时重置首页源
+    // 小贾影视仓: 参考豆瓣(首页推荐"锁死豆瓣"用)——从任一含豆瓣的线路捕获, 供无豆瓣的线路注入
+    private static final String HAWK_REF_DOUBAN = "xiaojia_ref_douban";
+    private SourceBean referenceDouban = null;
+    private String referenceDoubanSpider = "";
     private ParseBean mDefaultParse;
     private final List<LiveChannelGroup> liveChannelGroupList;
     private final List<ParseBean> parseBeanList;
@@ -147,6 +151,8 @@ public class ApiConfig {
     };
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
+        // 小贾影视仓: 加载参考豆瓣(首页锁死豆瓣用)
+        loadReferenceDouban();
         String apiUrl = Hawk.get(HawkConfig.API_URL, HomeActivity.getRes().getString(R.string.app_source));
         loadConfigUrl(useCache, apiUrl, callback, activity, false);
     }
@@ -156,6 +162,25 @@ public class ApiConfig {
         if (apiUrl == null || apiUrl.isEmpty()) {
             callback.error("源地址为空");
             return;
+        }
+        // 小贾影视仓: 支持本地接口包(file:// 前缀 或 存在的本地文件路径), 方便本地调试/离线使用
+        if (apiUrl.startsWith("file://") || apiUrl.startsWith("/") || apiUrl.matches("^[a-zA-Z]:[\\\\/].*")) {
+            try {
+                String path = apiUrl.startsWith("file://") ? apiUrl.substring("file://".length()) : apiUrl;
+                java.io.File lf = new java.io.File(path);
+                if (lf.exists()) {
+                    parseJson(apiUrl, lf);
+                    callback.success();
+                    return;
+                } else {
+                    callback.error("本地配置不存在: " + path);
+                    return;
+                }
+            } catch (Throwable th) {
+                th.printStackTrace();
+                callback.error("解析本地配置失败");
+                return;
+            }
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/" + MD5.encode(apiUrl));
         if (useCache && cache.exists()) {
@@ -471,18 +496,38 @@ public class ApiConfig {
             if (lineChanged) {
                 jarLoader.clearSpiderCache();
             }
-            // 小贾影视仓: 首页推荐源优先固定为"豆瓣"类站点(不随线路变化), 避免切换线路后推荐消失
+            // 小贾影视仓: 首页推荐"锁死豆瓣"——优先线路自带豆瓣; 线路没有豆瓣则注入参考豆瓣(自带其全局jar, 自包含可用)
             String home = Hawk.get(HawkConfig.HOME_API, "");
             SourceBean sh = getSource(home);
-            if (sh == null || sh.getHide() == 1) {
+            if (sh == null || sh.getHide() == 1 || !isDouban(sh)) {
                 sh = null;
+                // 1) 找当前线路自己的豆瓣站
                 for (SourceBean sb : sourceBeanList.values()) {
-                    if (sb.getName() != null && sb.getName().contains("豆瓣")) {
+                    if (isDouban(sb)) {
                         sh = sb;
                         break;
                     }
                 }
-                // 小贾影视仓: 优先第一个非 meta 内容站, 都没有才退到 firstSite(避免显示"🐮配置中心"等公告)
+                // 2) 找到则记作参考(含当前线路全局spider, 供以后注入)
+                if (sh != null) {
+                    saveReferenceDouban(sh);
+                } else {
+                    // 3) 线路没有豆瓣 → 注入参考豆瓣(带jar=参考线路全局spider, 不依赖本线路main jar)
+                    if (referenceDouban != null) {
+                        SourceBean inj = new SourceBean();
+                        inj.setKey("__xiaojia_douban");
+                        inj.setName(referenceDouban.getName() + "·推荐");
+                        inj.setType(referenceDouban.getType());
+                        inj.setApi(referenceDouban.getApi());
+                        inj.setExt(referenceDouban.getExt());
+                        inj.setJar(referenceDoubanSpider);
+                        inj.setSearchable(0);
+                        inj.setQuickSearch(0);
+                        sourceBeanList.put(inj.getKey(), inj);
+                        sh = inj;
+                    }
+                }
+                // 4) 实在没有 → 第一个非 meta 内容站(避免"🐮配置中心"等公告站)
                 if (sh == null) sh = firstContentSite != null ? firstContentSite : firstSite;
             }
             setSourceBean(sh);
@@ -852,6 +897,45 @@ public class ApiConfig {
         // 牛二/王二小系列公告站 "🐮【...】" "⬇️【...】"
         if (n.startsWith("🐮【") || n.startsWith("⬇️【")) return true;
         return false;
+    }
+
+    // 小贾影视仓: 判断站点是否为"豆瓣"类(名字含豆瓣 或 key 含 douban)
+    private static boolean isDouban(SourceBean sb) {
+        if (sb == null) return false;
+        String n = sb.getName();
+        String k = sb.getKey();
+        if (n != null && n.contains("豆瓣")) return true;
+        if (k != null && k.toLowerCase().contains("douban")) return true;
+        return false;
+    }
+
+    // 小贾影视仓: 从 Hawk 恢复参考豆瓣(首页"锁死豆瓣"用)
+    private void loadReferenceDouban() {
+        try {
+            String json = Hawk.get(HAWK_REF_DOUBAN, "");
+            if (json != null && !json.isEmpty()) {
+                JsonObject o = new Gson().fromJson(json, JsonObject.class);
+                referenceDouban = new Gson().fromJson(o.getAsJsonObject("site"), SourceBean.class);
+                referenceDoubanSpider = o.has("spider") ? o.get("spider").getAsString() : "";
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    // 小贾影视仓: 记住参考豆瓣 + 它所在线路的全局 spider(注入时作为该豆瓣的jar, 自包含可用)
+    private void saveReferenceDouban(SourceBean site) {
+        if (site == null) return;
+        referenceDouban = site;
+        referenceDoubanSpider = spider == null ? "" : spider;
+        try {
+            JsonObject o = new JsonObject();
+            o.add("site", new Gson().toJsonTree(site));
+            o.addProperty("spider", referenceDoubanSpider);
+            Hawk.put(HAWK_REF_DOUBAN, o.toString());
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     private void putLiveHistory(String url) {
