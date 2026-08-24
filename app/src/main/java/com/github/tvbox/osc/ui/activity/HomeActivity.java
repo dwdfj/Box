@@ -367,8 +367,8 @@ public class HomeActivity extends BaseActivity {
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
                 // 小贾影视仓: 预置线路(名称, 地址) —— 2026-08-24 v13 筛选
-                // 新增: 牛二凯速(wex)、安卓三代(aiwex)、饭太硬.net镜像、魔力云播(cat)
-                // 剔除: 潇洒(9877/ONE 404)、王二小(HTML)、小不点(HTML)、JK·catvod(HTML)
+                // 新增: 牛二凯速(wex)、安卓三代(aiwex)、饭太硬.net镜像
+                // 剔除: 潇洒(9877/ONE 404)、王二小(HTML)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
                 String[][] presetLines = new String[][]{
                         {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
                         {"饭太硬·主", "http://www.饭太硬.art/tv"},
@@ -378,8 +378,7 @@ public class HomeActivity extends BaseActivity {
                         {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                         {"日后", "http://rihou.cc:88/demo.php"},
                         {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
-                        {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
-                        {"魔力云播·cat", "https://9280.kstore.vip/cat/index.js.md5"}
+                        {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
                 };
                 // 显示名 -> 地址
                 final java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
@@ -1040,8 +1039,7 @@ public class HomeActivity extends BaseActivity {
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                 {"日后", "http://rihou.cc:88/demo.php"},
                 {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
-                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
-                {"魔力云播·cat", "https://9280.kstore.vip/cat/index.js.md5"}
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
         };
         for (String[] p : presetLines) {
             if (url.equals(p[1])) return p[0];
