@@ -50,9 +50,13 @@ public class JarLoader {
     // 小贾影视仓: 仅清空"按站点key缓存的 spider 实例", 保留已加载的 jar(classLoader)。
     // 切换线路时调用, 既能让新线路的同名站点拿到正确的 spider(修复搜索无结果),
     // 又不必重新下载/重dex jar(解决切线路慢 + 首页加载不出来)。
+    // ⚠️ 必须同时移除 main classLoader: 各线路的全局 spider(jar) 不同, type=3 站点(api=csp_XXX, jar为空→main)
+    // 若继续用旧线路的 main jar, 新线路的爬虫类找不到 → 首页空白/搜索无结果(需重启才恢复)。
     public void clearSpiderCache() {
         spiders.clear();
         recentJarKey = "";
+        classLoaders.remove("main");
+        proxyMethods.remove("main");
     }
 
     private boolean loadClassLoader(String jar, String key) {
