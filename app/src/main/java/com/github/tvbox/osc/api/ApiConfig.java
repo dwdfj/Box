@@ -263,6 +263,15 @@ public class ApiConfig {
                                 th.printStackTrace();
                             }
                         }
+                        // v15.1: 网络拉取失败且本线路存在已知镜像时, 自动用镜像重拉一次(如 饭太硬.art→.net)。
+                        // 只处理"换域名可救"的网络错误; 镜像地址自身不再命中映射表, 不会死循环。
+                        if (!isFallback && apiUrl != null) {
+                            String mirror = getLineMirror(apiUrl);
+                            if (mirror != null && !mirror.equals(apiUrl)) {
+                                loadConfigUrl(false, mirror, callback, activity, true);
+                                return;
+                            }
+                        }
                         // 小贾影视仓: 默认线路(图片/失效)加载失败时, 自动回退到可用的 JSON 线路, 保证首页一定能出来
                         if (!isFallback) {
                             String def = "";
@@ -300,6 +309,22 @@ public class ApiConfig {
                         return result;
                     }
                 });
+    }
+
+    // 小贾影视仓 v15.1: 线路镜像映射表(域名级防封/容灾)。网络拉取失败时自动换镜像重拉一次。
+    // 镜像地址不会再命中本表(表内不互为镜像), 不会死循环。
+    private static String getLineMirror(String url) {
+        if (url == null) return null;
+        String[][] mirrors = new String[][]{
+                {"http://www.饭太硬.art/tv", "http://www.饭太硬.net/tv"},
+                {"http://饭太硬.art/tv", "http://www.饭太硬.net/tv"},
+                {"https://www.饭太硬.art/tv", "http://www.饭太硬.net/tv"},
+                {"http://www.饭太硬.net/tv", "http://www.饭太硬.art/tv"}
+        };
+        for (String[] m : mirrors) {
+            if (url.equals(m[0])) return m[1];
+        }
+        return null;
     }
 
     // 小贾影视仓: 依次尝试回退线路; 成功则把生效线路记为当前 API_URL(标题与内容一致), 全部失败才报错
@@ -421,12 +446,21 @@ public class ApiConfig {
                         }
                         // v15: 网络拉 jar 失败时, 只有缓存文件 md5 与期望一致(或该 jar 无 md5 要求)才允许顶替。
                         // 否则会把旧线路/损坏的 jar 当 main, 导致新线路所有 type=3 站从错误 jar 找类 → 首页/搜索空白。
+                        // v15.1: 缓存 md5 匹配且能成功 dex 时视为"加载成功"(静默), 不再向 UI 报错 ——
+                        // 修复"jar 网络源不可达但本地缓存完好"时仍弹『拉取失败』、首页起不来的体验问题。
                         if (cache.exists()) {
                             boolean usable;
                             if (md5.isEmpty()) usable = true;
                             else usable = MD5.getFileMd5(cache).equalsIgnoreCase(md5);
                             if (usable) {
-                                try { jarLoader.load(cache.getAbsolutePath()); } catch (Throwable th) { th.printStackTrace(); }
+                                try {
+                                    if (jarLoader.load(cache.getAbsolutePath())) {
+                                        callback.success();
+                                        return;
+                                    }
+                                } catch (Throwable th) {
+                                    th.printStackTrace();
+                                }
                             }
                         }
                         callback.error(ex != null ? "从网络上加载jar失败：" + ex.getMessage() : "未知网络错误");
@@ -978,8 +1012,12 @@ public class ApiConfig {
     }
 
     // 小贾影视仓: 记住参考豆瓣 + 它所在线路的全局 spider(注入时作为该豆瓣的jar, 自包含可用)
+    // v15.1: 只在"还没有参考"时记录 —— 避免参考被后续大 jar 线路(肥猫 900KB/饭太硬 1.1MB)反复覆盖,
+    // 导致跨线路注入时每次都要重新下载一个巨大的参考 jar(首页因此多等数秒)。首个含豆瓣的线路通常
+    // 就是轻量的 itv666(22KB jar), 锁定它即可让注入站始终复用同一份已缓存 jar。
     private void saveReferenceDouban(SourceBean site) {
         if (site == null) return;
+        if (referenceDouban != null) return;
         referenceDouban = site;
         referenceDoubanSpider = spider == null ? "" : spider;
         try {
