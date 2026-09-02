@@ -419,7 +419,16 @@ public class ApiConfig {
                         if (ex != null) {
                             LOG.i("echo---jar Request failed: " + ex.getMessage());
                         }
-                        if(cache.exists())jarLoader.load(cache.getAbsolutePath());
+                        // v15: 网络拉 jar 失败时, 只有缓存文件 md5 与期望一致(或该 jar 无 md5 要求)才允许顶替。
+                        // 否则会把旧线路/损坏的 jar 当 main, 导致新线路所有 type=3 站从错误 jar 找类 → 首页/搜索空白。
+                        if (cache.exists()) {
+                            boolean usable;
+                            if (md5.isEmpty()) usable = true;
+                            else usable = MD5.getFileMd5(cache).equalsIgnoreCase(md5);
+                            if (usable) {
+                                try { jarLoader.load(cache.getAbsolutePath()); } catch (Throwable th) { th.printStackTrace(); }
+                            }
+                        }
                         callback.error(ex != null ? "从网络上加载jar失败：" + ex.getMessage() : "未知网络错误");
                     }
                 });
@@ -458,13 +467,29 @@ public class ApiConfig {
         SourceBean firstContentSite = null;
         JsonArray sites = infoJson.has("video") ? infoJson.getAsJsonObject("video").getAsJsonArray("sites") : infoJson.get("sites").getAsJsonArray();
         for (JsonElement opt : sites) {
-            JsonObject obj = (JsonObject) opt;
+            JsonObject obj;
+            try {
+                obj = (JsonObject) opt;
+            } catch (Throwable ignored) {
+                continue;
+            }
+            // 小贾影视仓: 畸形/缺字段的站点直接跳过, 绝不让单站拖垮整份配置(部分线路如饭太硬手写配置偶尔缺字段)
+            String siteKey, siteApi;
+            int siteType;
+            try {
+                if (!obj.has("key") || obj.get("key").isJsonNull()) continue;
+                siteKey = obj.get("key").getAsString().trim();
+                if (siteKey.isEmpty()) continue;
+                siteApi = obj.has("api") && !obj.get("api").isJsonNull() ? obj.get("api").getAsString().trim() : "";
+                siteType = obj.has("type") && !obj.get("type").isJsonNull() ? obj.get("type").getAsInt() : 0;
+            } catch (Throwable ignored) {
+                continue;
+            }
             SourceBean sb = new SourceBean();
-            String siteKey = obj.get("key").getAsString().trim();
             sb.setKey(siteKey);
-            sb.setName(obj.has("name")?obj.get("name").getAsString().trim():siteKey);
-            sb.setType(obj.get("type").getAsInt());
-            sb.setApi(obj.get("api").getAsString().trim());
+            sb.setName(obj.has("name") && !obj.get("name").isJsonNull() ? obj.get("name").getAsString().trim() : siteKey);
+            sb.setType(siteType);
+            sb.setApi(siteApi);
             sb.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
             sb.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
             if(siteKey.startsWith("py_")){
@@ -495,6 +520,9 @@ public class ApiConfig {
             lastApiUrl = apiUrl;
             if (lineChanged) {
                 jarLoader.clearSpiderCache();
+                // 小贾影视仓 v15: JS 爬虫实例也按 key 缓存, 切线路后同 key 的 JS 站会拿到旧线路爬虫,
+                // 必须一并清掉, 否则该站首页/搜索仍是旧线路逻辑(表现为"切线路后搜索不显示")。
+                try { jsLoader.clear(); } catch (Throwable ignored) { }
             }
             // 小贾影视仓: 首页推荐"锁死豆瓣"——优先线路自带豆瓣; 线路没有豆瓣则注入参考豆瓣(自带其全局jar, 自包含可用)
             String home = Hawk.get(HawkConfig.HOME_API, "");
@@ -514,21 +542,47 @@ public class ApiConfig {
                 } else {
                     // 3) 线路没有豆瓣 → 注入参考豆瓣(带jar=参考线路全局spider, 不依赖本线路main jar)
                     if (referenceDouban != null) {
-                        SourceBean inj = new SourceBean();
-                        inj.setKey("__xiaojia_douban");
-                        inj.setName(referenceDouban.getName() + "·推荐");
-                        inj.setType(referenceDouban.getType());
-                        inj.setApi(referenceDouban.getApi());
-                        inj.setExt(referenceDouban.getExt());
-                        inj.setJar(referenceDoubanSpider);
-                        inj.setSearchable(0);
-                        inj.setQuickSearch(0);
-                        sourceBeanList.put(inj.getKey(), inj);
-                        sh = inj;
+                        String refJar = referenceDoubanSpider;
+                        // v15: 参考线路没有全局spider(如纯JSON线路)时, 退而用当前线路的spider; 都没有则注入站无法独立工作, 放弃注入
+                        if (refJar == null || refJar.isEmpty()) refJar = spider == null ? "" : spider;
+                        if (!refJar.isEmpty() && referenceDouban.getApi() != null && !referenceDouban.getApi().isEmpty()) {
+                            SourceBean inj = new SourceBean();
+                            inj.setKey("__xiaojia_douban");
+                            inj.setName(referenceDouban.getName() + "·推荐");
+                            inj.setType(referenceDouban.getType());
+                            inj.setApi(referenceDouban.getApi());
+                            inj.setExt(referenceDouban.getExt());
+                            inj.setJar(refJar);
+                            inj.setSearchable(0);
+                            inj.setQuickSearch(0);
+                            sourceBeanList.put(inj.getKey(), inj);
+                            sh = inj;
+                        }
                     }
                 }
-                // 4) 实在没有 → 第一个非 meta 内容站(避免"🐮配置中心"等公告站)
+                // 4) 实在没有 → 找"可独立工作"的内容站兜底(jar非空 或 非type3, 不依赖可能缺失的main jar), 避免选到必挂的站
+                if (sh == null) {
+                    for (SourceBean sb : sourceBeanList.values()) {
+                        if (sb.getHide() == 0 && !isMetaSite(sb)
+                                && (sb.getJar() != null && !sb.getJar().isEmpty() || sb.getType() != 3)) {
+                            sh = sb;
+                            break;
+                        }
+                    }
+                }
                 if (sh == null) sh = firstContentSite != null ? firstContentSite : firstSite;
+            }
+            // v15: 兜底到的站若是 type3 且 jar 为空(依赖 main), 而本线路又没有全局 spider → 首页必然 SpiderNull 空白
+            // 此时优先换一个可独立工作的站, 保证首页一定有内容
+            if (sh != null && sh.getType() == 3 && (sh.getJar() == null || sh.getJar().isEmpty())
+                    && (spider == null || spider.isEmpty())) {
+                for (SourceBean sb : sourceBeanList.values()) {
+                    if (sb.getHide() == 0 && !isMetaSite(sb) && sb != sh
+                            && (sb.getJar() != null && !sb.getJar().isEmpty() || sb.getType() != 3)) {
+                        sh = sb;
+                        break;
+                    }
+                }
             }
             setSourceBean(sh);
         }
