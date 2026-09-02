@@ -993,42 +993,36 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓: in-place 重载(不重启 Activity), useCache=true 让配置从磁盘秒读, 切线路接近秒切且无闪屏
+    // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
+    // 为什么不再 in-place 重载: fragments 是成员 List 且只在 initViewPager 里 add、从不清理,
+    // HomePageAdapter(FragmentPagerAdapter) 的 destroyItem 只 hide 不 remove → 旧 tab 全部滞留 FragmentManager;
+    // 原地二次 initViewPager 会再 append 一套新 fragment → 页数翻倍、tag 冲突、状态错乱 → 闪退/卡死。
+    // 重启后 Activity/Fragment 全新建造, 从机制上杜绝该问题。useCache=true 时配置走磁盘缓存秒读、
+    // main jar 走 md5 缓存直接 dex, 切换体感仍接近秒切。
     void reloadHome() {
-        doReloadInPlace(true);
+        restartHome(true);
     }
     // 小贾影视仓: 强制从网络重拉(忽略磁盘缓存), 用于长按标题"刷新"
     void reloadHomeFresh() {
-        doReloadInPlace(false);
+        restartHome(false);
     }
 
-    private void doReloadInPlace(boolean useCache) {
-        dataInitOk = false;
-        jarInitOk = false;
-        skipNextUpdate = false;
-        tvNameAnimation();
-        showLoading();
-        ApiConfig.get().loadConfig(useCache, new ApiConfig.LoadConfigCallback() {
-            @Override
-            public void retry() {
-                mHandler.post(() -> initData());
-            }
-            @Override
-            public void success() {
-                dataInitOk = true;
-                if (ApiConfig.get().getSpider().isEmpty()) jarInitOk = true;
-                mHandler.postDelayed(() -> initData(), 50);
-            }
-            @Override
-            public void error(String msg) {
-                mHandler.post(() -> {
-                    showSuccess();
-                    if (msg != null && !msg.isEmpty())
-                        Toast.makeText(HomeActivity.this, msg, Toast.LENGTH_SHORT).show();
-                    initData();
-                });
-            }
-        }, this);
+    private void restartHome(boolean useCache) {
+        try {
+            Intent intent = new Intent(this, HomeActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            Bundle bundle = new Bundle();
+            bundle.putBoolean("useCache", useCache);
+            intent.putExtras(bundle);
+            startActivity(intent);
+            finish();
+        } catch (Throwable th) {
+            th.printStackTrace();
+            // 保险兜底: 重启失败则退回原地全量重载
+            dataInitOk = false;
+            jarInitOk = false;
+            initData();
+        }
     }
 
     // 小贾影视仓: 本地接口文件选择结果 —— 复制到私有目录后以 file:// 设为线路(ApiConfig.loadConfigUrl 支持读本地文件)
