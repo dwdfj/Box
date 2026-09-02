@@ -34,6 +34,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.ViewPager;
@@ -53,6 +54,7 @@ import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.adapter.SortAdapter;
 import com.github.tvbox.osc.ui.dialog.ApiDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
+import com.github.tvbox.osc.ui.dialog.SourcePanelDialog;
 import com.github.tvbox.osc.ui.dialog.TipDialog;
 import com.github.tvbox.osc.ui.fragment.GridFragment;
 import com.github.tvbox.osc.ui.fragment.UserFragment;
@@ -68,6 +70,7 @@ import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.LOG;
 import com.github.tvbox.osc.util.MD5;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
+import com.lzy.okgo.OkGo;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
@@ -97,14 +100,9 @@ public class HomeActivity extends BaseActivity {
     private LinearLayout topLayout;
     private LinearLayout contentLayout;
     private TextView tvName;
-    private ImageView tvWifi;
     private ImageView tvFind;
-    private ImageView tvStyle;
     private ImageView tvDraw;
     private ImageView tvMenu;
-    private TextView tvLine;
-    private TextView tvApi;
-    private TextView tvDate;
     private TvRecyclerView mGridView;
     private NoScrollViewPager mViewPager;
     private SourceViewModel sourceViewModel;
@@ -118,18 +116,7 @@ public class HomeActivity extends BaseActivity {
     public View sortFocusView = null;
     private final Handler mHandler = new Handler();
     private long mExitTime = 0;
-    private final Runnable mRunnable = new Runnable() {
-        @SuppressLint({"DefaultLocale", "SetTextI18n"})
-        @Override
-        public void run() {
-            Date date = new Date();
-            @SuppressLint("SimpleDateFormat")
-			//修改时间分隔符
-            SimpleDateFormat timeFormat = new SimpleDateFormat(getString(R.string.hm_date1) + " | " + getString(R.string.hm_date2));
-            tvDate.setText(timeFormat.format(date));
-            mHandler.postDelayed(this, 1000);
-        }
-    };
+    // 小贾影视仓 v15.4: 移除顶栏时钟 ticker(原 tvDate 控件已随顶栏瘦身删除)
 
     @Override
     protected int getLayoutResID() {
@@ -165,14 +152,9 @@ public class HomeActivity extends BaseActivity {
     private void initView() {
         this.topLayout = findViewById(R.id.topLayout);
         this.tvName = findViewById(R.id.tvName);
-        this.tvWifi = findViewById(R.id.tvWifi);
         this.tvFind = findViewById(R.id.tvFind);
-        this.tvStyle = findViewById(R.id.tvStyle);
         this.tvDraw = findViewById(R.id.tvDrawer);
         this.tvMenu = findViewById(R.id.tvMenu);
-        this.tvLine = findViewById(R.id.tvLine);
-        this.tvApi = findViewById(R.id.tvApi);
-        this.tvDate = findViewById(R.id.tvDate);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
         this.mViewPager = findViewById(R.id.mViewPager);
@@ -261,35 +243,12 @@ public class HomeActivity extends BaseActivity {
                 return !((GridFragment) baseLazyFragment).isLoad();
             }
         });
-        // Button : TVBOX >> Delete Cache / Longclick to Refresh Source --
+        // 小贾影视仓 v15.4: 单击标题 = 打开统一「信号源」面板(原"清缓存"语义移入面板操作项)
         tvName.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 FastClickCheckUtil.check(v);
-                File dir = getCacheDir();
-                FileUtils.recursiveDelete(dir);
-                dir = getExternalCacheDir();
-                FileUtils.recursiveDelete(dir);
-                Toast.makeText(HomeActivity.this, getString(R.string.hm_cache_del), Toast.LENGTH_SHORT).show();
-                if(dataInitOk && jarInitOk){
-                    String cspCachePath = FileUtils.getFilePath()+"/csp/";
-                    String jar=ApiConfig.get().getHomeSourceBean().getJar();
-                    String jarUrl=!jar.isEmpty()?jar:ApiConfig.get().getSpider();
-                    File cspCacheDir = new File(cspCachePath + MD5.string2MD5(jarUrl)+".jar");
-                    if (!cspCacheDir.exists()){
-                        reloadHome();
-                        return;
-                    }
-                    new Thread(() -> {
-                        try {
-                            FileUtils.deleteFile(cspCacheDir);
-                            ApiConfig.get().clearJarLoader();
-                            reloadHome();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }).start();
-                }
+                showSiteSwitch();
             }
         });
         tvName.setOnLongClickListener(new View.OnLongClickListener() {
@@ -299,16 +258,7 @@ public class HomeActivity extends BaseActivity {
                 return true;
             }
         });
-        // Button : Wifi >> Go into Android Wifi Settings -------------
-        tvWifi.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                try {
-                    startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
-                }catch (Exception ignored){
-                }
-            }
-        });
+        // 小贾影视仓 v15.4: 移除顶栏 WiFi 快捷入口(WiFi 设置走系统, 面板聚焦信号源)
         // Button : Search --------------------------------------------
         tvFind.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -316,27 +266,7 @@ public class HomeActivity extends BaseActivity {
                 jumpActivity(SearchActivity.class);
             }
         });
-        // Button : Style --------------------------------------------
-        tvStyle.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                try {
-                    Hawk.put(HawkConfig.HOME_REC_STYLE, !Hawk.get(HawkConfig.HOME_REC_STYLE, false));
-                    if (Hawk.get(HawkConfig.HOME_REC_STYLE, false)) {
-                        UserFragment.tvHotListForGrid.setVisibility(View.VISIBLE);
-                        UserFragment.tvHotListForLine.setVisibility(View.GONE);
-                        Toast.makeText(HomeActivity.this, getString(R.string.hm_style_grid), Toast.LENGTH_SHORT).show();
-                        tvStyle.setImageResource(R.drawable.hm_up_down);
-                    } else {
-                        UserFragment.tvHotListForGrid.setVisibility(View.GONE);
-                        UserFragment.tvHotListForLine.setVisibility(View.VISIBLE);
-                        Toast.makeText(HomeActivity.this, getString(R.string.hm_style_line), Toast.LENGTH_SHORT).show();
-                        tvStyle.setImageResource(R.drawable.hm_left_right);
-                    }
-                } catch (Exception ex) {
-                }
-            }
-        });
+        // 小贾影视仓 v15.4: 首页样式开关迁入「信号源」面板(toggleHomeStyle), 顶栏只留源胶囊+3 图标
         // Button : Drawer >> To go into App Drawer -------------------
         tvDraw.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -359,102 +289,8 @@ public class HomeActivity extends BaseActivity {
                 return true;
             }
         });
-        // Button : Line >> Switch between saved API lines --------------
-        tvLine.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
-                String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                // 小贾影视仓: 预置线路(名称, 地址) —— v15 筛选(2026-09 实测)
-                // 肥猫·net: 2423 AES 加密配置(引擎原生解密), 40站含豆瓣+lives, 实测可用(肥猫.com 主站已挂)
-                // 王二小: 官网域名已改个人落地页/JS单源(basic auth), 真实配置=kstore newwex/wex/aiwex(防封)
-                // 饭太硬 art/net 双域名现指向同一 JPEG 图片配置(v11 图片解码器可解)
-                // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
-                String[][] presetLines = new String[][]{
-                        {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
-                        {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
-                        {"肥猫·net", "http://肥猫.net/tv"},
-                        {"饭太硬·主", "http://www.饭太硬.art/tv"},
-                        {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
-                        {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
-                        {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
-                        {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
-                        {"日后", "http://rihou.cc:88/demo.php"},
-                        {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
-                        {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
-                };
-                // 显示名 -> 地址
-                final java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
-                for (String[] p : presetLines) {
-                    if (!lines.containsValue(p[1])) lines.put(p[0], p[1]);
-                }
-                for (String h : history) {          // 历史/手动添加的线路(始终保留)
-                    if (!lines.containsValue(h)) lines.put(h, h);
-                }
-                if (current != null && !current.isEmpty() && !lines.containsValue(current)) {
-                    lines.put(getLineName(current), current);
-                }
-                if (lines.isEmpty()) {
-                    Toast.makeText(HomeActivity.this, "暂无其他线路，请先点\"配置\"添加", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                final String[] items = lines.keySet().toArray(new String[0]);
-                new AlertDialog.Builder(HomeActivity.this)
-                        .setTitle("切换线路")
-                        .setItems(items, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                String url = lines.get(items[which]);
-                                String name = items[which];
-                                if (url != null && !url.equals(current)) {
-                                    // 加入历史, 保证之后重启也在线路列表里
-                                    ArrayList<String> hist = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
-                                    if (!hist.contains(url)) hist.add(0, url);
-                                    if (hist.size() > 20) hist.remove(20);
-                                    Hawk.put(HawkConfig.API_HISTORY, hist);
-                                    Hawk.put(HawkConfig.API_URL, url);
-                                    Toast.makeText(HomeActivity.this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
-                                    // 小贾影视仓: 不再清空 HOME_API(让"豆瓣"推荐跨线路固定), parseJson 兜底选第一个非 meta 内容站
-                                    reloadHome();
-                                }
-                            }
-                        })
-                        .setNegativeButton("取消", null)
-                        .show();
-            }
-        });
-        // Button : API Config >> Open API config dialog ---------------
-        tvApi.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                ApiDialog dialog = new ApiDialog(HomeActivity.this);
-                EventBus.getDefault().register(dialog);
-                dialog.setOnListener(new ApiDialog.OnListener() {
-                    @Override
-                    public void onchange(String api) {
-                        Hawk.put(HawkConfig.API_URL, api);
-                        // 小贾影视仓: 不再清空 HOME_API(让"豆瓣"推荐跨线路固定), parseJson 兜底选第一个非 meta 内容站
-                    }
-                });
-                dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface d) {
-                        EventBus.getDefault().unregister(d);
-                        reloadHome();
-                    }
-                });
-                dialog.show();
-            }
-        });
-        // Button : Date >> Go into Android Date Settings --------------
-        tvDate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(Settings.ACTION_DATE_SETTINGS));
-            }
-        });
+        // 小贾影视仓 v15.4: 线路选择迁入「信号源」面板(buildLineCandidates / applyLineSelection)
+        // 小贾影视仓 v15.4: 线路配置迁入「信号源」面板(openConfigManager)
         setLoadSir(this.contentLayout);
         //mHandler.postDelayed(mFindFocus, 250);
     }
@@ -489,6 +325,36 @@ public class HomeActivity extends BaseActivity {
                     skipNextUpdate = false;
                     return;
                 }
+                // v15.4: 原地切站期间, 只接受与当前 home 站点一致的分类结果, 过期/串台结果直接丢弃
+                // 注: getSort 结果不携带站点标记, 极端连点(A->B->C 且前序请求仍在途)时旧结果可能先到并被
+                // 短暂采纳, 真正结果到场即纠正(自愈); 切站失败则回滚原站 + 重启兜底, 不丢首页。
+                String guard = homeSortGuard;
+                SourceBean guardHome = ApiConfig.get().getHomeSourceBean();
+                if (guard != null && (guardHome == null || !guard.equals(guardHome.getKey()))) {
+                    homeSortGuard = null;
+                    return;
+                }
+                boolean fromHomeSwitch = (guard != null);
+                homeSortGuard = null;
+                if (fromHomeSwitch) {
+                    // 原地切站结果到场: 先复位分类选中位, initViewPager 将按新站数据重建页面
+                    inPlaceSwitching = false;
+                    if (absXml == null) {
+                        // 切站失败(网络/超时/解析空) -> 回滚原站点并走重启兜底, 避免白屏丢首页
+                        String prevKey = homeSwitchPrevKey;
+                        homeSwitchPrevKey = null;
+                        SourceBean prev = prevKey == null ? null : ApiConfig.get().getSource(prevKey);
+                        if (prev != null) {
+                            ApiConfig.get().setSourceBean(prev);
+                            Toast.makeText(HomeActivity.this, "切站失败, 已回退到「" + prev.getName() + "」", Toast.LENGTH_SHORT).show();
+                            restartHome(true);
+                            return;
+                        }
+                    }
+                    currentSelected = 0;
+                    sortFocused = 0;
+                    if (mGridView != null) mGridView.setSelection(0);
+                }
                 showSuccess();
                 if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
                     sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), absXml.classes.sortList, true));
@@ -499,12 +365,45 @@ public class HomeActivity extends BaseActivity {
                 // 小贾影视仓: 标题显示当前线路名(红底白字)
                 tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
                 tvName.clearAnimation();
+                if (fromHomeSwitch) {
+                    // 复位后, ViewPager 视口回到第 0 页
+                    postIfAlive(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (mViewPager != null) mViewPager.setCurrentItem(0, false);
+                        }
+                    });
+                }
             }
         });
     }
 
     private boolean dataInitOk = false;
     private boolean jarInitOk = false;
+
+    // 小贾影视仓 v15.4: 原地切源守卫 + 分类结果防串台(homeSortGuard=期望生效的站点key, 过期结果直接丢弃)
+    private boolean inPlaceSwitching = false;
+    private volatile String homeSortGuard = null;
+    // 原地切站前记录的上一站点 key(切站失败回滚时用)
+    private String homeSwitchPrevKey = null;
+
+    // 小贾影视仓 v15.4: Activity 存活防护 —— 切线路重启后, 旧实例异步回调(最长10s超时窗口)不得再碰已销毁的 UI
+    // (TipDialog.show 于 finishing Activity 会抛 BadTokenException, 是切换偶发闪退来源之一)
+    private boolean alive() {
+        return !isFinishing() && !isDestroyed();
+    }
+
+    private void postIfAlive(Runnable r) {
+        mHandler.post(() -> {
+            if (alive()) r.run();
+        });
+    }
+
+    private void postDelayedIfAlive(Runnable r, long delay) {
+        mHandler.postDelayed(() -> {
+            if (alive()) r.run();
+        }, delay);
+    }
 
     // takagen99 : Switch to show / hide source title
     boolean HomeShow = Hawk.get(HawkConfig.HOME_SHOW_SOURCE, false);
@@ -518,24 +417,7 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void initData() {
-        // takagen99: If network available, check connected Wifi or Lan
-        if (isNetworkAvailable()) {
-            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            if (cm.getActiveNetworkInfo().getType() == ConnectivityManager.TYPE_WIFI) {
-                tvWifi.setImageDrawable(res.getDrawable(R.drawable.hm_wifi));
-            } else if (cm.getActiveNetworkInfo().getType() == ConnectivityManager.TYPE_MOBILE) {
-                tvWifi.setImageDrawable(res.getDrawable(R.drawable.hm_mobile));
-            } else if (cm.getActiveNetworkInfo().getType() == ConnectivityManager.TYPE_ETHERNET) {
-                tvWifi.setImageDrawable(res.getDrawable(R.drawable.hm_lan));
-            }
-        }
-
-        // takagen99: Set Style either Grid or Line
-        if (Hawk.get(HawkConfig.HOME_REC_STYLE, false)) {
-            tvStyle.setImageResource(R.drawable.hm_up_down);
-        } else {
-            tvStyle.setImageResource(R.drawable.hm_left_right);
-        }
+        // 小贾影视仓 v15.4: 移除 WiFi/样式图标初始化(对应控件已从顶栏删除, 样式开关在信号源面板)
 
         mGridView.requestFocus();
 
@@ -559,7 +441,7 @@ public class HomeActivity extends BaseActivity {
                     @Override
                     public void success() {
                         jarInitOk = true;
-                        mHandler.postDelayed(new Runnable() {
+                        postDelayedIfAlive(new Runnable() {
                             @Override
                             public void run() {
                                 if (!useCacheConfig) {
@@ -579,7 +461,7 @@ public class HomeActivity extends BaseActivity {
                     public void error(String msg) {
                         jarInitOk = true;
                         dataInitOk = true;
-                        mHandler.postDelayed(new Runnable() {
+                        postDelayedIfAlive(new Runnable() {
                             @Override
                             public void run() {
                                 if ("".equals(msg))
@@ -599,7 +481,7 @@ public class HomeActivity extends BaseActivity {
 
             @Override
             public void retry() {
-                mHandler.post(new Runnable() {
+                postIfAlive(new Runnable() {
                     @Override
                     public void run() {
                         initData();
@@ -613,7 +495,7 @@ public class HomeActivity extends BaseActivity {
                 if (ApiConfig.get().getSpider().isEmpty()) {
                     jarInitOk = true;
                 }
-                mHandler.postDelayed(new Runnable() {
+                postDelayedIfAlive(new Runnable() {
                     @Override
                     public void run() {
                         initData();
@@ -624,7 +506,7 @@ public class HomeActivity extends BaseActivity {
             @Override
             public void error(String msg) {
                 if (msg.equalsIgnoreCase("-1")) {
-                    mHandler.post(new Runnable() {
+                    postIfAlive(new Runnable() {
                         @Override
                         public void run() {
                             dataInitOk = true;
@@ -634,14 +516,14 @@ public class HomeActivity extends BaseActivity {
                     });
                     return;
                 }
-                mHandler.post(new Runnable() {
+                postIfAlive(new Runnable() {
                     @Override
                     public void run() {
                         if (dialog == null)
                             dialog = new TipDialog(HomeActivity.this, msg, getString(R.string.hm_retry), getString(R.string.hm_cancel), new TipDialog.OnListener() {
                                 @Override
                                 public void left() {
-                                    mHandler.post(new Runnable() {
+                                    postIfAlive(new Runnable() {
                                         @Override
                                         public void run() {
                                             initData();
@@ -654,7 +536,7 @@ public class HomeActivity extends BaseActivity {
                                 public void right() {
                                     dataInitOk = true;
                                     jarInitOk = true;
-                                    mHandler.post(new Runnable() {
+                                    postIfAlive(new Runnable() {
                                         @Override
                                         public void run() {
                                             initData();
@@ -667,7 +549,7 @@ public class HomeActivity extends BaseActivity {
                                 public void cancel() {
                                     dataInitOk = true;
                                     jarInitOk = true;
-                                    mHandler.post(new Runnable() {
+                                    postIfAlive(new Runnable() {
                                         @Override
                                         public void run() {
                                             initData();
@@ -684,7 +566,43 @@ public class HomeActivity extends BaseActivity {
         }, this);
     }
 
+    // 小贾影视仓 v15.4: 原地销毁当前全部 fragment 页并解绑 ViewPager —— 根治旧 HomePageAdapter
+    // (FragmentPagerAdapter.destroyItem 只 hide 不 remove) 反复 initViewPager 造成的
+    // "页数翻倍 / FragmentManager 滞留 / tag 冲突"。先 setAdapter(null) 断开旧页回调, 再逐个真 remove。
+    private void clearPagesInPlace() {
+        try {
+            if (mViewPager != null && pageAdapter != null) {
+                mViewPager.setAdapter(null);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        pageAdapter = null;
+        if (fragments.isEmpty()) return;
+        try {
+            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+            for (BaseLazyFragment f : fragments) {
+                if (f != null) {
+                    try {
+                        transaction.remove(f);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+            transaction.commitAllowingStateLoss();
+            fragments.clear();
+            try {
+                getSupportFragmentManager().executePendingTransactions();
+            } catch (Throwable ignored) {
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
     private void initViewPager(AbsSortXml absXml) {
+        // 小贾影视仓 v15.4: 每次重建前先原地销毁旧页(真 remove), 根治"页数翻倍/tag 冲突"
+        clearPagesInPlace();
         if (sortAdapter.getData().size() > 0) {
             for (MovieSort.SortData data : sortAdapter.getData()) {
                 if (data.id.equals("my0")) {
@@ -793,7 +711,6 @@ public class HomeActivity extends BaseActivity {
         } else {
             tvMenu.setVisibility(View.GONE);
         }
-        mHandler.post(mRunnable);
     }
 
     @Override
@@ -897,9 +814,7 @@ public class HomeActivity extends BaseActivity {
             animatorSet.setDuration(250);
             animatorSet.start();
             tvName.setFocusable(false);
-            tvWifi.setFocusable(false);
             tvFind.setFocusable(false);
-            tvStyle.setFocusable(false);
             tvDraw.setFocusable(false);
             tvMenu.setFocusable(false);
             return;
@@ -916,9 +831,7 @@ public class HomeActivity extends BaseActivity {
             animatorSet.setDuration(250);
             animatorSet.start();
             tvName.setFocusable(true);
-            tvWifi.setFocusable(true);
             tvFind.setFocusable(true);
-            tvStyle.setFocusable(true);
             tvDraw.setFocusable(true);
             tvMenu.setFocusable(true);
         }
@@ -934,66 +847,197 @@ public class HomeActivity extends BaseActivity {
         EventBus.getDefault().unregister(this);
     }
 
-    // Site Switch on Home Button
+    // 小贾影视仓 v15.4: 统一「信号源」面板 —— 左列线路(配置级) / 右列站点(SourceBean)。
+    // 站点点击走原地切站(switchHomeSourceInPlace, 不重启 Activity); 线路点击=持久化+整页重载。
+    // 入口: tvName 胶囊单击 / MENU 键 / 「我的」页点击; 长按 tvName 仍为强制刷新(reloadHomeFresh)。
     void showSiteSwitch() {
+        java.util.LinkedHashMap<String, String> lineMap = buildLineCandidates();
+        if (lineMap.isEmpty()) {
+            Toast.makeText(this, "暂无线路, 请先点\"线路配置\"添加", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<SourcePanelDialog.LineItem> lineItems = new ArrayList<>();
+        int lineSelect = 0;
+        String curLine = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+        int idx = 0;
+        for (java.util.Map.Entry<String, String> e : lineMap.entrySet()) {
+            lineItems.add(new SourcePanelDialog.LineItem(e.getKey(), e.getValue()));
+            if (e.getValue().equals(curLine)) lineSelect = idx;
+            idx++;
+        }
         List<SourceBean> sites = new ArrayList<>();
         for (SourceBean sb : ApiConfig.get().getSourceBeanList()) {
             if (sb.getHide() == 0) sites.add(sb);
         }
-        if (sites.size() > 0) {
-            SelectDialog<SourceBean> dialog = new SelectDialog<>(HomeActivity.this);
-
-            // Multi Column Selection
-            int spanCount = (int) Math.floor(sites.size() / 10);
-            if (spanCount <= 1) spanCount = 1;
-            if (spanCount >= 3) spanCount = 3;
-
-            TvRecyclerView tvRecyclerView = dialog.findViewById(R.id.list);
-            tvRecyclerView.setLayoutManager(new V7GridLayoutManager(dialog.getContext(), spanCount));
-            ConstraintLayout cl_root = dialog.findViewById(R.id.cl_root);
-            ViewGroup.LayoutParams clp = cl_root.getLayoutParams();
-            if (spanCount != 1) {
-                clp.width = AutoSizeUtils.mm2px(dialog.getContext(), 400 + 260 * (spanCount - 1));
+        if (sites.isEmpty()) {
+            Toast.makeText(this, "当前线路暂无站点, 请先点\"线路配置\"确认", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final SourcePanelDialog panel = new SourcePanelDialog(this, lineItems, lineSelect, sites,
+                Math.max(0, sites.indexOf(ApiConfig.get().getHomeSourceBean())), homeStyleText());
+        panel.setOnSourcePanelAction(new SourcePanelDialog.OnSourcePanelAction() {
+            @Override
+            public void onSwitchLine(SourcePanelDialog.LineItem item) {
+                applyLineSelection(item.name, item.url);
             }
 
-            dialog.setTip(getString(R.string.dia_source));
-            dialog.setAdapter(tvRecyclerView, new SelectDialogAdapter.SelectDialogInterface<SourceBean>() {
-                @Override
-                public void click(SourceBean value, int pos) {
-                    ApiConfig.get().setSourceBean(value);
-                    reloadHome();
-                }
+            @Override
+            public void onSwitchSite(SourceBean site) {
+                switchHomeSourceInPlace(site);
+            }
 
-                @Override
-                public String getDisplay(SourceBean val) {
-                    return val.getName();
-                }
-            }, new DiffUtil.ItemCallback<SourceBean>() {
-                @Override
-                public boolean areItemsTheSame(@NonNull @NotNull SourceBean oldItem, @NonNull @NotNull SourceBean newItem) {
-                    return oldItem == newItem;
-                }
+            @Override
+            public void onOpenConfig() {
+                openConfigManager();
+            }
 
+            @Override
+            public void onToggleHomeStyle() {
+                toggleHomeStyle();
+            }
+        });
+        panel.show();
+        // 焦点落到右列站点列表(高频操作)
+        if (panel.getWindow() != null) {
+            panel.getWindow().getDecorView().post(new Runnable() {
                 @Override
-                public boolean areContentsTheSame(@NonNull @NotNull SourceBean oldItem, @NonNull @NotNull SourceBean newItem) {
-                    return oldItem.getKey().equals(newItem.getKey());
+                public void run() {
+                    TvRecyclerView siteList = panel.findViewById(R.id.panelSiteList);
+                    if (siteList != null) siteList.requestFocus();
                 }
-            }, sites, sites.indexOf(ApiConfig.get().getHomeSourceBean()));
+            });
+        }
+    }
+
+    // 小贾影视仓 v15.4: 候选线路(预置+历史+当前), 返回 显示名->地址(按地址去重, 保留插入序)
+    java.util.LinkedHashMap<String, String> buildLineCandidates() {
+        java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
+        // 预置线路(名称, 地址) —— v15 筛选(2026-09 实测)
+        // 肥猫·net: 2423 AES 加密配置(引擎原生解密), 40站含豆瓣+lives, 实测可用(肥猫.com 主站已挂)
+        // 王二小: 官网域名已改个人落地页/JS单源(basic auth), 真实配置=kstore newwex/wex/aiwex(防封)
+        // 饭太硬 art/net 双域名现指向同一 JPEG 图片配置(v11 图片解码器可解)
+        // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
+        String[][] presetLines = new String[][]{
+                {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
+                {"肥猫·net", "http://肥猫.net/tv"},
+                {"饭太硬·主", "http://www.饭太硬.art/tv"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
+                {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
+                {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
+                {"日后", "http://rihou.cc:88/demo.php"},
+                {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
+        };
+        for (String[] p : presetLines) {
+            if (!lines.containsValue(p[1])) lines.put(p[0], p[1]);
+        }
+        ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+        for (String h : history) {          // 历史/手动添加的线路(始终保留)
+            if (!lines.containsValue(h)) lines.put(h, h);
+        }
+        String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+        if (current != null && !current.isEmpty() && !lines.containsValue(current)) {
+            lines.put(getLineName(current), current);
+        }
+        return lines;
+    }
+
+    // 小贾影视仓 v15.4: 应用线路选择(预置/历史) —— 持久化历史 + API_URL 后整页重载新配置
+    void applyLineSelection(final String name, final String url) {
+        if (url == null || url.isEmpty()) return;
+        String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+        if (url.equals(current)) return;
+        ArrayList<String> hist = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+        if (!hist.contains(url)) hist.add(0, url);
+        if (hist.size() > 20) hist.remove(20);
+        Hawk.put(HawkConfig.API_HISTORY, hist);
+        Hawk.put(HawkConfig.API_URL, url);
+        Toast.makeText(this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
+        reloadHome();
+    }
+
+    // 小贾影视仓 v15.4: 首页推荐样式 宫格/横排 开关(原顶栏 tvStyle, 迁入信号源面板)
+    void toggleHomeStyle() {
+        try {
+            Hawk.put(HawkConfig.HOME_REC_STYLE, !Hawk.get(HawkConfig.HOME_REC_STYLE, false));
+            if (Hawk.get(HawkConfig.HOME_REC_STYLE, false)) {
+                UserFragment.tvHotListForGrid.setVisibility(View.VISIBLE);
+                UserFragment.tvHotListForLine.setVisibility(View.GONE);
+                Toast.makeText(this, getString(R.string.hm_style_grid), Toast.LENGTH_SHORT).show();
+            } else {
+                UserFragment.tvHotListForGrid.setVisibility(View.GONE);
+                UserFragment.tvHotListForLine.setVisibility(View.VISIBLE);
+                Toast.makeText(this, getString(R.string.hm_style_line), Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String homeStyleText() {
+        return Hawk.get(HawkConfig.HOME_REC_STYLE, false) ? "宫格" : "横排";
+    }
+
+    // 小贾影视仓 v15.4: 线路配置(ApiDialog) —— 原顶栏 tvApi, 迁入信号源面板
+    void openConfigManager() {
+        try {
+            ApiDialog dialog = new ApiDialog(HomeActivity.this);
+            EventBus.getDefault().register(dialog);
+            dialog.setOnListener(new ApiDialog.OnListener() {
+                @Override
+                public void onchange(String api) {
+                    Hawk.put(HawkConfig.API_URL, api);
+                    // 小贾影视仓: 不再清空 HOME_API(让"豆瓣"推荐跨线路固定), parseJson 兜底选第一个非 meta 内容站
+                }
+            });
             dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
                 @Override
-                public void onDismiss(DialogInterface dialog) {
-//                    if (homeSourceKey != null && !homeSourceKey.equals(Hawk.get(HawkConfig.HOME_API, ""))) {
-//                        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
-//                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-//                        Bundle bundle = new Bundle();
-//                        bundle.putBoolean("useCache", true);
-//                        intent.putExtras(bundle);
-//                        HomeActivity.this.startActivity(intent);
-//                    }
+                public void onDismiss(DialogInterface d) {
+                    EventBus.getDefault().unregister(d);
+                    reloadHome();
                 }
             });
             dialog.show();
+        } catch (Throwable th) {
+            th.printStackTrace();
         }
+    }
+
+    // 小贾影视仓 v15.4: 原地切站主流程。
+    // 语义: 站点(SourceBean)级切换 => 写 Hawk 持久化 => 取消上一站点可能仍在途的 HTTP sort 请求
+    // (type0/1/4 的 OkGo tag = sourceKey+"_sort") => homeSortGuard=目标key => 直接 getSort(目标key)
+    // => sortResult observer 守卫通过后 原地 clearPages + 重建分类/ViewPager。同站点击直接忽略,
+    // 切换中二次触发给 Toast 防抖。失败路径在 observer 内回滚原站 + restartHome 兜底。
+    void switchHomeSourceInPlace(final SourceBean target) {
+        if (target == null) return;
+        if (inPlaceSwitching) {
+            Toast.makeText(this, "正在切换站点, 请稍候…", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        SourceBean current = ApiConfig.get().getHomeSourceBean();
+        String oldKey = current == null ? "" : current.getKey();
+        if (oldKey.equals(target.getKey())) {
+            Toast.makeText(this, "当前已是「" + target.getName() + "」", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 提前取消上一站点仍在途的 HTTP 分类请求, 收窄"旧结果串台"窗口
+        try {
+            OkGo.getInstance().cancelTag(oldKey + "_sort");
+        } catch (Throwable ignored) {
+        }
+        // 记录上一站 key(失败回滚用), 再持久化目标站点并发出原地加载
+        homeSwitchPrevKey = oldKey;
+        ApiConfig.get().setSourceBean(target);
+        homeSortGuard = target.getKey();
+        inPlaceSwitching = true;
+        currentSelected = 0;
+        sortFocused = 0;
+        if (mGridView != null) mGridView.setSelection(0);
+        tvName.clearAnimation();
+        tvName.setText(getString(R.string.app_name) + " · " + target.getName() + "(切换中…)");
+        showLoading();
+        sourceViewModel.getSort(target.getKey());
     }
 
     // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
