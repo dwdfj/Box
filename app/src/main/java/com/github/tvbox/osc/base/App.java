@@ -61,6 +61,32 @@ public class App extends MultiDexApplication {
     @Override
     public void onCreate() {
         super.onCreate();
+        // 小贾影视仓 v15.1: 全局崩溃日志 —— 任何未捕获异常(含切线路闪退)追加写入私有目录 xj_crash.log,
+        // 便于线上诊断。捕获后仍交给系统默认处理器(照常弹崩溃/重启)。
+        try {
+            final Thread.UncaughtExceptionHandler def = Thread.getDefaultUncaughtExceptionHandler();
+            Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                @Override
+                public void uncaughtException(Thread thread, Throwable ex) {
+                    try {
+                        java.io.StringWriter sw = new java.io.StringWriter();
+                        ex.printStackTrace(new java.io.PrintWriter(sw));
+                        String log = "== " + new java.util.Date() + " [" + thread.getName() + "] ==\n" + sw + "\n\n";
+                        java.io.File f = new java.io.File(getFilesDir(), "xj_crash.log");
+                        java.io.FileOutputStream fos = new java.io.FileOutputStream(f, true);
+                        fos.write(log.getBytes("UTF-8"));
+                        fos.close();
+                    } catch (Throwable ignored) {
+                    }
+                    if (def != null) {
+                        def.uncaughtException(thread, ex);
+                    } else {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                    }
+                }
+            });
+        } catch (Throwable ignored) {
+        }
         SubtitleHelper.initSubtitleColor(this);
         initParams();
         // takagen99 : Initialize Locale
