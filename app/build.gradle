@@ -7,6 +7,9 @@ def static buildTime() {
     return new Date().format("yyyyMMdd_HHmm", TimeZone.getTimeZone("GMT+08:00"))
 }
 
+// 小贾影视仓: 壁纸构建开关 —— ./gradlew assembleRelease -PxjWallpaper=false 出"无内置壁纸版"(主题纯色)
+def xjWallpaper = project.hasProperty('xjWallpaper') ? project.property('xjWallpaper') : 'true'
+
 android {
     compileSdk 34
 
@@ -16,6 +19,7 @@ android {
         versionCode 1
         versionName "1.0.".concat(buildTime())
         multiDexEnabled true
+        buildConfigField "boolean", "XJ_WALLPAPER", xjWallpaper
         //设置room的Schema的位置
         javaCompileOptions {
             annotationProcessorOptions {
@@ -93,6 +97,7 @@ android {
 
     buildFeatures {
         dataBinding = true
+        buildConfig = true
     }
 
     lint {
