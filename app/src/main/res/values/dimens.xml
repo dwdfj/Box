@@ -73,4 +73,5 @@
     <dimen name="vs_640">640mm</dimen>
     <dimen name="vs_720">720mm</dimen>
     <dimen name="vs_960">960mm</dimen>
+    <dimen name="vs_250">250mm</dimen>
 </resources>
