@@ -2,6 +2,7 @@ package com.github.tvbox.osc.ui.dialog;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -86,9 +87,9 @@ public class ApiDialog extends BaseDialog {
                 String newEPG = inputEPG.getText().toString().trim();
                 String newProxyServer = inputProxy.getText().toString().trim();
                 // takagen99: Convert all to clan://localhost format
-                if (newApi.startsWith("file://")) {
-                    newApi = newApi.replace("file://", "clan://localhost/");
-                } else if (newApi.startsWith("./")) {
+                // 小贾影视仓: file:// 前缀保留(表示"本地接口文件", ApiConfig.loadConfigUrl 会直接读盘),
+                // 不能再转成 clan://localhost/ —— 否则本地接口永远加载不了(旧版 bug)
+                if (newApi.startsWith("./")) {
                     newApi = newApi.replace("./", "clan://localhost/");
                 }
                 if (!newApi.isEmpty()) {
@@ -235,6 +236,31 @@ public class ApiDialog extends BaseDialog {
                                     }
                                 }
                             });
+                }
+            }
+        });
+        // 小贾影视仓: "本地文件"按钮 —— 系统文件选择器挑接口文件(json/txt/webp/gif/bmp等),
+        // 结果由 HomeActivity.onActivityResult 收下, 复制到私有目录后以 file:// 设为线路
+        findViewById(R.id.btnPickLocal).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Context c = getContext();
+                if (c instanceof Activity) {
+                    try {
+                        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        i.addCategory(Intent.CATEGORY_OPENABLE);
+                        i.setType("*/*");
+                        i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                                "application/json", "text/plain", "image/*",
+                                "application/octet-stream", "text/html"});
+                        ((Activity) c).startActivityForResult(i, 0x5150);
+                        dismiss();
+                    } catch (Throwable th) {
+                        th.printStackTrace();
+                        Toast.makeText(c, "无法打开文件选择器: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(c, "当前环境不支持选择文件", Toast.LENGTH_SHORT).show();
                 }
             }
         });
