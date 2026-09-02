@@ -183,7 +183,9 @@ public class ApiConfig {
             }
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/" + MD5.encode(apiUrl));
-        if (useCache && cache.exists()) {
+        // 小贾影视仓 v15.2: clan 线路(clan:// 本地包/内置包)不走磁盘缓存 —— 本地回环几乎零延迟,
+        // 且缓存里固化的是当时 serverPort 的绝对地址, 下次端口变化会读成死链接
+        if (useCache && cache.exists() && !apiUrl.startsWith("clan")) {
             try {
                 parseJson(apiUrl, cache);
                 callback.success();
