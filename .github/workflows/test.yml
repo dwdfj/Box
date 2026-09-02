@@ -2,6 +2,15 @@ name: Test Build
 
 on:
   workflow_dispatch:
+    inputs:
+      wallpaper:
+        description: '内置壁纸开关: true=带小贾内置壁纸 / false=纯色主题(无壁纸版)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   build:
@@ -21,7 +30,7 @@ jobs:
         run: |
           export CHAQUOPY_PYTHON=$(which python)
           chmod +x gradlew
-          ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all
+          ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all -PxjWallpaper=${{ github.event.inputs.wallpaper || 'true' }}
       - name: Prepare App
         run: |
           mkdir -p ${{ github.workspace }}/apk/
