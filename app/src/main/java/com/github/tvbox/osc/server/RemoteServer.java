@@ -3,6 +3,7 @@ package com.github.tvbox.osc.server;
 import static com.github.tvbox.osc.util.RegexUtils.getPattern;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.util.Base64;
@@ -174,9 +175,18 @@ public class RemoteServer extends NanoHTTPD {
                             } else {
                                 return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, fileList(root, f));
                             }
-                        } else {
-                            return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "File " + file + " not found!");
                         }
+                        // 小贾影视仓 v15.2: 内置肥猫全能包 —— 外部存储没有时, 兜底读私有目录 filesDir/<f>
+                        // (clan://localhost/feimao/config.json 这类"内置线路"无需存储权限、断网可用)
+                        File privateFile = new File(mContext.getFilesDir(), f);
+                        if (!privateFile.exists() && f.startsWith("feimao/")) {
+                            ensureBuiltinFeimao();
+                            privateFile = new File(mContext.getFilesDir(), f);
+                        }
+                        if (privateFile.exists() && privateFile.isFile()) {
+                            return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, "application/octet-stream", new FileInputStream(privateFile));
+                        }
+                        return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "File " + file + " not found!");
                     } catch (Throwable th) {
                         return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, th.getMessage());
                     }
@@ -310,6 +320,79 @@ public class RemoteServer extends NanoHTTPD {
 
     public static Response createPlainTextResponse(Response.IStatus status, String text) {
         return newFixedLengthResponse(status, NanoHTTPD.MIME_PLAINTEXT, text);
+    }
+
+    // ============ 小贾影视仓 v15.2: 内置本地包(assets/feimao -> filesDir/feimao) ============
+    private static final String BUILTIN_FEIMAO_VER = "feimao_20260824_v1";
+    private File mFeimaoDir = null;
+
+    // 首启/版本变化时把 assets/feimao(配置+ext数据+jar)整体释放到私有目录, 供 /file/feimao/* 兜底读取。
+    // 用版本戳 .xj_ver 判断是否需要重新释放, 避免每次启动重复拷贝 3.8MB。
+    private synchronized File ensureBuiltinFeimao() {
+        if (mFeimaoDir != null) return mFeimaoDir;
+        File dir = new File(mContext.getFilesDir(), "feimao");
+        File verFile = new File(dir, ".xj_ver");
+        boolean need = true;
+        if (new File(dir, "config.json").exists() && verFile.exists()) {
+            try {
+                FileInputStream fis = new FileInputStream(verFile);
+                byte[] b = new byte[128];
+                int n = fis.read(b);
+                fis.close();
+                String v = n > 0 ? new String(b, 0, n, "UTF-8").trim() : "";
+                need = !BUILTIN_FEIMAO_VER.equals(v);
+            } catch (Throwable th) {
+                need = true;
+            }
+        }
+        if (need) {
+            try {
+                copyAssetDir("feimao", dir);
+                FileOutputStream fos = new FileOutputStream(verFile);
+                fos.write(BUILTIN_FEIMAO_VER.getBytes("UTF-8"));
+                fos.flush();
+                fos.close();
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
+        }
+        mFeimaoDir = dir;
+        return dir;
+    }
+
+    // 递归拷贝 assets 子目录(am.list 对"目录"返回条目列表; 对"文件"返回 null/空/抛异常 → 按文件拷贝)
+    private void copyAssetDir(String assetPath, File outDir) {
+        try {
+            AssetManager am = mContext.getAssets();
+            String[] kids = null;
+            try {
+                kids = am.list(assetPath);
+            } catch (Throwable ignored) {
+                kids = null;
+            }
+            if (kids == null || kids.length == 0) {
+                // 是文件: 直接拷贝(assetPath 可能带多级目录)
+                File of = outDir;
+                if (!of.getName().contains(".") && !outDir.getParentFile().getName().isEmpty()) {
+                    // 理论上不会走到; 保险起见不特殊处理, 直接用 outDir 路径
+                }
+                File parent = of.getParentFile();
+                if (parent != null && !parent.exists()) parent.mkdirs();
+                try (InputStream is = am.open(assetPath); FileOutputStream fos = new FileOutputStream(of)) {
+                    byte[] buf = new byte[16384];
+                    int c;
+                    while ((c = is.read(buf)) != -1) fos.write(buf, 0, c);
+                }
+                return;
+            }
+            if (!outDir.exists() && !outDir.mkdirs()) return;
+            for (String k : kids) {
+                String sub = assetPath + "/" + k;
+                copyAssetDir(sub, new File(outDir, k));
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
     public static Response createJSONResponse(Response.IStatus status, String text) {
