@@ -373,6 +373,7 @@ public class HomeActivity extends BaseActivity {
                 // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
                 String[][] presetLines = new String[][]{
                         {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                        {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
                         {"肥猫·net", "http://肥猫.net/tv"},
                         {"饭太硬·主", "http://www.饭太硬.art/tv"},
                         {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
@@ -1066,6 +1067,7 @@ public class HomeActivity extends BaseActivity {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
                 {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
                 {"肥猫·net", "http://肥猫.net/tv"},
                 {"饭太硬·主", "http://www.饭太硬.art/tv"},
                 {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
