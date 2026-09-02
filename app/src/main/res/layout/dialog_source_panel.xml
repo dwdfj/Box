@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.4: 统一「信号源」面板 —— 左列=线路(配置级, 预置+历史) / 右列=站点(SourceBean, 当前线路内) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_root"
+        android:layout_width="@dimen/vs_960"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:layout_margin="@dimen/vs_10"
+        android:background="@drawable/shape_dialog_bg_main"
+        android:paddingLeft="@dimen/vs_30"
+        android:paddingTop="@dimen/vs_20"
+        android:paddingRight="@dimen/vs_30"
+        android:paddingBottom="@dimen/vs_25">
+
+        <TextView
+            android:id="@+id/panelTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:shadowColor="@color/color_FF000000"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="5"
+            android:singleLine="true"
+            android:text="信号源 · 线路 / 站点"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_26"
+            android:textStyle="bold"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 中部: 左线路列 + 分隔 + 右站点列 -->
+        <LinearLayout
+            android:id="@+id/panelBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_20"
+            android:orientation="horizontal"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/panelTitle">
+
+            <LinearLayout
+                android:layout_width="@dimen/vs_250"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="@dimen/vs_8"
+                    android:text="线路(配置)"
+                    android:textColor="@color/color_FFFFFF_70"
+                    android:textSize="@dimen/ts_22"
+                    android:textStyle="bold" />
+
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/panelLineList"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/vs_340"
+                    android:orientation="vertical"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
+                    app:tv_layoutManager="V7LinearLayoutManager"
+                    app:tv_selectedItemIsCentered="true"
+                    app:tv_verticalSpacingWithMargins="@dimen/vs_10" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="@dimen/vs_2"
+                android:layout_height="@dimen/vs_340"
+                android:layout_marginLeft="@dimen/vs_20"
+                android:layout_marginRight="@dimen/vs_20"
+                android:background="@color/color_FFFFFF_20" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="@dimen/vs_8"
+                    android:text="站点"
+                    android:textColor="@color/color_FFFFFF_70"
+                    android:textSize="@dimen/ts_22"
+                    android:textStyle="bold" />
+
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/panelSiteList"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/vs_340"
+                    android:orientation="vertical"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
+                    app:tv_selectedItemIsCentered="true"
+                    app:tv_verticalSpacingWithMargins="@dimen/vs_10" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 底部: 样式开关 + 线路配置入口 -->
+        <LinearLayout
+            android:id="@+id/panelFooter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_20"
+            android:gravity="center_horizontal"
+            android:orientation="horizontal"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/panelBody">
+
+            <TextView
+                android:id="@+id/panelStyleBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_45"
+                android:background="@drawable/button_dialog_vod"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_20"
+                android:text="首页样式: 宫格"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_22"
+                android:textStyle="bold"
+                tools:text="首页样式: 宫格" />
+
+            <TextView
+                android:id="@+id/panelConfigBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_45"
+                android:layout_marginLeft="@dimen/vs_20"
+                android:background="@drawable/button_dialog_vod"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_20"
+                android:text="线路配置"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_22"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/panelCloseBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/vs_45"
+                android:layout_marginLeft="@dimen/vs_20"
+                android:background="@drawable/button_dialog_vod"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_20"
+                android:text="返回"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_22"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>
