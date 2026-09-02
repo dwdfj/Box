@@ -39,7 +39,7 @@
             android:focusable="true"
             android:focusableInTouchMode="false"
             android:gravity="left|center_vertical"
-            android:nextFocusRight="@id/tvWifi"
+            android:nextFocusRight="@id/tvFind"
             android:nextFocusDown="@id/mGridViewCategory"
             android:singleLine="true"
             android:text="@string/app_name"
@@ -50,21 +50,6 @@
             android:paddingRight="@dimen/vs_20"
             android:textSize="@dimen/ts_30"
             android:textStyle="bold" />
-
-        <ImageView
-            android:id="@+id/tvWifi"
-            android:layout_width="@dimen/vs_50"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_15"
-            android:layout_marginLeft="@dimen/vs_15"
-            android:layout_marginEnd="@dimen/vs_15"
-            android:layout_marginRight="@dimen/vs_15"
-            android:background="@drawable/button_dialog_vod"
-            android:clickable="true"
-            android:focusable="true"
-            android:nextFocusLeft="@id/tvName"
-            android:padding="@dimen/vs_5"
-            android:src="@drawable/hm_wifi_no" />
 
         <ImageView
             android:id="@+id/tvFind"
@@ -79,20 +64,6 @@
             android:focusable="true"
             android:padding="@dimen/vs_5"
             android:src="@drawable/hm_search" />
-
-        <ImageView
-            android:id="@+id/tvStyle"
-            android:layout_width="@dimen/vs_50"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_15"
-            android:layout_marginLeft="@dimen/vs_15"
-            android:layout_marginEnd="@dimen/vs_15"
-            android:layout_marginRight="@dimen/vs_15"
-            android:background="@drawable/button_dialog_vod"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="@dimen/vs_10"
-            android:src="@drawable/hm_left_right" />
 
         <ImageView
             android:id="@+id/tvDrawer"
@@ -122,59 +93,6 @@
             android:nextFocusDown="@id/tvDrive"
             android:padding="@dimen/vs_5"
             android:src="@drawable/hm_settings" />
-
-        <TextView
-            android:id="@+id/tvLine"
-            android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_10"
-            android:layout_marginLeft="@dimen/vs_10"
-            android:layout_marginEnd="@dimen/vs_10"
-            android:layout_marginRight="@dimen/vs_10"
-            android:background="@drawable/button_dialog_vod"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingLeft="@dimen/vs_15"
-            android:paddingRight="@dimen/vs_15"
-            android:text="线路"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_22"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvApi"
-            android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_10"
-            android:layout_marginLeft="@dimen/vs_10"
-            android:layout_marginEnd="@dimen/vs_10"
-            android:layout_marginRight="@dimen/vs_10"
-            android:background="@drawable/button_dialog_vod"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingLeft="@dimen/vs_15"
-            android:paddingRight="@dimen/vs_15"
-            android:text="配置"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_22"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvDate"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_marginStart="@dimen/vs_15"
-            android:layout_marginLeft="@dimen/vs_15"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
-            android:gravity="right|center_vertical"
-            android:textAlignment="gravity"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_22"
-            android:textStyle="bold"
-            tools:text="DateTime" />
 
     </LinearLayout>
 
