@@ -326,6 +326,17 @@ public class RemoteServer extends NanoHTTPD {
     private static final String BUILTIN_FEIMAO_VER = "feimao_20260824_v1";
     private File mFeimaoDir = null;
 
+    // 小贾影视仓 v15.3: 启动预热 —— 由 ControlManager.startServer 成功后后台线程调用。
+    // 首启就把 assets/feimao(含 9MB jar)解压好, 否则首次切"内置·肥猫"线路时 config 请求到达
+    // 才同步拷贝, 盒子上要卡好几秒(观感=加载慢)。预热后 /file/feimao/* 全部即时命中。
+    public void warmUpBuiltin() {
+        try {
+            ensureBuiltinFeimao();
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
     // 首启/版本变化时把 assets/feimao(配置+ext数据+jar)整体释放到私有目录, 供 /file/feimao/* 兜底读取。
     // 用版本戳 .xj_ver 判断是否需要重新释放, 避免每次启动重复拷贝 3.8MB。
     private synchronized File ensureBuiltinFeimao() {
