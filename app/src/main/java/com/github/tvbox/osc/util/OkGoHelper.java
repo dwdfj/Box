@@ -77,7 +77,9 @@ public class OkGoHelper {
         } catch (Throwable th) {
             th.printStackTrace();
         }
-        builder.dns(dnsOverHttps);
+        if (dnsOverHttps != null) {
+            builder.dns(dnsOverHttps);
+        }
 
         ExoMediaSourceHelper.getInstance(App.getInstance()).setOkClient(builder.build());
     }
@@ -142,8 +144,16 @@ public class OkGoHelper {
         builder.connectionSpecs(getConnectionSpec());
         builder.cache(new Cache(new File(App.getInstance().getCacheDir().getAbsolutePath(), "dohcache"), 10 * 1024 * 1024));
         OkHttpClient dohClient = builder.build();
-        String dohUrl = getDohUrl(Hawk.get(HawkConfig.DOH_URL, 0));
-        dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(dohUrl.isEmpty() ? null : HttpUrl.get(dohUrl)).build();
+        // v15.1: DoH 设为"关闭"(0)时 dnsOverHttps 置 null, 由调用方使用系统 DNS ——
+        // 旧逻辑即便关闭也构建了一个 url=null 的 DnsOverHttps 并装成全局 DNS,
+        // 每次域名解析都会异常/超时(表现为: 首页加载慢、某些线路拉取失败)。
+        int dohType = Hawk.get(HawkConfig.DOH_URL, 0);
+        String dohUrl = dohType > 0 ? getDohUrl(dohType) : "";
+        if (dohUrl == null || dohUrl.isEmpty()) {
+            dnsOverHttps = null;
+        } else {
+            dnsOverHttps = new DnsOverHttps.Builder().client(dohClient).url(HttpUrl.get(dohUrl)).build();
+        }
     }
 
     static OkHttpClient defaultClient = null;
@@ -176,8 +186,11 @@ public class OkGoHelper {
         builder = builder.addInterceptor(loggingInterceptor)
                 .readTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS)
                 .writeTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS)
-                .connectTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS)
-                .dns(dnsOverHttps);
+                .connectTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS);
+        // v15.1: 仅在用户显式开启 DoH 时才覆盖系统 DNS(见 initDnsOverHttps)
+        if (dnsOverHttps != null) {
+            builder.dns(dnsOverHttps);
+        }
         try {
             setOkHttpSsl(builder);
         } catch (Throwable th) {
