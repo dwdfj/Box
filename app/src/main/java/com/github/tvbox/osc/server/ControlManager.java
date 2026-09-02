@@ -48,7 +48,14 @@ public class ControlManager {
     }
 
     public String getAddress(boolean local) {
-        return local ? mServer.getLoadAddress() : mServer.getServerAddress();
+        // 小贾影视仓 v15.2: clan:// 线路(含内置本地包)需要本地 HTTP 服务; 尚未启动时先启动, 防 NPE
+        if (mServer == null) {
+            try {
+                startServer();
+            } catch (Throwable ignored) {
+            }
+        }
+        return mServer == null ? "" : (local ? mServer.getLoadAddress() : mServer.getServerAddress());
     }
 
     public void startServer() {
