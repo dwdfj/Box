@@ -927,9 +927,11 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 小贾影视仓 v15.3: 修复"切换线路必闪退" —— 原代码在 onDestroy 里调 appExit(0)(killProcess 杀进程)
+        // 和 stopServer()(停本地HTTP服务)。切换线路走 restartHome(finish 旧 Activity) 时, 这两行会把整个进程杀掉
+        // 或把 clan:// 依赖的本地服务停掉 → 一切换就闪退、重进(冷启动)才好。
+        // 真正退出由 doExit() 自己 finishAllActivity+killProcess+System.exit, 不依赖 onDestroy。
         EventBus.getDefault().unregister(this);
-        AppManager.getInstance().appExit(0);
-        ControlManager.get().stopServer();
     }
 
     // Site Switch on Home Button
