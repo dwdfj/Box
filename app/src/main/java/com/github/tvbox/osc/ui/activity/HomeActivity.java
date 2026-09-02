@@ -366,15 +366,18 @@ public class HomeActivity extends BaseActivity {
                 FastClickCheckUtil.check(v);
                 ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
                 String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
-                // 小贾影视仓: 预置线路(名称, 地址) —— 2026-08-24 v13 筛选
-                // 新增: 牛二凯速(wex)、安卓三代(aiwex)、饭太硬.net镜像
-                // 剔除: 潇洒(9877/ONE 404)、王二小(HTML)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
+                // 小贾影视仓: 预置线路(名称, 地址) —— v15 筛选(2026-09 实测)
+                // 肥猫·net: 2423 AES 加密配置(引擎原生解密), 40站含豆瓣+lives, 实测可用(肥猫.com 主站已挂)
+                // 王二小: 官网域名已改个人落地页/JS单源(basic auth), 真实配置=kstore newwex/wex/aiwex(防封)
+                // 饭太硬 art/net 双域名现指向同一 JPEG 图片配置(v11 图片解码器可解)
+                // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
                 String[][] presetLines = new String[][]{
                         {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                        {"肥猫·net", "http://肥猫.net/tv"},
                         {"饭太硬·主", "http://www.饭太硬.art/tv"},
                         {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                        {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
                         {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
-                        {"牛二·凯速", "https://9280.kstore.vip/wex.json"},
                         {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                         {"日后", "http://rihou.cc:88/demo.php"},
                         {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
@@ -473,7 +476,9 @@ public class HomeActivity extends BaseActivity {
         return true;
     }
 
-    private boolean skipNextUpdate = false;	
+    private boolean skipNextUpdate = false;
+    // 小贾影视仓: 本地接口文件选择请求码(ApiDialog"本地文件"按钮发起)
+    private static final int REQ_PICK_LOCAL_API = 0x5150;
     private void initViewModel() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         sourceViewModel.sortResult.observe(this, new Observer<AbsSortXml>() {
@@ -992,7 +997,6 @@ public class HomeActivity extends BaseActivity {
     void reloadHome() {
         doReloadInPlace(true);
     }
-
     // 小贾影视仓: 强制从网络重拉(忽略磁盘缓存), 用于长按标题"刷新"
     void reloadHomeFresh() {
         doReloadInPlace(false);
@@ -1027,15 +1031,52 @@ public class HomeActivity extends BaseActivity {
         }, this);
     }
 
+    // 小贾影视仓: 本地接口文件选择结果 —— 复制到私有目录后以 file:// 设为线路(ApiConfig.loadConfigUrl 支持读本地文件)
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_PICK_LOCAL_API) return;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        try {
+            java.io.InputStream is = getContentResolver().openInputStream(data.getData());
+            if (is == null) {
+                Toast.makeText(this, "无法打开所选文件", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
+            is.close();
+            String path = getFilesDir().getAbsolutePath() + "/local_api.bin";
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(path);
+            fos.write(bos.toByteArray());
+            fos.flush();
+            fos.close();
+            String api = "file://" + path;
+            ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+            if (!history.contains(api)) history.add(0, api);
+            if (history.size() > 20) history.remove(20);
+            Hawk.put(HawkConfig.API_HISTORY, history);
+            Hawk.put(HawkConfig.API_URL, api);
+            Toast.makeText(this, "已加载本地接口文件, 正在刷新…", Toast.LENGTH_SHORT).show();
+            reloadHome();
+        } catch (Throwable th) {
+            th.printStackTrace();
+            Toast.makeText(this, "本地文件读取失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     // 小贾影视仓: 根据线路地址返回显示名称
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
                 {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                {"肥猫·net", "http://肥猫.net/tv"},
                 {"饭太硬·主", "http://www.饭太硬.art/tv"},
                 {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
                 {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
-                {"牛二·凯速", "https://9280.kstore.vip/wex.json"},
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                 {"日后", "http://rihou.cc:88/demo.php"},
                 {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
