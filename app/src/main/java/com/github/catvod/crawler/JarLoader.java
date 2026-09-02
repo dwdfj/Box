@@ -190,9 +190,8 @@ public class JarLoader {
             Log.i("JarLoader", "echo-getSpider 加载spider: " + key);
             Spider sp = (Spider) classLoader.loadClass("com.github.catvod.spider." + clsKey).newInstance();
             sp.init(App.getInstance(), ext);
-            if (!jar.isEmpty()) {
-                sp.homeContent(false); // 增加此行 应该可以解决部分写的有问题源的历史记录问题 但会增加这个源的首次加载时间 不需要可以已删掉
-            }
+            // v15.1: 移除原 homeContent(false) 预热 —— 带 jar 站点首次创建 spider 时多打一次首页请求,
+            // 与随后 getSort 的 homeContent(true) 重复, 是"切线路后首页加载慢"的重要成因之一。
             spiders.put(key, sp);
             return sp;
         } catch (Throwable th) {
