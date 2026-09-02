@@ -59,9 +59,12 @@ public class ControlManager {
     }
 
     public void startServer() {
-        if (mServer != null) {
+        // 小贾影视仓 v15.3: 允许"停服后重启" —— 若 mServer 存在但已停止(如曾被 stopServer), 丢弃重建,
+        // 否则 startServer 直接 return, 本地HTTP服务(含 clan:// 内置包线路)永久失效直到进程被杀。
+        if (mServer != null && mServer.isStarting()) {
             return;
         }
+        mServer = null;
         do {
             mServer = new RemoteServer(RemoteServer.serverPort, mContext);
             mServer.setDataReceiver(new DataReceiver() {
@@ -122,6 +125,17 @@ public class ControlManager {
             try {
                 mServer.start();
                 IjkMediaPlayer.setDotPort(Hawk.get(HawkConfig.DOH_URL, 0) > 0, RemoteServer.serverPort);
+                // 小贾影视仓 v15.3: 后台预热内置肥猫包, 避免首次切内置线路时同步解压卡顿
+                try {
+                    final RemoteServer srv = mServer;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            srv.warmUpBuiltin();
+                        }
+                    }, "feimao-warmup").start();
+                } catch (Throwable ignored) {
+                }
                 break;
             } catch (IOException ex) {
                 RemoteServer.serverPort++;
