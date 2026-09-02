@@ -367,22 +367,31 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             getWindow().setBackgroundDrawable(globalWp);
         } else {
             // 小贾影视仓: 无线路壁纸时回退到内置壁纸(home_wallpaper=用户美女图), 采样压缩+压暗, 失败再纯色(绝不黑屏)
+            // v15: BuildConfig.XJ_WALLPAPER 构建开关(assembleRelease -PxjWallpaper=false 出"无壁纸版"= 主题纯色)
+            boolean withWp;
             try {
-                android.content.res.Resources res = getResources();
-                BitmapFactory.Options opts = new BitmapFactory.Options();
-                opts.inJustDecodeBounds = true;
-                BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
-                int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 720), 1);
-                opts.inJustDecodeBounds = false;
-                opts.inSampleSize = scale;
-                Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
-                if (bmp != null) {
-                    globalWp = new BitmapDrawable(res, darkenWallpaper(bmp));
-                    getWindow().setBackgroundDrawable(globalWp);
-                    return;
-                }
+                withWp = com.github.tvbox.osc.BuildConfig.XJ_WALLPAPER;
             } catch (Throwable t) {
-                t.printStackTrace();
+                withWp = true; // debug/无字段时保持原行为
+            }
+            if (withWp) {
+                try {
+                    android.content.res.Resources res = getResources();
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
+                    int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 720), 1);
+                    opts.inJustDecodeBounds = false;
+                    opts.inSampleSize = scale;
+                    Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
+                    if (bmp != null) {
+                        globalWp = new BitmapDrawable(res, darkenWallpaper(bmp));
+                        getWindow().setBackgroundDrawable(globalWp);
+                        return;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
             }
             android.util.TypedValue tv = new android.util.TypedValue();
             getTheme().resolveAttribute(R.attr.color_theme, tv, true);
