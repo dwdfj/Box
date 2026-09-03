@@ -122,6 +122,7 @@ public class Spider {
     }
 
     public static Dns safeDns() {
-        return OkGoHelper.dnsOverHttps;
+        // v15.4.1: 同 OkHttp.dns() —— DoH 关闭时回退系统 DNS, 防 null DNS 引发 jar 请求异常
+        return OkGoHelper.dnsOverHttps != null ? OkGoHelper.dnsOverHttps : Dns.SYSTEM;
     }
 }
