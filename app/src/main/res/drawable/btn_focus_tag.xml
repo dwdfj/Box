@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.5: 首页模式标签(豆瓣热播/站点推荐/播放历史) 红色胶囊 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="14mm" />
+    <solid android:color="@color/color_theme" />
+</shape>
