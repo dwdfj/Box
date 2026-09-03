@@ -355,6 +355,7 @@ public class RemoteServer extends NanoHTTPD {
     // ============ 小贾影视仓 v15.2: 内置本地包(assets/feimao -> filesDir/feimao) ============
     private static final String BUILTIN_FEIMAO_VER = "feimao_20260824_v1";
     private File mFeimaoDir = null;
+    private boolean mFeimaoReady = false;
 
     // 小贾影视仓 v15.3: 启动预热 —— 由 ControlManager.startServer 成功后后台线程调用。
     // 首启就把 assets/feimao(含 9MB jar)解压好, 否则首次切"内置·肥猫"线路时 config 请求到达
@@ -369,36 +370,72 @@ public class RemoteServer extends NanoHTTPD {
 
     // 首启/版本变化时把 assets/feimao(配置+ext数据+jar)整体释放到私有目录, 供 /file/feimao/* 兜底读取。
     // 用版本戳 .xj_ver 判断是否需要重新释放, 避免每次启动重复拷贝 3.8MB。
+    //
+    // v15.5.1 自愈增强(修复『从网络上加载jar失败』): 旧实现把 mFeimaoDir 当"已就绪"缓存,
+    // 且版本判断只看 config.json —— 若首次释放中途异常, 或覆盖安装后 filesDir/feimao 残留
+    // 缺 jar 的旧内容(版本戳相同则永不重拷), /file/feimao/jar/*.jar 会 404,
+    // OkGo 网络请求直接失败, 报"从网络上加载jar失败"。
+    // 现在: ① config+版本戳+jar 目录非空三者齐备才算就绪, 缺任一项强制重拷;
+    //       ② 拷贝异常/复验失败立即清场(删除半成品目录), 保证下次请求可重试而非永久 404;
+    //       ③ 只有确认完整才置 mFeimaoReady, 之后走 O(1) 快速返回。
     private synchronized File ensureBuiltinFeimao() {
-        if (mFeimaoDir != null) return mFeimaoDir;
         File dir = new File(mContext.getFilesDir(), "feimao");
+        if (mFeimaoReady) return dir;
         File verFile = new File(dir, ".xj_ver");
         boolean need = true;
         if (new File(dir, "config.json").exists() && verFile.exists()) {
+            String v = "";
             try {
                 FileInputStream fis = new FileInputStream(verFile);
                 byte[] b = new byte[128];
                 int n = fis.read(b);
                 fis.close();
-                String v = n > 0 ? new String(b, 0, n, "UTF-8").trim() : "";
-                need = !BUILTIN_FEIMAO_VER.equals(v);
+                v = n > 0 ? new String(b, 0, n, "UTF-8").trim() : "";
             } catch (Throwable th) {
-                need = true;
+                v = "";
             }
+            File jarDir = new File(dir, "jar");
+            String[] jars = jarDir.list();
+            boolean jarOk = jars != null && jars.length > 0;
+            need = !BUILTIN_FEIMAO_VER.equals(v) || !jarOk;
         }
         if (need) {
             try {
+                deleteRecursive(dir); // 清掉半成品/旧内容, 避免残留文件污染新拷贝
                 copyAssetDir("feimao", dir);
+                File jarDir = new File(dir, "jar");
+                String[] jars = jarDir.list();
+                if (jars == null || jars.length == 0) {
+                    throw new IOException("feimao jar dir empty after copy");
+                }
                 FileOutputStream fos = new FileOutputStream(verFile);
                 fos.write(BUILTIN_FEIMAO_VER.getBytes("UTF-8"));
                 fos.flush();
                 fos.close();
+                mFeimaoReady = true; // 只有完整成功才就绪
             } catch (Throwable th) {
                 th.printStackTrace();
+                deleteRecursive(dir); // 失败清场: 下次 /file/feimao/* 请求会再次尝试释放
+                mFeimaoReady = false;
             }
+        } else {
+            mFeimaoReady = true;
         }
         mFeimaoDir = dir;
         return dir;
+    }
+
+    // 递归删除私有目录内容(仅用于 filesDir/feimao 半成品自愈, 不触外部存储)
+    private void deleteRecursive(File f) {
+        if (f == null || !f.exists()) return;
+        if (f.isDirectory()) {
+            File[] kids = f.listFiles();
+            if (kids != null) {
+                for (File k : kids) deleteRecursive(k);
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
     }
 
     // 递归拷贝 assets 子目录(am.list 对"目录"返回条目列表; 对"文件"返回 null/空/抛异常 → 按文件拷贝)
