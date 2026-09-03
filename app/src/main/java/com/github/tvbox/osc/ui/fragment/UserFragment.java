@@ -274,7 +274,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvHotCount.setText(cur + " / " + total);
     }
 
- —— 删除模式/全网搜/详情, 与旧 onItemClick 语义一致
+    // v15.6: 统一打开逻辑 —— 删除模式/全网搜/详情, 与旧 onItemClick 语义一致
     private void openVod(Movie.Video vod) {
         if (vod == null) return;
         if (ApiConfig.get().getSourceBeanList().isEmpty())
