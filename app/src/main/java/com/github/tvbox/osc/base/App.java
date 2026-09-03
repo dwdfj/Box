@@ -76,6 +76,11 @@ public class App extends MultiDexApplication {
                         java.io.FileOutputStream fos = new java.io.FileOutputStream(f, true);
                         fos.write(log.getBytes("UTF-8"));
                         fos.close();
+                        // v15.4.3: 另存一份"最后一次崩溃"(覆盖写), 供下次启动弹窗一键复制上报
+                        java.io.File f2 = new java.io.File(getFilesDir(), "xj_crash_last.txt");
+                        java.io.FileOutputStream fos2 = new java.io.FileOutputStream(f2, false);
+                        fos2.write(log.getBytes("UTF-8"));
+                        fos2.close();
                     } catch (Throwable ignored) {
                     }
                     if (def != null) {
