@@ -43,8 +43,10 @@ public class OkHttp {
     }
 
     public static Dns dns() {
-//        return get().dns != null ? get().dns : Dns.SYSTEM; // 由于 setDoh(Doh doh)没有被调用导致这里选择的是 Dns.SYSTEM
-        return get().dns != null ? get().dns : OkGoHelper.dnsOverHttps;
+        // v15.4.1: DoH 关闭(dnsOverHttps=null)时回退系统 DNS。此前把 null 直接交给 Builder.dns(),
+        // jar 网络层域名解析走 null 引用 -> 异常/超时(表现: 内置肥猫搜索报错、含 jar 线路切过去闪退/拉不到)
+        Dns d = get().dns != null ? get().dns : OkGoHelper.dnsOverHttps;
+        return d != null ? d : Dns.SYSTEM;
     }
 
     public void setDoh(Doh doh) {
