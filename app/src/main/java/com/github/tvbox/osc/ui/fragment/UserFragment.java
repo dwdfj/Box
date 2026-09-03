@@ -34,6 +34,7 @@ import com.lzy.okgo.callback.AbsCallback;
 import com.lzy.okgo.model.Response;
 import com.orhanobut.hawk.Hawk;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
+import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 
 import org.greenrobot.eventbus.EventBus;
@@ -66,16 +67,11 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     public static TvRecyclerView tvHotListForGrid;
     public static TvRecyclerView tvHotListForLine;
 
-    // v15.5 大图焦点 UI
-    private ImageView bgFocus;
+    // v15.6 横屏海报墙 UI: 只剩模式标签 + 数量统计(大图焦点已废弃)
     private TextView tvModeTag;
-    private TextView tvFocusTitle;
-    private TextView tvFocusMeta;
-    private TextView tvFocusDesc;
-    private TextView tvFocusPlay;
-    private TextView tvFocusDetail;
-    private Movie.Video curFocusVod = null;
+    private TextView tvHotCount;
     private int focusPos = 0;
+    private static final int HOME_SPAN = 5;
 
     public static UserFragment newInstance() {
         return new UserFragment();
@@ -155,36 +151,18 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvPush.setOnFocusChangeListener(focusChangeListener);
         tvCollect.setOnFocusChangeListener(focusChangeListener);
 
-        // v15.5 大图焦点: 背景 + 浮层
-        bgFocus = findViewById(R.id.bgFocus);
-        bgFocus.setImageDrawable(new ColorDrawable(0xFF0A0B0E));
+        // v15.6 横屏海报墙: 顶部只保留模式标签 + 数量统计
         tvModeTag = findViewById(R.id.tvModeTag);
-        tvFocusTitle = findViewById(R.id.tvFocusTitle);
-        tvFocusMeta = findViewById(R.id.tvFocusMeta);
-        tvFocusDesc = findViewById(R.id.tvFocusDesc);
-        tvFocusPlay = findViewById(R.id.tvFocusPlay);
-        tvFocusDetail = findViewById(R.id.tvFocusDetail);
-        tvFocusPlay.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openVod(curFocusVod);
-            }
-        });
-        tvFocusDetail.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openVod(curFocusVod);
-            }
-        });
+        tvHotCount = findViewById(R.id.tvHotCount);
 
         tvHotListForLine = findViewById(R.id.tvHotListForLine);
         tvHotListForGrid = findViewById(R.id.tvHotListForGrid);
-        // v15.5: 首页固定「大图焦点」—— 卡带横向滑动, 旧"单行"容器恒隐藏
+        // v15.6: 首页固定「横屏海报墙」—— 网格排布, 旧"单行"容器恒隐藏
         tvHotListForLine.setVisibility(View.GONE);
         tvHotListForGrid.setVisibility(View.VISIBLE);
         tvHotListForGrid.setHasFixedSize(true);
-        tvHotListForGrid.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
-        tvHotListForGrid.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 14.0f));
+        tvHotListForGrid.setLayoutManager(new V7GridLayoutManager(this.mContext, HOME_SPAN));
+        tvHotListForGrid.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 12.0f), AutoSizeUtils.dp2px(this.mContext, 12.0f));
 
         String tvRate = "";
         if (Hawk.get(HawkConfig.HOME_REC, 0) == 0) {
@@ -239,7 +217,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
         });
 
-        // v15.5: 卡带焦点联动 —— 左右切换即时刷新背景大图与信息浮层
+        // v15.6: 网格焦点 —— 轻微放大避免与邻卡重叠, 并同步更新"第几个/共几个"
         tvHotListForGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
@@ -251,11 +229,10 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 if (itemView != null) {
-                    itemView.animate().scaleX(1.16f).scaleY(1.16f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
+                    itemView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
                 }
                 focusPos = position;
-                Movie.Video vod = homeHotVodAdapter.getItem(position);
-                if (vod != null) updateFocusCard(vod);
+                updateCount(position);
             }
 
             @Override
@@ -265,7 +242,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
         tvHotListForGrid.setAdapter(homeHotVodAdapter);
 
-        // 数据就绪后自动点亮第一张焦点卡(含豆瓣热播异步回调/历史模式刷新)
+        // 数据就绪后刷新数量统计(含豆瓣热播异步回调/历史模式刷新)
         homeHotVodAdapter.registerAdapterDataObserver(new androidx.recyclerview.widget.RecyclerView.AdapterDataObserver() {
             @Override
             public void onChanged() {
@@ -276,8 +253,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                         if (homeHotVodAdapter.getData().isEmpty()) return;
                         int pos = Math.min(focusPos, homeHotVodAdapter.getData().size() - 1);
                         if (pos < 0) pos = 0;
-                        Movie.Video vod = homeHotVodAdapter.getItem(pos);
-                        if (vod != null) updateFocusCard(vod);
+                        updateCount(pos);
                     }
                 });
             }
@@ -286,53 +262,19 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         initHomeHotVod(homeHotVodAdapter);
     }
 
-    // v15.5: 刷新左下焦点卡信息 —— 标题/元信息/简介 + 背景大图
-    private void updateFocusCard(Movie.Video vod) {
-        if (vod == null) return;
-        curFocusVod = vod;
-        tvFocusTitle.setText(TextUtils.isEmpty(vod.name) ? "未知片名" : vod.name.trim());
-        String meta = buildMeta(vod);
-        if (TextUtils.isEmpty(meta)) {
-            tvFocusMeta.setVisibility(View.GONE);
-        } else {
-            tvFocusMeta.setText(meta);
-            tvFocusMeta.setVisibility(View.VISIBLE);
+    // v15.6: 顶部数量统计 —— "第 N 个 / 共 M 个"
+    private void updateCount(int position) {
+        if (tvHotCount == null) return;
+        int total = homeHotVodAdapter == null ? 0 : homeHotVodAdapter.getData().size();
+        if (total <= 0) {
+            tvHotCount.setText("");
+            return;
         }
-        if (!TextUtils.isEmpty(vod.des)) {
-            tvFocusDesc.setText(vod.des.trim());
-            tvFocusDesc.setVisibility(View.VISIBLE);
-        } else {
-            tvFocusDesc.setVisibility(View.GONE);
-        }
-        if (!TextUtils.isEmpty(vod.pic)) {
-            ImgUtil.load(vod.pic.trim(), bgFocus, 0);
-        } else {
-            bgFocus.setImageDrawable(new ColorDrawable(0xFF0A0B0E));
-        }
+        int cur = Math.max(1, Math.min(position + 1, total));
+        tvHotCount.setText(cur + " / " + total);
     }
 
-    // v15.5: 组装焦点卡元信息(评分/年份/类型/地区/语言/备注), 无内容返回 null
-    private String buildMeta(Movie.Video vod) {
-        if (vod == null) return null;
-        ArrayList<String> parts = new ArrayList<>();
-        if (Hawk.get(HawkConfig.HOME_REC, 0) == 0) {
-            // 豆瓣热播: note = 评分
-            if (!TextUtils.isEmpty(vod.note)) parts.add("豆瓣 " + vod.note.trim() + " 分");
-            return parts.isEmpty() ? null : TextUtils.join("  ·  ", parts);
-        }
-        if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
-            if (!TextUtils.isEmpty(vod.note)) parts.add(vod.note.trim());   // "上次看到…"
-            return parts.isEmpty() ? null : TextUtils.join("  ·  ", parts);
-        }
-        if (vod.year > 0) parts.add(String.valueOf(vod.year));
-        if (!TextUtils.isEmpty(vod.type)) parts.add(vod.type.trim());
-        if (!TextUtils.isEmpty(vod.area)) parts.add(vod.area.trim());
-        if (!TextUtils.isEmpty(vod.lang)) parts.add(vod.lang.trim());
-        if (!TextUtils.isEmpty(vod.note)) parts.add(vod.note.trim());
-        return parts.isEmpty() ? null : TextUtils.join("  ·  ", parts);
-    }
-
-    // v15.5: 统一打开逻辑 —— 删除模式/全网搜/详情, 与旧 onItemClick 语义一致
+ —— 删除模式/全网搜/详情, 与旧 onItemClick 语义一致
     private void openVod(Movie.Video vod) {
         if (vod == null) return;
         if (ApiConfig.get().getSourceBeanList().isEmpty())
