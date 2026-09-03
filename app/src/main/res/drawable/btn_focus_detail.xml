@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.5: 「详情」半透明白胶囊按钮(聚焦时加白描边) -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:state_pressed="true">
+        <shape>
+            <corners android:radius="18mm" />
+            <solid android:color="#33FFFFFF" />
+            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_focused="false" android:state_pressed="true">
+        <shape>
+            <corners android:radius="18mm" />
+            <solid android:color="#33FFFFFF" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="18mm" />
+            <solid android:color="#2EFFFFFF" />
+            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="18mm" />
+            <solid android:color="#2EFFFFFF" />
+            <stroke android:width="1mm" android:color="@color/color_FFFFFF_40" />
+        </shape>
+    </item>
+</selector>
