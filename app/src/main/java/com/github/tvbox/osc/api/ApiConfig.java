@@ -255,6 +255,19 @@ public class ApiConfig {
                             callback.success();
                         } catch (Throwable th) {
                             th.printStackTrace();
+                            // v15.4.2: 解析失败时透传服务端返回预览 —— 不少线路(demo.php 动态源等)会返回
+                            // "require login"/"需要登录" 明文或 HTML, 此时真实原因是源站要求登录/已失效,
+                            // 弹窗直接展示原文便于判断, 而不是笼统的"解析配置失败"让人误以为 App 坏了。
+                            String preview = "";
+                            try {
+                                String raw = response.body();
+                                if (raw != null) {
+                                    preview = raw.trim();
+                                    if (preview.length() > 160) preview = preview.substring(0, 160) + "…";
+                                    preview = preview.replaceAll("[\\r\\n]+", " ");
+                                }
+                            } catch (Throwable ignored) {
+                            }
                             // 小贾影视仓: 默认线路解析失败(如图片配置 itv666.webp), 同样回退到可用 JSON 线路
                             if (!isFallback) {
                                 String def = "";
@@ -265,7 +278,9 @@ public class ApiConfig {
                                     return;
                                 }
                             }
-                            callback.error("解析配置失败");
+                            String reason = th.getMessage() == null ? "" : th.getMessage();
+                            if (reason.length() > 200) reason = reason.substring(0, 200);
+                            callback.error("解析配置失败\n" + (preview.isEmpty() ? reason : "源站返回: " + preview));
                         }
                     }
 
