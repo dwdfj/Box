@@ -597,6 +597,17 @@ public class SourceViewModel extends ViewModel {
     }
 
     // searchContent
+    // v15.4.1: 搜索诊断日志(私有目录 xj_search.log, 可经浏览器 http://<ip>:<port>/crash 查看; 定位 143/空结果/闪退)
+    private static void logSearch(String key, String tag, String msg) {
+        try {
+            java.io.File f = new java.io.File(App.getInstance().getFilesDir(), "xj_search.log");
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(f, true);
+            fos.write(("[" + new java.util.Date().toLocaleString() + "] " + key + " " + tag + ": " + (msg == null ? "" : msg) + "\n").getBytes("UTF-8"));
+            fos.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public void getSearch(String sourceKey, String wd) {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
         int type = sourceBean.getType();
@@ -605,12 +616,15 @@ public class SourceViewModel extends ViewModel {
                 Spider sp = ApiConfig.get().getCSP(sourceBean);
                 String search = sp.searchContent(wd, false);
                 if (!TextUtils.isEmpty(search)) {
+                    logSearch(sourceBean.getKey(), "search-ok", search.length() > 160 ? search.substring(0, 160) : search);
                     json(searchResult, search, sourceBean.getKey());
                 } else {
+                    logSearch(sourceBean.getKey(), "search-empty", "");
                     json(searchResult, "", sourceBean.getKey());
                 }
             } catch (Throwable th) {
                 th.printStackTrace();
+                logSearch(sourceBean.getKey(), "search-catch", th.getClass().getSimpleName() + ": " + th.getMessage());
                 json(searchResult, "", sourceBean.getKey());
             }
         } else if (type == 0 || type == 1) {
@@ -642,6 +656,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
+                            logSearch(sourceBean.getKey(), "search-http-error", response.getException() != null ? response.getException().getMessage() : "no msg");
                             // searchResult.postValue(null);
                             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
                         }
@@ -672,6 +687,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
+                            logSearch(sourceBean.getKey(), "search-http-error", response.getException() != null ? response.getException().getMessage() : "no msg");
                             // searchResult.postValue(null);
                             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
                         }
@@ -691,6 +707,7 @@ public class SourceViewModel extends ViewModel {
                 json(quickSearchResult, sp.searchContent(wd, true), sourceBean.getKey());
             } catch (Throwable th) {
                 th.printStackTrace();
+                logSearch(sourceBean.getKey(), "quicksearch-catch", th.getClass().getSimpleName() + ": " + th.getMessage());
             }
         } else if (type == 0 || type == 1) {
             OkGo.<String>get(sourceBean.getApi())
