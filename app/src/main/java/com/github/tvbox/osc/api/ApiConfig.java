@@ -87,6 +87,11 @@ public class ApiConfig {
 
     private final String requestAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
 
+    // 小贾影视仓 v15.4: 加载流水线任务代号 + OkGo 取消标签 —— 切线路/刷新时新任务顶掉旧任务,
+    // 旧异步回调(最长10s超时窗口)回来时因代号不匹配被静默丢弃, 不再覆盖新状态/串台(对标 FongMi BaseConfig.load)
+    private static final String LOAD_TAG = "xj_load_pipeline";
+    private final java.util.concurrent.atomic.AtomicInteger mLoadTask = new java.util.concurrent.atomic.AtomicInteger(0);
+
     private ApiConfig() {
         clearLoader();
         sourceBeanList = new LinkedHashMap<>();
@@ -151,13 +156,19 @@ public class ApiConfig {
     };
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
+        // 小贾影视仓 v15.4: 新一轮加载 = 任务代号 +1, 并取消上一轮仍在飞的 config/jar 请求(防堆积/串台)
+        int taskId = mLoadTask.incrementAndGet();
+        try {
+            OkGo.getInstance().cancelTag(LOAD_TAG);
+        } catch (Throwable ignored) {
+        }
         // 小贾影视仓: 加载参考豆瓣(首页锁死豆瓣用)
         loadReferenceDouban();
         String apiUrl = Hawk.get(HawkConfig.API_URL, HomeActivity.getRes().getString(R.string.app_source));
-        loadConfigUrl(useCache, apiUrl, callback, activity, false);
+        loadConfigUrl(useCache, apiUrl, callback, activity, false, taskId);
     }
 
-    private void loadConfigUrl(boolean useCache, String apiUrl, LoadConfigCallback callback, Activity activity, boolean isFallback) {
+    private void loadConfigUrl(boolean useCache, String apiUrl, LoadConfigCallback callback, Activity activity, boolean isFallback, int taskId) {
         // Embedded Source : Update in Strings.xml if required
         if (apiUrl == null || apiUrl.isEmpty()) {
             callback.error("源地址为空");
@@ -212,14 +223,19 @@ public class ApiConfig {
         } else {
             configUrl = apiUrl;
         }
+        // v15.4.1: URL 全角 ASCII -> 半角(肥猫/饭太硬等预置源为防探测用全角点「．」; 手动粘贴线路也可能带全角),
+        // 不转半角 OkHttp 解析 host 会失败/异常, 表现为切线路拉不到甚至闪退
+        configUrl = normalizeUrl(configUrl);
         System.out.println("API URL :" + configUrl);
         String configKey = TempKey;
         OkGo.<String>get(configUrl)
+                .tag(LOAD_TAG)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
                 .execute(new AbsCallback<String>() {
                     @Override
                     public void onSuccess(Response<String> response) {
+                        if (taskId != mLoadTask.get()) return; // v15.4: 已被新任务取代, 静默丢弃
                         try {
                             String json = response.body();
                             parseJson(apiUrl, json);
@@ -245,7 +261,7 @@ public class ApiConfig {
                                 if (HomeActivity.getRes() != null)
                                     def = HomeActivity.getRes().getString(R.string.app_source);
                                 if (apiUrl.equals(def)) {
-                                    tryFallback(0, useCache, callback, activity);
+                                    tryFallback(0, useCache, callback, activity, taskId);
                                     return;
                                 }
                             }
@@ -255,6 +271,7 @@ public class ApiConfig {
 
                     @Override
                     public void onError(Response<String> response) {
+                        if (taskId != mLoadTask.get()) return; // v15.4: 已被新任务取代, 静默丢弃
                         super.onError(response);
                         if (cache.exists()) {
                             try {
@@ -270,7 +287,7 @@ public class ApiConfig {
                         if (!isFallback && apiUrl != null) {
                             String mirror = getLineMirror(apiUrl);
                             if (mirror != null && !mirror.equals(apiUrl)) {
-                                loadConfigUrl(false, mirror, callback, activity, true);
+                                loadConfigUrl(false, mirror, callback, activity, true, taskId);
                                 return;
                             }
                         }
@@ -280,7 +297,7 @@ public class ApiConfig {
                             if (HomeActivity.getRes() != null)
                                 def = HomeActivity.getRes().getString(R.string.app_source);
                             if (apiUrl.equals(def)) {
-                                tryFallback(0, useCache, callback, activity);
+                                tryFallback(0, useCache, callback, activity, taskId);
                                 return;
                             }
                         }
@@ -315,6 +332,21 @@ public class ApiConfig {
 
     // 小贾影视仓 v15.1: 线路镜像映射表(域名级防封/容灾)。网络拉取失败时自动换镜像重拉一次。
     // 镜像地址不会再命中本表(表内不互为镜像), 不会死循环。
+    // v15.4.1: 全角 ASCII(FF01-FF5E, 含「．」FF0E) -> 半角; 仅在 URL 使用前调用
+    private static String normalizeUrl(String url) {
+        if (url == null) return url;
+        char[] cs = url.toCharArray();
+        boolean changed = false;
+        for (int i = 0; i < cs.length; i++) {
+            char c = cs[i];
+            if (c >= 0xFF01 && c <= 0xFF5E) {
+                cs[i] = (char) (c - 0xFEE0);
+                changed = true;
+            }
+        }
+        return changed ? new String(cs) : url;
+    }
+
     private static String getLineMirror(String url) {
         if (url == null) return null;
         String[][] mirrors = new String[][]{
@@ -330,7 +362,7 @@ public class ApiConfig {
     }
 
     // 小贾影视仓: 依次尝试回退线路; 成功则把生效线路记为当前 API_URL(标题与内容一致), 全部失败才报错
-    private void tryFallback(int index, boolean useCache, LoadConfigCallback callback, Activity activity) {
+    private void tryFallback(int index, boolean useCache, LoadConfigCallback callback, Activity activity, int taskId) {
         if (index >= FALLBACK_LINES.length) {
             callback.error("所有内置线路均加载失败，请检查网络或切换其它线路");
             return;
@@ -350,12 +382,18 @@ public class ApiConfig {
 
             @Override
             public void error(String msg) {
-                tryFallback(index + 1, useCache, callback, activity);
+                tryFallback(index + 1, useCache, callback, activity, taskId);
             }
-        }, activity, true);
+        }, activity, true, taskId);
     }
 
     public void loadJar(boolean useCache, String spider, LoadConfigCallback callback) {
+        // 小贾影视仓 v15.4: 与 loadConfig 共用同一任务代号流水线 —— 切线路后旧 jar 下载/回调直接作废
+        int taskId = mLoadTask.incrementAndGet();
+        try {
+            OkGo.getInstance().cancelTag(LOAD_TAG);
+        } catch (Throwable ignored) {
+        }
         String[] urls = spider.split(";md5;");
         String jarUrl = urls[0];
         String md5 = urls.length > 1 ? urls[1].trim() : "";
@@ -381,6 +419,7 @@ public class ApiConfig {
         boolean isJarInImg = jarUrl.startsWith("img+");
         jarUrl = jarUrl.replace("img+", "");
         OkGo.<File>get(jarUrl)
+                .tag(LOAD_TAG)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
                 .execute(new AbsCallback<File>() {
@@ -421,6 +460,7 @@ public class ApiConfig {
 
                     @Override
                     public void onSuccess(Response<File> response) {
+                        if (taskId != mLoadTask.get()) return; // v15.4: 已被新任务取代, 静默丢弃
                         File file = response.body();
                         if (file != null && file.exists()) {
                             try {
@@ -442,6 +482,7 @@ public class ApiConfig {
 
                     @Override
                     public void onError(Response<File> response) {
+                        if (taskId != mLoadTask.get()) return; // v15.4: 已被新任务取代, 静默丢弃
                         Throwable ex = response.getException();
                         if (ex != null) {
                             LOG.i("echo---jar Request failed: " + ex.getMessage());
