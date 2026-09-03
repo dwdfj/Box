@@ -89,6 +89,13 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     @Override
     public void onFragmentResume() {
 
+        super.onFragmentResume();
+        // v15.6.1: view 被 ViewPager 回收后(onDestroyView 已把静态字段置空)本回调仍可能触发,
+        // 此时控件引用为 null —— 只走 super(交给懒加载重建), 后续操作全部跳过, 避免 NPE。
+        if (tvSearch == null || tvSetting == null) {
+            return;
+        }
+
         // takagen99: Initialize Icon Placement
         if (!Hawk.get(HawkConfig.HOME_SEARCH_POSITION, true)) {
             tvSearch.setVisibility(View.VISIBLE);
@@ -101,8 +108,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvSetting.setVisibility(View.GONE);
         }
 
-        super.onFragmentResume();
-        if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
+        if (Hawk.get(HawkConfig.HOME_REC, 0) == 2 && homeHotVodAdapter != null) {
             List<VodInfo> allVodRecord = RoomDataManger.getAllVodRecord(20);
             List<Movie.Video> vodList = new ArrayList<>();
             for (VodInfo vodInfo : allVodRecord) {
@@ -414,6 +420,23 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     public void server(ServerEvent event) {
         if (event.type == ServerEvent.SERVER_CONNECTION) {
         }
+    }
+
+    @Override
+    public void onDestroyView() {
+        // v15.6.1: tvHotListForGrid/tvHotListForLine 是静态字段, 若不置空会一直钉住已销毁的 RecyclerView,
+        // 连同其 Context(Activity) 一起泄漏 —— 每次切线路重建 fragments 就多漏一份。
+        // HomeActivity 访问这两处均已判空(onBackPressed), 置空安全。
+        if (tvHotListForGrid != null) {
+            tvHotListForGrid.setAdapter(null);
+            tvHotListForGrid = null;
+        }
+        if (tvHotListForLine != null) {
+            tvHotListForLine.setAdapter(null);
+            tvHotListForLine = null;
+        }
+        homeHotVodAdapter = null;
+        super.onDestroyView();
     }
 
     @Override
