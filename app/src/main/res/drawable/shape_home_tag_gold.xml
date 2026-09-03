@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.7: 「今日主推」金色角标(叠加在横卡海报左上角) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="8mm" />
+    <solid android:color="@color/color_home_gold" />
+</shape>
