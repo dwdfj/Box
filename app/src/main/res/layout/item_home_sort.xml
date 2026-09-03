@@ -1,32 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.7: 方案A「顶栏胶囊」—— 分类项由 v15.6 竖排长条改回横向胶囊:
+     wrap_content 宽 + 固定 vs_45 胶囊高 + 居中文本; 背景 button_home_sort_focus(聚焦白描边+主题色底) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="@dimen/vs_52"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/vs_45"
     android:background="@drawable/button_home_sort_focus"
     android:clickable="true"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:gravity="center_vertical"
+    android:gravity="center"
     android:orientation="horizontal"
-    android:paddingLeft="@dimen/vs_16"
-    android:paddingRight="@dimen/vs_10">
+    android:paddingLeft="@dimen/vs_20"
+    android:paddingRight="@dimen/vs_20">
 
     <TextView
         android:id="@+id/tvTitle"
-        android:layout_width="@dimen/vs_0"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_gravity="center"
         android:ellipsize="end"
         android:focusable="false"
-        android:gravity="left|center_vertical"
+        android:gravity="center"
         android:singleLine="true"
         android:textColor="@color/color_FFFFFF_70"
-        android:textSize="@dimen/ts_26" />
+        android:textSize="@dimen/ts_30" />
 
     <ImageView
         android:id="@+id/tvFilter"
         android:layout_width="@dimen/vs_26"
         android:layout_height="@dimen/vs_26"
+        android:layout_gravity="center"
         android:layout_marginStart="@dimen/vs_3"
         android:layout_marginLeft="@dimen/vs_3"
         android:src="@drawable/icon_filter"
