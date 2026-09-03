@@ -667,10 +667,22 @@ public class HomeActivity extends BaseActivity {
             } else {
                 doExit();
             }
-        } else if (baseLazyFragment instanceof UserFragment && UserFragment.tvHotListForGrid.canScrollVertically(-1)) {
-            // 如果 UserFragment 列表可以向上滚动，则滚动到顶部
-            UserFragment.tvHotListForGrid.scrollToPosition(0);
-            this.mGridView.setSelection(0);
+        } else if (baseLazyFragment instanceof UserFragment) {
+            // v15.5 大图焦点首页: 焦点在页面内部(横向卡带/快捷入口行)时, 先回滚卡带并把焦点归还分类行;
+            // 焦点已在分类行: 不在首页tab则切回首页, 已在首页则走双击退出。
+            if (this.sortFocusView != null && !this.sortFocusView.isFocused()) {
+                try {
+                    if (UserFragment.tvHotListForGrid != null && UserFragment.tvHotListForGrid.canScrollHorizontally(-1)) {
+                        UserFragment.tvHotListForGrid.scrollToPosition(0);
+                    }
+                } catch (Throwable ignored) {
+                }
+                this.sortFocusView.requestFocus();
+            } else if (this.sortFocused != 0) {
+                this.mGridView.setSelection(0);
+            } else {
+                doExit();
+            }
         } else {
             doExit();
         }
@@ -1026,25 +1038,13 @@ public class HomeActivity extends BaseActivity {
         reloadHome();
     }
 
-    // 小贾影视仓 v15.4: 首页推荐样式 宫格/横排 开关(原顶栏 tvStyle, 迁入信号源面板)
+    // 小贾影视仓 v15.5: 首页已升级为「大图焦点」模式(B方案), 原 宫格/横排 样式开关废除 —— 点击仅提示
     void toggleHomeStyle() {
-        try {
-            Hawk.put(HawkConfig.HOME_REC_STYLE, !Hawk.get(HawkConfig.HOME_REC_STYLE, false));
-            if (Hawk.get(HawkConfig.HOME_REC_STYLE, false)) {
-                UserFragment.tvHotListForGrid.setVisibility(View.VISIBLE);
-                UserFragment.tvHotListForLine.setVisibility(View.GONE);
-                Toast.makeText(this, getString(R.string.hm_style_grid), Toast.LENGTH_SHORT).show();
-            } else {
-                UserFragment.tvHotListForGrid.setVisibility(View.GONE);
-                UserFragment.tvHotListForLine.setVisibility(View.VISIBLE);
-                Toast.makeText(this, getString(R.string.hm_style_line), Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception ignored) {
-        }
+        Toast.makeText(this, getString(R.string.hm_style_fixed), Toast.LENGTH_SHORT).show();
     }
 
     private String homeStyleText() {
-        return Hawk.get(HawkConfig.HOME_REC_STYLE, false) ? "宫格" : "横排";
+        return getString(R.string.hm_style_focus);
     }
 
     // 小贾影视仓 v15.4: 线路配置(ApiDialog) —— 原顶栏 tvApi, 迁入信号源面板
