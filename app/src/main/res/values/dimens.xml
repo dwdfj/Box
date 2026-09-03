@@ -45,6 +45,11 @@
     <dimen name="vs_45">45mm</dimen>
     <dimen name="vs_50">50mm</dimen>
     <dimen name="vs_55">55mm</dimen>
+    <dimen name="vs_22">22mm</dimen>
+    <dimen name="vs_26">26mm</dimen>
+    <dimen name="vs_44">44mm</dimen>
+    <dimen name="vs_52">52mm</dimen>
+    <dimen name="vs_56">56mm</dimen>
     <dimen name="vs_60">60mm</dimen>
     <dimen name="vs_64">64mm</dimen>
     <dimen name="vs_70">70mm</dimen>
