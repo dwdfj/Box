@@ -644,7 +644,10 @@ public class HomeActivity extends BaseActivity {
         // 如果处于 VOD 删除模式，则退出该模式并刷新界面
         if (HawkConfig.hotVodDelete) {
             HawkConfig.hotVodDelete = false;
-            UserFragment.homeHotVodAdapter.notifyDataSetChanged();
+            // v15.6.1: homeHotVodAdapter 是 UserFragment 的静态字段, 切线路重建 fragments 期间可能为 null
+            if (UserFragment.homeHotVodAdapter != null) {
+                UserFragment.homeHotVodAdapter.notifyDataSetChanged();
+            }
             return;
         }
 
