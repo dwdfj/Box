@@ -200,24 +200,35 @@ public class RemoteServer extends NanoHTTPD {
                     }
                     return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/dns-message", new ByteArrayInputStream(rs), rs.length);
                 } else if (fileName.equals("/crash")) {
-                    // v15.4.1: 诊断通道 —— 浏览器访问 http://<ip>:<port>/crash 查看崩溃日志(xj_crash.log)与搜索日志(xj_search.log)
-                    StringBuilder sb = new StringBuilder();
+                    // v15.4.1/v15.4.2: 诊断通道 —— 浏览器访问 http://<ip>:9978/crash 查看崩溃日志(xj_crash.log)与搜索日志(xj_search.log)
+                    // v15.4.2: HTML 排版, 手机直接看堆栈; 只保留最近 3 段崩溃(日志按崩溃追加, 取尾部 260 行)防止超大
+                    StringBuilder text = new StringBuilder();
                     for (String fn : new String[]{"xj_crash.log", "xj_search.log"}) {
                         java.io.File lf = new java.io.File(mContext.getFilesDir(), fn);
                         if (lf.exists()) {
-                            sb.append("===== ").append(fn).append(" =====\n");
+                            text.append("===== ").append(fn).append(" =====\n");
                             try {
                                 java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(lf));
+                                java.util.ArrayList<String> ls = new java.util.ArrayList<>();
                                 String l;
-                                while ((l = br.readLine()) != null) sb.append(l).append("\n");
+                                while ((l = br.readLine()) != null) ls.add(l);
                                 br.close();
+                                int from = Math.max(0, ls.size() - 260);
+                                for (int i = from; i < ls.size(); i++) text.append(ls.get(i)).append("\n");
                             } catch (Throwable th) {
-                                sb.append(th).append("\n");
+                                text.append(th).append("\n");
                             }
                         }
                     }
-                    String body = sb.length() == 0 ? "(no crash/search log yet)" : sb.toString();
-                    return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, body);
+                    String body = text.length() == 0 ? "(no crash/search log yet)" : text.toString();
+                    String esc = body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+                    String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>小贾影视仓诊断</title></head>"
+                            + "<body style=\"background:#0f1115;color:#e6e6e6;font:13px/1.55 Consolas,Menlo,monospace;padding:14px;word-break:break-all;\">"
+                            + "<h2 style=\"color:#4cc38a;font-size:15px;margin:0 0 4px;\">小贾影视仓诊断日志</h2>"
+                            + "<p style=\"color:#888;margin:0 0 12px;font-size:12px;\">把本页内容全选复制发给开发者即可定位崩溃/搜索问题。仅最近 260 行。</p>"
+                            + "<pre style=\"margin:0;white-space:pre-wrap;\">" + esc + "</pre>"
+                            + "</body></html>";
+                    return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "text/html", html);
                 } else if (fileName.equals("/m3u8")) {
                     return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, m3u8Content);
                 } else if (fileName.startsWith("/dash/")) {
