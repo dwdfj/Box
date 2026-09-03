@@ -159,8 +159,8 @@ public class HomeActivity extends BaseActivity {
         this.mGridView = findViewById(R.id.mGridViewCategory);
         this.mViewPager = findViewById(R.id.mViewPager);
         this.sortAdapter = new SortAdapter();
-        this.mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
-        this.mGridView.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 8.0f), 0);
+        this.mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
+        this.mGridView.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 10.0f));
         this.mGridView.setAdapter(this.sortAdapter);
         sortAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
@@ -226,10 +226,10 @@ public class HomeActivity extends BaseActivity {
             }
         });
         this.mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
-            // 小贾影视仓 v15.6: 分类改左侧竖向导航 —— 边界语义随之调整:
-            //   UP   = 顶到第一个分类仍按上 -> 刷新当前分类, 焦点放行走回顶栏
-            //   RIGHT= 从导航进入右侧内容区(数据没加载完则拦截, 避免空页抢焦点)
-            //   DOWN / LEFT = 导航条已到尽头, 一律拦住, 防止焦点跑丢
+            // 小贾影视仓 v15.7: 分类改回顶部胶囊横排(方案A) —— 边界语义恢复原版 TVBox:
+            //   UP   = 顶到第一个分类仍按上 -> 刷新当前分类, 放行走回顶栏
+            //   DOWN = 从导航进入下方内容区(数据没加载完则拦截, 避免空页抢焦点)
+            //   LEFT / RIGHT = 放行(横向行内滚动由 TvRecyclerView 自身处理)
             public boolean onInBorderKeyEvent(int direction, View view) {
                 BaseLazyFragment baseLazyFragment = (sortFocused >= 0 && sortFocused < fragments.size()) ? fragments.get(sortFocused) : null;
                 if (direction == View.FOCUS_UP) {
@@ -238,13 +238,13 @@ public class HomeActivity extends BaseActivity {
                     }
                     return false;
                 }
-                if (direction == View.FOCUS_RIGHT) {
-                    if (!(baseLazyFragment instanceof GridFragment)) {
-                        return false;
-                    }
-                    return !((GridFragment) baseLazyFragment).isLoad();
+                if (direction != View.FOCUS_DOWN) {
+                    return false;
                 }
-                return true;
+                if (!(baseLazyFragment instanceof GridFragment)) {
+                    return false;
+                }
+                return !((GridFragment) baseLazyFragment).isLoad();
             }
         });
         // 小贾影视仓 v15.4: 单击标题 = 打开统一「信号源」面板(原"清缓存"语义移入面板操作项)
