@@ -34,6 +34,16 @@
     <string name="hm_mode_site">站点推荐</string>
     <string name="hm_mode_history">播放历史</string>
 
+    // 小贾影视仓 v15.7 方案A 首页(主推横卡 + 双卡带) //
+    <string name="hm_today_featured">今日主推</string>
+    <string name="hm_hot_recommend">热门推荐</string>
+    <string name="hm_resume_watch">继续观看</string>
+    <string name="hm_btn_play">播放</string>
+    <string name="hm_btn_collect">收藏</string>
+    <string name="hm_btn_collected">已收藏</string>
+    <string name="hm_fav_toast_add">已加入收藏</string>
+    <string name="hm_fav_toast_del">已取消收藏</string>
+
     // Play Detail Page //
     <string name="det_play">Play</string>
     <string name="det_expand">Expand</string>
