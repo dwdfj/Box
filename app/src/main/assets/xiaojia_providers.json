@@ -3,7 +3,7 @@
     {
       "key": "feimao",
       "name": "肥猫",
-      "api": "http://hello．肥猫．net",
+      "api": "http://hello.肥猫.net",
       "type": 0,
       "searchable": 1,
       "quickSearch": 1,
@@ -21,7 +21,7 @@
     {
       "key": "fantaiying_cc",
       "name": "饭太硬.cc",
-      "api": "http://www．饭太硬．cc/tv",
+      "api": "http://www.饭太硬.cc/tv",
       "type": 0,
       "searchable": 1,
       "quickSearch": 1,
