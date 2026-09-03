@@ -1,316 +1,457 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 首页略缩图样式 -->
+<!-- 小贾影视仓 v15.5: 首页(我的页签) 大图焦点模式(B方案) ——
+     上区 = 焦点片大海报铺底 + 左下信息浮层; 下区 = 横向卡带 + 快捷入口行。
+     旧 id(tvHotListForGrid/tvHotListForLine/tvUserHome/tvHistory 等)全部保留以兼容既有 Java 静态引用 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_margin="@dimen/vs_5"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
     android:clipChildren="false"
     android:clipToPadding="false"
-    android:orientation="vertical"
-    android:paddingLeft="@dimen/vs_40"
-    android:paddingTop="@dimen/vs_10"
-    android:paddingRight="@dimen/vs_40"
-    android:paddingBottom="@dimen/vs_20">
+    android:orientation="vertical">
 
+    <!-- 上区: 大图 + scrim + 信息浮层 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <ImageView
+            android:id="@+id/bgFocus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/app_name"
+            android:scaleType="centerCrop" />
+
+        <!-- 底部渐变压暗, 保证卡带/浮层文字可读 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/user_focus_scrim" />
+
+        <!-- 左下信息浮层 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/vs_50"
+            android:paddingRight="@dimen/vs_240"
+            android:paddingBottom="@dimen/vs_12">
+
+            <TextView
+                android:id="@+id/tvModeTag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/btn_focus_tag"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_16"
+                android:paddingRight="@dimen/vs_16"
+                android:paddingTop="@dimen/vs_3"
+                android:paddingBottom="@dimen/vs_3"
+                android:text="@string/hm_focus_enter"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_18" />
+
+            <TextView
+                android:id="@+id/tvFocusTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_12"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:shadowColor="@color/color_000000_FF"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="6"
+                android:text="@string/app_name"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_40"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvFocusMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_8"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:shadowColor="@color/color_000000_FF"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="4"
+                android:textColor="@color/color_FFFFFF_80"
+                android:textSize="@dimen/ts_22" />
+
+            <TextView
+                android:id="@+id/tvFocusDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_8"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:shadowColor="@color/color_000000_FF"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="4"
+                android:textColor="@color/color_FFFFFF_60"
+                android:textSize="@dimen/ts_18"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_18"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvFocusPlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_focus_play"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:gravity="center"
+                    android:paddingLeft="@dimen/vs_34"
+                    android:paddingRight="@dimen/vs_34"
+                    android:paddingTop="@dimen/vs_9"
+                    android:paddingBottom="@dimen/vs_9"
+                    android:text="@string/hm_focus_play"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_24"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvFocusDetail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="@dimen/vs_20"
+                    android:layout_marginStart="@dimen/vs_20"
+                    android:background="@drawable/btn_focus_detail"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:gravity="center"
+                    android:paddingLeft="@dimen/vs_34"
+                    android:paddingRight="@dimen/vs_34"
+                    android:paddingTop="@dimen/vs_9"
+                    android:paddingBottom="@dimen/vs_9"
+                    android:text="@string/hm_focus_detail"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_24" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 下区: 横向焦点卡带 -->
+    <com.owen.tvrecyclerview.widget.TvRecyclerView
+        android:id="@+id/tvHotListForGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/vs_30"
+        android:paddingTop="@dimen/vs_12"
+        android:paddingRight="@dimen/vs_30"
+        android:paddingBottom="@dimen/vs_6"
+        android:tag="tvHotListForGrid"
+        app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
+        app:tv_layoutManager="V7LinearLayoutManager"
+        app:tv_selectedItemIsCentered="true"
+        app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
+
+    <!-- 底部快捷入口行(迷你按钮, 保留旧 id) -->
     <LinearLayout
         android:id="@+id/tvUserHome"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:focusable="false"
         android:focusableInTouchMode="false"
-        android:orientation="horizontal">
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/vs_20"
+        android:paddingRight="@dimen/vs_20"
+        android:paddingBottom="@dimen/vs_8">
 
         <LinearLayout
             android:id="@+id/tvHistory"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:nextFocusUp="@id/mGridViewCategory"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_history"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_hist"
                 app:srcCompat="@drawable/hm_history" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_hist"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvLive"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_live"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_live"
                 app:srcCompat="@drawable/hm_live" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_live"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvSearch"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_search"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_search"
                 app:srcCompat="@drawable/hm_search" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_search"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvFavorite"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_fav"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_fav"
                 app:srcCompat="@drawable/hm_fav" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_fav"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvPush"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_push"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_push"
                 app:srcCompat="@drawable/hm_push" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_push"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvDrive"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_drive"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_file"
                 app:srcCompat="@drawable/hm_folder" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_file"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/tvSetting"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_100"
+            android:layout_height="@dimen/vs_64"
             android:layout_gravity="center"
-            android:layout_margin="@dimen/vs_5"
-            android:background="@drawable/shape_user_home"
+            android:layout_margin="@dimen/vs_4"
+            android:background="@drawable/shape_user_home_mini"
             android:clickable="false"
             android:focusable="true"
-            android:minWidth="@dimen/vs_150"
+            android:minWidth="@dimen/vs_120"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_15">
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12">
 
             <ImageView
                 android:id="@+id/hm_settings"
-                android:layout_width="@dimen/vs_40"
+                android:layout_width="@dimen/vs_24"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_3"
+                android:layout_margin="@dimen/vs_2"
                 android:alpha="0.9"
+                android:contentDescription="@string/hm_setting"
                 app:srcCompat="@drawable/hm_settings" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_weight="1"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:fontFamily="sans-serif-black"
                 android:gravity="center"
-                android:padding="@dimen/vs_3"
+                android:padding="@dimen/vs_2"
                 android:text="@string/hm_setting"
                 android:textColor="@color/color_FFFFFF_90"
-                android:textSize="@dimen/ts_24"
+                android:textSize="@dimen/ts_16"
                 android:textStyle="normal" />
-
         </LinearLayout>
-
     </LinearLayout>
-<!-- 首页多行排版 -->
-    <com.owen.tvrecyclerview.widget.TvRecyclerView
-        android:id="@+id/tvHotListForGrid"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/tvUserHome"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:descendantFocusability="afterDescendants"
-        android:paddingLeft="@dimen/vs_20"
-        android:paddingTop="@dimen/vs_30"
-        android:paddingRight="@dimen/vs_20"
-        android:paddingBottom="@dimen/vs_30"
-        android:tag="tvHotListForGrid"
-        android:visibility="gone"
-        app:tv_horizontalSpacingWithMargins="@dimen/vs_20"
-        app:tv_layoutManager="V7GridLayoutManager"
-        app:tv_selectedItemIsCentered="true"
-        app:tv_verticalSpacingWithMargins="@dimen/vs_20" />
-<!-- 首页单行排版 -->
+
+    <!-- v15.5: 旧"首页单行排版"容器保留 id 兼容, 不再参与展示 -->
     <com.owen.tvrecyclerview.widget.TvRecyclerView
         android:id="@+id/tvHotListForLine"
         android:layout_width="match_parent"
@@ -323,6 +464,7 @@
         android:paddingRight="@dimen/vs_20"
         android:paddingBottom="@dimen/vs_30"
         android:tag="tvHotListForLine"
+        android:visibility="gone"
         app:tv_horizontalSpacingWithMargins="@dimen/vs_20"
         app:tv_layoutManager="V7LinearLayoutManager"
         app:tv_selectedItemIsCentered="true"
