@@ -711,6 +711,74 @@ public class HomeActivity extends BaseActivity {
         } else {
             tvMenu.setVisibility(View.GONE);
         }
+
+        // v15.4.3: 傻瓜化崩溃上报 —— 上次闪退过则自动弹窗(摘要+一键复制/分享), 免去浏览器抓日志
+        checkCrashReport();
+    }
+
+    // v15.4.3: 检测上次崩溃(xj_crash_last.txt), 弹窗让用户一键复制/分享日志给开发者
+    private boolean crashReportShown = false;
+
+    private void checkCrashReport() {
+        if (crashReportShown) return;
+        final java.io.File cf = new java.io.File(getFilesDir(), "xj_crash_last.txt");
+        if (!cf.exists()) return;
+        crashReportShown = true;
+        final String fullLog;
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(cf);
+            byte[] buf = new byte[(int) Math.min(cf.length(), 512 * 1024)];
+            int n = fis.read(buf);
+            fis.close();
+            fullLog = n > 0 ? new String(buf, 0, n, "UTF-8") : "(empty)";
+        } catch (Throwable ignored) {
+            return;
+        }
+        // 摘要 = 非空、非 "at "、非 "==" 开头、含异常关键字或冒号的短行; 兜底截前 180 字符
+        String summary = "未知";
+        for (String line : fullLog.split("\n")) {
+            String t = line.trim();
+            if (t.isEmpty() || t.startsWith("at ") || t.startsWith("==") || t.startsWith("..."))
+                continue;
+            if (t.contains("Exception") || t.contains("Error") || t.contains(":")) {
+                summary = t.length() > 220 ? t.substring(0, 220) : t;
+                break;
+            }
+        }
+        final String fl = fullLog;
+        try {
+            new AlertDialog.Builder(this)
+                    .setTitle("上次运行闪退了一次")
+                    .setMessage("原因大概是：\n" + summary + "\n\n帮我反馈给开发者（两步）：\n① 点【分享日志】→ 选微信「文件传输助手」发送；\n② 或点【复制日志】→ 微信里粘贴发送。\n\n手机上操作就行，不用电脑")
+                    .setPositiveButton("分享日志", (d, w) -> {
+                        android.content.Intent si = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                        si.setType("text/plain");
+                        si.putExtra(android.content.Intent.EXTRA_TEXT, "【小贾影视仓崩溃日志】\n" + fl);
+                        try {
+                            startActivity(android.content.Intent.createChooser(si, "把日志发到微信文件传输助手"));
+                        } catch (Throwable th) {
+                            Toast.makeText(mContext, "没有可用的分享应用", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("复制日志", (d, w) -> {
+                        try {
+                            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("xj_crash", fl));
+                            Toast.makeText(mContext, "已复制！去微信文件传输助手粘贴发我", Toast.LENGTH_LONG).show();
+                        } catch (Throwable th) {
+                            Toast.makeText(mContext, "复制失败，长按手动复制也可", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNeutralButton("知道了", null)
+                    .setOnDismissListener(d -> {
+                        try {
+                            cf.delete();
+                        } catch (Throwable ignored) {
+                        }
+                    })
+                    .show();
+        } catch (Throwable ignored) {
+        }
     }
 
     @Override
