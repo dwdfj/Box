@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.5: 底部快捷入口迷你按钮 —— 圆角胶囊, 未选中半透明灰, 选中主题红底+白描边 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:state_pressed="true">
+        <shape>
+            <corners android:radius="16mm" />
+            <solid android:color="@color/color_theme_60" />
+            <stroke android:width="2mm" android:color="@color/color_FFFFFF_90" />
+        </shape>
+    </item>
+    <item android:state_focused="false" android:state_pressed="true">
+        <shape>
+            <corners android:radius="16mm" />
+            <solid android:color="@color/color_theme_60" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="16mm" />
+            <solid android:color="@color/color_theme_70" />
+            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="16mm" />
+            <solid android:color="#663D3D3D" />
+        </shape>
+    </item>
+</selector>
