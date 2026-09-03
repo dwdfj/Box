@@ -32,17 +32,22 @@ public class ConfirmClearDialog extends BaseDialog {
         tvYes.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // if removing all Favorites
-                if (type == "Collect") {
+                // 小贾影视仓 v15.6.1: 原用 type == "Collect" 比较字符串 —— 依赖字符串常量池侥幸生效,
+                // 一旦调用方改为动态拼接传参就会静默失效(清空操作不执行且无报错)。统一改 equals + 空 adapter 防御。
+                if ("Collect".equals(type)) {
                     List<VodCollect> vodInfoList = new ArrayList<>();
-                    CollectActivity.collectAdapter.setNewData(vodInfoList);
-                    CollectActivity.collectAdapter.notifyDataSetChanged();
+                    if (CollectActivity.collectAdapter != null) {
+                        CollectActivity.collectAdapter.setNewData(vodInfoList);
+                        CollectActivity.collectAdapter.notifyDataSetChanged();
+                    }
                     RoomDataManger.deleteVodCollectAll();
                     // if removing all History
-                } else if (type == "History") {
+                } else if ("History".equals(type)) {
                     List<VodInfo> vodInfoList = new ArrayList<>();
-                    HistoryActivity.historyAdapter.setNewData(vodInfoList);
-                    HistoryActivity.historyAdapter.notifyDataSetChanged();
+                    if (HistoryActivity.historyAdapter != null) {
+                        HistoryActivity.historyAdapter.setNewData(vodInfoList);
+                        HistoryActivity.historyAdapter.notifyDataSetChanged();
+                    }
                     RoomDataManger.deleteVodRecordAll();
                 }
 
