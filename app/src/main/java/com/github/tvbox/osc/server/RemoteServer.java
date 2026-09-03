@@ -199,6 +199,25 @@ public class RemoteServer extends NanoHTTPD {
                         rs = new byte[0];
                     }
                     return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/dns-message", new ByteArrayInputStream(rs), rs.length);
+                } else if (fileName.equals("/crash")) {
+                    // v15.4.1: 诊断通道 —— 浏览器访问 http://<ip>:<port>/crash 查看崩溃日志(xj_crash.log)与搜索日志(xj_search.log)
+                    StringBuilder sb = new StringBuilder();
+                    for (String fn : new String[]{"xj_crash.log", "xj_search.log"}) {
+                        java.io.File lf = new java.io.File(mContext.getFilesDir(), fn);
+                        if (lf.exists()) {
+                            sb.append("===== ").append(fn).append(" =====\n");
+                            try {
+                                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(lf));
+                                String l;
+                                while ((l = br.readLine()) != null) sb.append(l).append("\n");
+                                br.close();
+                            } catch (Throwable th) {
+                                sb.append(th).append("\n");
+                            }
+                        }
+                    }
+                    String body = sb.length() == 0 ? "(no crash/search log yet)" : sb.toString();
+                    return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, body);
                 } else if (fileName.equals("/m3u8")) {
                     return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, m3u8Content);
                 } else if (fileName.startsWith("/dash/")) {
