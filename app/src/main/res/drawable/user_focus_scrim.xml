@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.5: 大图焦点首页 —— 焦点区底缘渐变压暗(上透明, 底近黑), 让信息浮层/卡带文字可读 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="90"
+        android:startColor="#00000000"
+        android:centerColor="#66000000"
+        android:endColor="#F2000000" />
+</shape>
