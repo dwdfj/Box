@@ -60,6 +60,9 @@
     <color name="color_000000_C6">#C6000000</color>
     <color name="color_000000_FF">#FF000000</color>
 
+    <!-- 小贾影视仓 v15.7 首页「今日主推」金色角标 -->
+    <color name="color_home_gold">#E8A33D</color>
+
     <!-- Unused Subtitle Text -->
     <color name="color_FFB6C1">#FFB6C1</color>
     <color name="color_6CFFFFFF">#6CFFFFFF</color>
