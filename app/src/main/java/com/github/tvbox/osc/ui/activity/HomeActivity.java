@@ -159,8 +159,8 @@ public class HomeActivity extends BaseActivity {
         this.mGridView = findViewById(R.id.mGridViewCategory);
         this.mViewPager = findViewById(R.id.mViewPager);
         this.sortAdapter = new SortAdapter();
-        this.mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
-        this.mGridView.setSpacingWithMargins(0, AutoSizeUtils.dp2px(this.mContext, 10.0f));
+        this.mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
+        this.mGridView.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 8.0f), 0);
         this.mGridView.setAdapter(this.sortAdapter);
         sortAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
@@ -191,7 +191,7 @@ public class HomeActivity extends BaseActivity {
                     HomeActivity.this.currentView = view;
                     HomeActivity.this.isDownOrUp = false;
                     HomeActivity.this.sortChange = true;
-                    view.animate().scaleX(1.1f).scaleY(1.1f).setInterpolator(new BounceInterpolator()).setDuration(250).start();
+                    view.animate().scaleX(1.06f).scaleY(1.06f).setInterpolator(new BounceInterpolator()).setDuration(250).start();
                     TextView textView = view.findViewById(R.id.tvTitle);
                     textView.getPaint().setFakeBoldText(true);
                     textView.setTextColor(HomeActivity.this.getResources().getColor(R.color.color_FFFFFF));
@@ -226,21 +226,25 @@ public class HomeActivity extends BaseActivity {
             }
         });
         this.mGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
+            // 小贾影视仓 v15.6: 分类改左侧竖向导航 —— 边界语义随之调整:
+            //   UP   = 顶到第一个分类仍按上 -> 刷新当前分类, 焦点放行走回顶栏
+            //   RIGHT= 从导航进入右侧内容区(数据没加载完则拦截, 避免空页抢焦点)
+            //   DOWN / LEFT = 导航条已到尽头, 一律拦住, 防止焦点跑丢
             public boolean onInBorderKeyEvent(int direction, View view) {
+                BaseLazyFragment baseLazyFragment = (sortFocused >= 0 && sortFocused < fragments.size()) ? fragments.get(sortFocused) : null;
                 if (direction == View.FOCUS_UP) {
-                    BaseLazyFragment baseLazyFragment = fragments.get(sortFocused);
-                    if ((baseLazyFragment instanceof GridFragment)) {// 弹出筛选
+                    if (baseLazyFragment instanceof GridFragment) {
                         ((GridFragment) baseLazyFragment).forceRefresh();
                     }
-                }
-                if (direction != View.FOCUS_DOWN) {
                     return false;
                 }
-                BaseLazyFragment baseLazyFragment = fragments.get(sortFocused);
-                if (!(baseLazyFragment instanceof GridFragment)) {
-                    return false;
+                if (direction == View.FOCUS_RIGHT) {
+                    if (!(baseLazyFragment instanceof GridFragment)) {
+                        return false;
+                    }
+                    return !((GridFragment) baseLazyFragment).isLoad();
                 }
-                return !((GridFragment) baseLazyFragment).isLoad();
+                return true;
             }
         });
         // 小贾影视仓 v15.4: 单击标题 = 打开统一「信号源」面板(原"清缓存"语义移入面板操作项)
@@ -668,11 +672,11 @@ public class HomeActivity extends BaseActivity {
                 doExit();
             }
         } else if (baseLazyFragment instanceof UserFragment) {
-            // v15.5 大图焦点首页: 焦点在页面内部(横向卡带/快捷入口行)时, 先回滚卡带并把焦点归还分类行;
-            // 焦点已在分类行: 不在首页tab则切回首页, 已在首页则走双击退出。
+            // v15.6 横屏海报墙首页: 焦点在页面内部(海报网格/快捷入口行)时, 先回滚网格并把焦点归还左侧分类导航;
+            // 焦点已在分类导航: 不在首页tab则切回首页, 已在首页则走双击退出。
             if (this.sortFocusView != null && !this.sortFocusView.isFocused()) {
                 try {
-                    if (UserFragment.tvHotListForGrid != null && UserFragment.tvHotListForGrid.canScrollHorizontally(-1)) {
+                    if (UserFragment.tvHotListForGrid != null && UserFragment.tvHotListForGrid.canScrollVertically(-1)) {
                         UserFragment.tvHotListForGrid.scrollToPosition(0);
                     }
                 } catch (Throwable ignored) {
