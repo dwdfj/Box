@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.8: 首页底部入口展开面板底(点击「更多」按钮后出现的横排胶囊) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="24mm" />
+    <solid android:color="#E60B0E13" />
+</shape>
