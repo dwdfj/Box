@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -48,12 +47,14 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
 /**
  * @author pj567
  * @date :2021/3/9
- * @description: 小贾影视仓 v15.7 —— 首页(my0页签)改为「方案A: 主推横卡 + 双卡带」:
- * 顶部「今日主推」横卡(大图 + 片名/元信息/简介 + 播放·收藏钮, 约 1/3 内容区高);
- * 「热门推荐」横向卡带(豆瓣热播/站点推荐/播放历史 三模式数据源, 焦点横向条联动主推卡与计数);
- * 「继续观看」横向卡带(本地播放历史, HOME_REC==2 时隐藏避免与主带重复);
- * 底部 5 入口 dock(历史/直播/收藏/推送/网盘, 搜索/菜单迁至顶栏图标)。
- * 保留: 三模式长按切换、长按搜全网、播放历史删除模式、v15.6.1 静态字段泄漏修复。
+ * @description: 小贾影视仓 v15.8 —— 首页(my0页签)改为「沉浸式海报墙」:
+ * 1. 背景透明: 露出 BaseActivity 设在 window 上的内置壁纸(v15.7 根布局不透明黑底把壁纸糊死了),
+ *    仅在底部叠一层渐变遮罩保证文字可读;
+ * 2. 内容区只留一条「大卡带」: 海报 150x200 一屏 7 张, 三模式数据源(豆瓣热播/站点推荐/播放历史);
+ * 3. 焦点片信息走下方「信息浮层」(片名/评分·年份·类型/简介/播放·收藏), 砍掉主推横卡与第二条卡带;
+ * 4. 底部入口收成 1 个按钮(tvDockBtn), 点击才展开 5 项面板(历史/直播/收藏/推送/网盘)。
+ * 保留: 三模式切换(长按历史入口或数据源胶囊)、长按搜全网、播放历史删除模式、
+ *      v15.6.1 静态字段泄漏修复(onDestroyView 置空)。
  */
 public class UserFragment extends BaseLazyFragment implements View.OnClickListener {
     private LinearLayout tvDrive;
@@ -61,19 +62,18 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private LinearLayout tvHistory;
     private LinearLayout tvCollect;
     private LinearLayout tvPush;
-    public static UserHomeRowAdapter homeHotVodAdapter;   // 热门推荐卡带(静态: HomeActivity 删除模式退出时刷新)
-    public static TvRecyclerView tvHotListForGrid;        // 热门推荐卡带容器(静态: HomeActivity 返回键回滚)
-    private TvRecyclerView tvRecentList;                  // 继续观看卡带(仅本页使用)
-    private UserHomeRowAdapter recentAdapter;             // 继续观看适配器(不带删除模式)
-    private LinearLayout tvRecentSection;                 // 继续观看整段(可整体隐藏)
+    private LinearLayout tvUserHome;                  // 底部入口折叠面板(默认 GONE)
+    private LinearLayout tvDockBtn;                   // 底部「更多」按钮(点击展开/收起面板)
+    private boolean dockExpanded = false;
+    public static UserHomeRowAdapter homeHotVodAdapter;   // 大卡带适配器(静态: HomeActivity 删除模式退出时刷新)
+    public static TvRecyclerView tvHotListForGrid;        // 大卡带容器(静态: HomeActivity 返回键回滚)
     private List<Movie.Video> homeSourceRec;              // 站点推荐数据(模式1)
-    private Movie.Video currentVideo;                     // 主推横卡当前内容
+    private Movie.Video currentVideo;                     // 信息浮层当前内容
 
-    // 顶部主推横卡控件
+    // 顶行 + 信息浮层控件
     private TextView tvModeTag;
     private TextView tvHotCount;
     private TextView tvHotHint;
-    private ImageView tvFeaturedThumb;
     private TextView tvFeaturedTitle;
     private TextView tvFeaturedMeta;
     private TextView tvFeaturedDesc;
@@ -81,7 +81,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private TextView tvFeaturedCollect;
 
     private int focusPos = 0;
-    private static final int RECENT_LIMIT = 12;
 
     public static UserFragment newInstance() {
         return new UserFragment();
@@ -104,11 +103,11 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         if (tvModeTag == null || tvFeaturedTitle == null) {
             return;
         }
-        // 三模式为「播放历史」时: 由本地历史回填热门推荐卡带(v15.6 同语义)
+        // 三模式为「播放历史」时: 由本地历史回填大卡带
         if (Hawk.get(HawkConfig.HOME_REC, 0) == 2 && homeHotVodAdapter != null) {
-            homeHotVodAdapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(20)));
+            homeHotVodAdapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(30)));
         }
-        refreshRecentLane();
+        refreshModeTag();
     }
 
     @Override
@@ -119,6 +118,10 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     @Override
     protected void init() {
         EventBus.getDefault().register(this);
+
+        // ---- 底部入口面板(默认收起) + 展开按钮 ----
+        tvUserHome = findViewById(R.id.tvUserHome);
+        tvDockBtn = findViewById(R.id.tvDockBtn);
         tvDrive = findViewById(R.id.tvDrive);
         tvLive = findViewById(R.id.tvLive);
         tvCollect = findViewById(R.id.tvFavorite);
@@ -134,12 +137,32 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvHistory.setOnFocusChangeListener(focusChangeListener);
         tvPush.setOnFocusChangeListener(focusChangeListener);
         tvCollect.setOnFocusChangeListener(focusChangeListener);
+        tvDockBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                toggleDock();
+            }
+        });
+        tvDockBtn.setOnFocusChangeListener(focusChangeListener);
 
-        // ---- 顶部「今日主推」横卡 ----
+        // ---- 顶行: 数据源模式胶囊 / 计数 / 提示 ----
         tvModeTag = findViewById(R.id.tvModeTag);
         tvHotCount = findViewById(R.id.tvHotCount);
         tvHotHint = findViewById(R.id.tvHotHint);
-        tvFeaturedThumb = findViewById(R.id.tvFeaturedThumb);
+        refreshModeTag();
+        // v15.8: 数据源胶囊长按也能切模式(底部入口已折叠, 历史入口不好够到)
+        View.OnLongClickListener switchModeListener = new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                HomeActivity.homeRecf();
+                return HomeActivity.reHome(mContext);
+            }
+        };
+        tvModeTag.setOnLongClickListener(switchModeListener);
+        tvHistory.setOnLongClickListener(switchModeListener);
+
+        // ---- 信息浮层 ----
         tvFeaturedTitle = findViewById(R.id.tvFeaturedTitle);
         tvFeaturedMeta = findViewById(R.id.tvFeaturedMeta);
         tvFeaturedDesc = findViewById(R.id.tvFeaturedDesc);
@@ -161,15 +184,14 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
         });
         tvFeaturedCollect.setOnFocusChangeListener(focusChangeListener);
-        refreshModeTag();
 
-        // ---- ① 热门推荐卡带(三模式数据源, 横向焦点条) ----
+        // ---- 唯一大卡带(海报 150x200, 三模式数据源) ----
         tvHotListForGrid = findViewById(R.id.tvHotListForGrid);
         tvHotListForGrid.setHasFixedSize(true);
         tvHotListForGrid.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false)); // 0=HORIZONTAL
         tvHotListForGrid.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 0.0f), AutoSizeUtils.dp2px(this.mContext, 14.0f));
 
-        homeHotVodAdapter = new UserHomeRowAdapter(true);
+        homeHotVodAdapter = new UserHomeRowAdapter(true, R.layout.item_user_home_big);
         homeHotVodAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
@@ -195,7 +217,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 return true;
             }
         });
-        // 横向焦点条: 选中卡 -> 主推横卡联动 + 计数 + 轻微放大
+        // 焦点联动: 选中卡 -> 放大 + 计数 + 信息浮层
         tvHotListForGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
@@ -207,7 +229,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 if (itemView != null) {
-                    itemView.animate().scaleX(1.08f).scaleY(1.08f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
+                    itemView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
                 }
                 focusPos = position;
                 updateCount(position);
@@ -220,7 +242,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
         });
         tvHotListForGrid.setAdapter(homeHotVodAdapter);
-        // 数据就绪后(豆瓣异步/历史回填/站点推荐)刷新计数与主推卡
+        // 数据就绪后(豆瓣异步/历史回填/站点推荐)刷新计数与信息浮层
         homeHotVodAdapter.registerAdapterDataObserver(new androidx.recyclerview.widget.RecyclerView.AdapterDataObserver() {
             @Override
             public void onChanged() {
@@ -239,70 +261,38 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
         });
 
-        // ---- ② 继续观看卡带(本地播放历史, 独立于三模式) ----
-        tvRecentSection = findViewById(R.id.tvRecentSection);
-        tvRecentList = findViewById(R.id.tvRecentList);
-        tvRecentList.setHasFixedSize(true);
-        tvRecentList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false)); // 0=HORIZONTAL
-        tvRecentList.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 0.0f), AutoSizeUtils.dp2px(this.mContext, 14.0f));
-        recentAdapter = new UserHomeRowAdapter(false);
-        recentAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                if (ApiConfig.get().getSourceBeanList().isEmpty())
-                    return;
-                Movie.Video vod = (Movie.Video) adapter.getItem(position);
-                openVod(vod);
-            }
-        });
-        recentAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(BaseQuickAdapter adapter, View view, int position) {
-                if (ApiConfig.get().getSourceBeanList().isEmpty())
-                    return false;
-                Movie.Video vod = (Movie.Video) adapter.getItem(position);
-                startFastSearch(vod);
-                return true;
-            }
-        });
-        tvRecentList.setOnItemListener(new TvRecyclerView.OnItemListener() {
-            @Override
-            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null) {
-                    itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(200).setInterpolator(new DecelerateInterpolator()).start();
-                }
-            }
-
-            @Override
-            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null) {
-                    itemView.animate().scaleX(1.08f).scaleY(1.08f).setDuration(220).setInterpolator(new DecelerateInterpolator()).start();
-                }
-            }
-
-            @Override
-            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
-
-            }
-        });
-        tvRecentList.setAdapter(recentAdapter);
-        refreshRecentLane();
-
-        tvHistory.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                HomeActivity.homeRecf();
-                return HomeActivity.reHome(mContext);
-            }
-        });
-
         initHomeHotVod(homeHotVodAdapter);
     }
 
-    // ===== 主推横卡 =====
+    // ===== 底部入口: 折叠 / 展开 =====
+
+    private void toggleDock() {
+        if (tvUserHome == null) return;
+        dockExpanded = !dockExpanded;
+        tvUserHome.setVisibility(dockExpanded ? View.VISIBLE : View.GONE);
+        if (dockExpanded && tvHistory != null) {
+            tvHistory.post(new Runnable() {
+                @Override
+                public void run() {
+                    tvHistory.requestFocus();
+                }
+            });
+        } else if (tvDockBtn != null) {
+            tvDockBtn.requestFocus();
+        }
+    }
+
+    private void collapseDock() {
+        dockExpanded = false;
+        if (tvUserHome != null) {
+            tvUserHome.setVisibility(View.GONE);
+        }
+    }
+
+    // ===== 信息浮层 =====
 
     /**
-     * 主推横卡联动热门推荐卡带第 position 项: 大图/片名/元信息/简介/收藏态
+     * 信息浮层联动大卡带第 position 项: 片名 / 元信息 / 简介 / 收藏态
      */
     private void showFeatured(int position) {
         if (homeHotVodAdapter == null || homeHotVodAdapter.getData().isEmpty()) {
@@ -316,12 +306,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         if (vod == null) {
             resetFeatured();
             return;
-        }
-        // 大图
-        if (!TextUtils.isEmpty(vod.pic)) {
-            ImgUtil.load(vod.pic, tvFeaturedThumb, 14);
-        } else {
-            tvFeaturedThumb.setImageResource(R.drawable.img_loading_placeholder);
         }
         // 片名
         tvFeaturedTitle.setText(vod.name == null ? "" : vod.name);
@@ -343,7 +327,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvFeaturedMeta.setText(TextUtils.join(" · ", metas));
             tvFeaturedMeta.setVisibility(View.VISIBLE);
         }
-        // 简介(去 CDATA/HTML 标签, 至多两行)
+        // 简介(去 CDATA/HTML 标签, 至多三行)
         String desc = cleanDesc(vod.des);
         if (TextUtils.isEmpty(desc)) {
             tvFeaturedDesc.setText("");
@@ -363,8 +347,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     private void resetFeatured() {
         currentVideo = null;
-        if (tvFeaturedThumb != null) {
-            tvFeaturedThumb.setImageResource(R.drawable.img_loading_placeholder);
+        if (tvFeaturedTitle != null) {
             tvFeaturedTitle.setText("");
             tvFeaturedMeta.setVisibility(View.GONE);
             tvFeaturedDesc.setVisibility(View.GONE);
@@ -373,7 +356,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     }
 
     /**
-     * 收藏/取消收藏(当前主推内容)
+     * 收藏/取消收藏(当前信息浮层内容)
      */
     private void toggleCollect(Movie.Video vod) {
         if (vod == null || vod.id == null || vod.id.isEmpty()
@@ -397,7 +380,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvFeaturedCollect.setText(collected ? getString(R.string.hm_btn_collected) : getString(R.string.hm_btn_collect));
     }
 
-    // ===== 热门推荐卡带(三模式) =====
+    // ===== 大卡带(三模式) =====
 
     /**
      * 顶部数量统计 —— "第 N 个 / 共 M 个"
@@ -423,27 +406,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         } else {
             tvModeTag.setText(getString(R.string.hm_mode_history));
         }
-    }
-
-    // ===== 继续观看卡带(本地历史) =====
-
-    /**
-     * 刷新「继续观看」: 数据 = 本地播放历史; HOME_REC==2(主带已是历史)或历史为空时整段隐藏
-     */
-    private void refreshRecentLane() {
-        if (tvRecentList == null || recentAdapter == null) return;
-        boolean hideAll = Hawk.get(HawkConfig.HOME_REC, 0) == 2;
-        if (hideAll) {
-            tvRecentSection.setVisibility(View.GONE);
-            return;
-        }
-        List<Movie.Video> videos = historyToVideos(RoomDataManger.getAllVodRecord(RECENT_LIMIT));
-        if (videos.isEmpty()) {
-            tvRecentSection.setVisibility(View.GONE);
-            return;
-        }
-        recentAdapter.setNewData(videos);
-        tvRecentSection.setVisibility(View.VISIBLE);
     }
 
     /**
@@ -491,7 +453,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     }
 
     /**
-     * 统一打开逻辑 —— 删除模式移除历史/全网搜/详情
+     * 统一打开逻辑 —— 删除模式移除历史 / 全网搜 / 详情
      */
     private void openVod(Movie.Video vod) {
         if (vod == null) return;
@@ -503,7 +465,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             VodInfo vodInfo = RoomDataManger.getVodInfo(vod.sourceKey, vod.id);
             RoomDataManger.deleteVodRecord(vod.sourceKey, vodInfo);
             Toast.makeText(mContext, getString(R.string.hm_hist_del), Toast.LENGTH_SHORT).show();
-            refreshRecentLane();
         } else if (vod.id != null && !vod.id.isEmpty()) {
             Bundle bundle = new Bundle();
             bundle.putString("id", vod.id);
@@ -535,6 +496,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
             return;
         } else if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
+            adapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(30)));
             return;
         }
         try {
@@ -640,6 +602,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         HawkConfig.hotVodDelete = false;
 
         FastClickCheckUtil.check(v);
+        // 入口用完即收起(跳走前先折叠, 返回首页时面板是干净的收起态)
+        collapseDock();
         if (v.getId() == R.id.tvLive) {
             jumpActivity(LivePlayActivity.class);
         } else if (v.getId() == R.id.tvHistory) {
@@ -668,14 +632,9 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvHotListForGrid.setAdapter(null);
             tvHotListForGrid = null;
         }
-        if (tvRecentList != null) {
-            tvRecentList.setAdapter(null);
-            tvRecentList = null;
-        }
-        if (recentAdapter != null) {
-            recentAdapter = null;
-        }
         homeHotVodAdapter = null;
+        tvUserHome = null;
+        tvDockBtn = null;
         super.onDestroyView();
     }
 
