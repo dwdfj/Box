@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v15.8: 首页「沉浸式海报墙」——
-     1. 根布局背景改透明: 透出 BaseActivity 设在 window 上的内置壁纸
-        (v15.7 根布局的 #FF000000 把壁纸整块糊死, 这是"看不到内置壁纸"的根因);
-        底部叠一层渐变遮罩, 壁纸可见的同时保证信息文字仍然清晰。
-     2. 内容区只保留一条「大卡带」: 海报 150x200, 一屏 7 张,
-        三模式数据源(豆瓣热播 / 站点推荐 / 播放历史, 长按历史入口切换)。
-     3. 焦点片信息走下方「信息浮层」(片名 / 评分·年份·类型 / 简介 / 播放·收藏),
-        v15.7 的「今日主推」横卡与「继续观看」第二条卡带全部砍掉。
-     4. 底部入口收成 1 个按钮(tvDockBtn), 点击才展开 5 项横排面板(tvUserHome)。
-     保留旧 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvHotListForGrid/tvUserHome
+<!-- 小贾影视仓 v15.9: 首页「横屏 · 精选大图 + 网格」(方案B)——
+     1. 根布局透明: 透出 BaseActivity 设在 window 上的内置壁纸; 底部叠渐变遮罩保可读性。
+     2. 顶行: 数据源模式胶囊(豆瓣热播/站点推荐/播放历史) + 计数 + 操作提示。
+     3. 主体(横屏宽屏): 左侧「精选大图 Banner」(剧照 + 标题 + 圆形播放钮 + 收藏钮),
+        随右侧网格焦点联动; 右侧「多列海报网格」(4 列)铺开, 信息密度高、无大空白。
+     4. 底部入口收成 1 个「更多」按钮, 点击展开 5 项面板(历史/直播/收藏/推送/网盘)。
+     保留旧 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvHotListForGrid(本版指右侧网格)/tvUserHome
      /tvHistory/tvLive/tvFavorite/tvPush/tvDrive -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -17,7 +14,7 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- 底部渐变遮罩: 壁纸照常透出, 只压暗下方信息区保证可读性 -->
+    <!-- 底部渐变遮罩: 壁纸照常透出, 仅压暗下方信息区保证可读性 -->
     <View
         android:layout_width="match_parent"
         android:layout_height="@dimen/vs_250"
@@ -85,115 +82,146 @@
                 android:textSize="@dimen/ts_15" />
         </LinearLayout>
 
-        <!-- ② 唯一大卡带(海报 150x200, 三模式数据源) -->
-        <com.owen.tvrecyclerview.widget.TvRecyclerView
-            android:id="@+id/tvHotListForGrid"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_240"
-            android:layout_marginTop="@dimen/vs_10"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:descendantFocusability="afterDescendants"
-            android:nextFocusDown="@id/tvFeaturedPlay"
-            android:nextFocusUp="@id/mGridViewCategory"
-            android:tag="tvHotListForGrid"
-            app:tv_selectedItemIsCentered="false" />
-
-        <!-- ③ 焦点片信息浮层(随卡带焦点联动) -->
-
-        <TextView
-            android:id="@+id/tvFeaturedTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_10"
-            android:ellipsize="end"
-            android:focusable="false"
-            android:singleLine="true"
-            android:text=""
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_36"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvFeaturedMeta"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_4"
-            android:ellipsize="end"
-            android:focusable="false"
-            android:singleLine="true"
-            android:text=""
-            android:textColor="@color/color_FFFFFF_70"
-            android:textSize="@dimen/ts_18"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvFeaturedDesc"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_6"
-            android:ellipsize="end"
-            android:focusable="false"
-            android:maxLines="3"
-            android:text=""
-            android:textColor="@color/color_FFFFFF_60"
-            android:textSize="@dimen/ts_16"
-            android:visibility="gone" />
-
+        <!-- ② 主体: 左侧精选 Banner + 右侧多列网格 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_10"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/vs_12"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:focusable="false"
-            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tvFeaturedPlay"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/btn_focus_play"
+            <!-- 左侧: 精选大图 Banner(随网格焦点联动) -->
+            <FrameLayout
+                android:id="@+id/tvFeaturedBanner"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginRight="@dimen/vs_16"
+                android:layout_weight="0.42"
+                android:background="@drawable/shape_dock_btn"
                 android:clickable="true"
                 android:focusable="true"
-                android:gravity="center"
                 android:nextFocusDown="@id/tvDockBtn"
-                android:nextFocusRight="@id/tvFeaturedCollect"
-                android:nextFocusUp="@id/tvHotListForGrid"
-                android:paddingLeft="@dimen/vs_26"
-                android:paddingRight="@dimen/vs_26"
-                android:paddingTop="@dimen/vs_8"
-                android:paddingBottom="@dimen/vs_8"
-                android:text="@string/hm_btn_play"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20"
-                android:textStyle="bold" />
+                android:nextFocusRight="@id/tvHotGrid"
+                android:padding="@dimen/vs_1">
 
-            <TextView
-                android:id="@+id/tvFeaturedCollect"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_16"
-                android:layout_marginStart="@dimen/vs_16"
-                android:background="@drawable/btn_focus_detail"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:nextFocusDown="@id/tvDockBtn"
-                android:nextFocusLeft="@id/tvFeaturedPlay"
-                android:nextFocusUp="@id/tvHotListForGrid"
-                android:paddingLeft="@dimen/vs_26"
-                android:paddingRight="@dimen/vs_26"
-                android:paddingTop="@dimen/vs_8"
-                android:paddingBottom="@dimen/vs_8"
-                android:text="@string/hm_btn_collect"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                <ImageView
+                    android:id="@+id/ivBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/img_loading_placeholder" />
+
+                <!-- 底部渐变遮罩, 保证标题/按钮可读 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/vs_200"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/shape_banner_scrim"
+                    android:focusable="false" />
+
+                <!-- 底部信息区: 标题 + 元信息 + 操作钮 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:focusable="false"
+                    android:orientation="vertical"
+                    android:padding="@dimen/vs_18">
+
+                    <TextView
+                        android:id="@+id/tvBannerTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:focusable="false"
+                        android:maxLines="2"
+                        android:text=""
+                        android:textColor="@android:color/white"
+                        android:textSize="@dimen/ts_36"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvBannerMeta"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/vs_4"
+                        android:ellipsize="end"
+                        android:focusable="false"
+                        android:singleLine="true"
+                        android:text=""
+                        android:textColor="@color/color_FFFFFF_70"
+                        android:textSize="@dimen/ts_18"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/vs_14"
+                        android:focusable="false"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <!-- 圆形播放钮(视觉, 整体 Banner 可点即播) -->
+                        <FrameLayout
+                            android:layout_width="@dimen/vs_56"
+                            android:layout_height="@dimen/vs_56"
+                            android:background="@drawable/shape_play_circle"
+                            android:focusable="false"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:focusable="false"
+                                android:text="▶"
+                                android:textColor="#FF000000"
+                                android:textSize="@dimen/ts_26" />
+                        </FrameLayout>
+
+                        <!-- 收藏钮(可聚焦) -->
+                        <TextView
+                            android:id="@+id/btnBannerCollect"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginLeft="@dimen/vs_16"
+                            android:layout_marginStart="@dimen/vs_16"
+                            android:background="@drawable/btn_focus_detail"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:nextFocusDown="@id/tvDockBtn"
+                            android:nextFocusLeft="@id/tvFeaturedBanner"
+                            android:paddingLeft="@dimen/vs_26"
+                            android:paddingRight="@dimen/vs_26"
+                            android:paddingTop="@dimen/vs_8"
+                            android:paddingBottom="@dimen/vs_8"
+                            android:text="@string/hm_btn_collect"
+                            android:textColor="@android:color/white"
+                            android:textSize="@dimen/ts_20" />
+                    </LinearLayout>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- 右侧: 多列海报网格(默认 4 列, 横屏铺满) -->
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/tvHotGrid"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.58"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:descendantFocusability="afterDescendants"
+                android:nextFocusLeft="@id/tvFeaturedBanner"
+                android:nextFocusUp="@id/mGridViewCategory"
+                app:tv_selectedItemIsCentered="false" />
         </LinearLayout>
 
         <View
             android:layout_width="@dimen/vs_0"
-            android:layout_height="@dimen/vs_0"
-            android:layout_weight="1"
+            android:layout_height="@dimen/vs_4"
             android:focusable="false" />
 
         <!-- ④ 底部入口: 单按钮 + 点击展开的 5 项面板 -->
@@ -221,7 +249,6 @@
                 android:padding="@dimen/vs_4"
                 android:visibility="gone">
 
-                <!-- 历史(长按切换首页数据源模式) -->
                 <LinearLayout
                     android:id="@+id/tvHistory"
                     android:layout_width="@dimen/vs_60"
@@ -231,7 +258,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:nextFocusUp="@id/tvHotListForGrid"
+                    android:nextFocusUp="@id/tvHotGrid"
                     android:orientation="vertical">
 
                     <ImageView
@@ -251,7 +278,6 @@
                         android:textSize="@dimen/ts_14" />
                 </LinearLayout>
 
-                <!-- 直播 -->
                 <LinearLayout
                     android:id="@+id/tvLive"
                     android:layout_width="@dimen/vs_60"
@@ -261,7 +287,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:nextFocusUp="@id/tvHotListForGrid"
+                    android:nextFocusUp="@id/tvHotGrid"
                     android:orientation="vertical">
 
                     <ImageView
@@ -281,7 +307,6 @@
                         android:textSize="@dimen/ts_14" />
                 </LinearLayout>
 
-                <!-- 收藏 -->
                 <LinearLayout
                     android:id="@+id/tvFavorite"
                     android:layout_width="@dimen/vs_60"
@@ -291,7 +316,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:nextFocusUp="@id/tvHotListForGrid"
+                    android:nextFocusUp="@id/tvHotGrid"
                     android:orientation="vertical">
 
                     <ImageView
@@ -311,7 +336,6 @@
                         android:textSize="@dimen/ts_14" />
                 </LinearLayout>
 
-                <!-- 推送 -->
                 <LinearLayout
                     android:id="@+id/tvPush"
                     android:layout_width="@dimen/vs_60"
@@ -321,7 +345,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:nextFocusUp="@id/tvHotListForGrid"
+                    android:nextFocusUp="@id/tvHotGrid"
                     android:orientation="vertical">
 
                     <ImageView
@@ -341,7 +365,6 @@
                         android:textSize="@dimen/ts_14" />
                 </LinearLayout>
 
-                <!-- 网盘 -->
                 <LinearLayout
                     android:id="@+id/tvDrive"
                     android:layout_width="@dimen/vs_60"
@@ -351,7 +374,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:nextFocusUp="@id/tvHotListForGrid"
+                    android:nextFocusUp="@id/tvHotGrid"
                     android:orientation="vertical">
 
                     <ImageView
@@ -383,8 +406,8 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:nextFocusLeft="@id/tvFeaturedCollect"
-                android:nextFocusUp="@id/tvHotListForGrid"
+                android:nextFocusLeft="@id/btnBannerCollect"
+                android:nextFocusUp="@id/tvHotGrid"
                 android:orientation="vertical">
 
                 <ImageView
