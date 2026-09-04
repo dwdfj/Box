@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.8: 首页底部渐变遮罩 —— 让壁纸能透出来的同时,
+     给下方「信息浮层」(片名/简介/按钮)垫一层由浅到深的黑, 保证白字可读。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:endColor="#F2000000"
+        android:startColor="#00000000"
+        android:type="linear" />
+</shape>
