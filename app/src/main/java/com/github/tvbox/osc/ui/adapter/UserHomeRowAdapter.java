@@ -26,8 +26,17 @@ import java.util.ArrayList;
 public class UserHomeRowAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
     private final boolean deleteAware;
 
+    /** v15.7 迷你卡(95x128) */
     public UserHomeRowAdapter(boolean deleteAware) {
-        super(R.layout.item_user_home_small, new ArrayList<>());
+        this(deleteAware, R.layout.item_user_home_small);
+    }
+
+    /**
+     * v15.8: 允许指定卡片布局 —— 沉浸式海报墙用「大卡」item_user_home_big(海报 150x200),
+     * 逻辑与迷你卡完全一致(角标/片名/删除遮罩/图片加载), 仅布局不同。
+     */
+    public UserHomeRowAdapter(boolean deleteAware, int layoutResId) {
+        super(layoutResId, new ArrayList<>());
         this.deleteAware = deleteAware;
     }
 
