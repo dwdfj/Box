@@ -362,7 +362,19 @@ public class RemoteServer extends NanoHTTPD {
     // 才同步拷贝, 盒子上要卡好几秒(观感=加载慢)。预热后 /file/feimao/* 全部即时命中。
     public void warmUpBuiltin() {
         try {
-            ensureBuiltinFeimao();
+            File dir = ensureBuiltinFeimao();
+            // 小贾影视仓 v15.9: 预热期顺便把内置肥猫主 jar 预解壳(常驻 BUILTIN_KEY),
+            // 这样首次切"内置·肥猫"线路或切回时不再卡在加固 jar 的 Init.init() 解壳(几秒卡顿)。
+            File jarDir = new File(dir, "jar");
+            File[] jars = jarDir.listFiles();
+            if (jars != null) {
+                for (File j : jars) {
+                    if (j.isFile() && j.getName().endsWith(".jar")) {
+                        ApiConfig.get().loadBuiltinJar(j.getAbsolutePath());
+                        break; // 内置肥猫只有一个主 jar
+                    }
+                }
+            }
         } catch (Throwable th) {
             th.printStackTrace();
         }
