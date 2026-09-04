@@ -389,11 +389,14 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                         getWindow().setBackgroundDrawable(globalWp);
                         return;
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
+} catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+                    // 小贾影视仓 v15.10: 内置壁纸回退失败(bmp==null 或 catch 后), 不再掉到 color_theme 主题色兜底
+                    // (默认 NetfxTheme=#D81F26=红色), 直接 return, window 背景保持 styl transparent 绝不出红屏
+                    return;
                 }
-            }
-            android.util.TypedValue tv = new android.util.TypedValue();
+                android.util.TypedValue tv = new android.util.TypedValue();
             getTheme().resolveAttribute(R.attr.color_theme, tv, true);
             int themeColor;
             if (tv.resourceId != 0) {
