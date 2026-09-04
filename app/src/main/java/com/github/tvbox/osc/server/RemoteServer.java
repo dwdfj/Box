@@ -363,6 +363,9 @@ public class RemoteServer extends NanoHTTPD {
     public void warmUpBuiltin() {
         try {
             File dir = ensureBuiltinFeimao();
+            // 小贾影视仓 v15.10: 启动期把内置壁纸拷到 filesDir/wp(若不存在或太小),
+            // changeWallpaper 主路径第一步读 filesDir/wp, 命中后就不用走内置回退那条有 bug 的分支
+            warmUpWallpaper();
             // 小贾影视仓 v15.9: 预热期顺便把内置肥猫主 jar 预解壳(常驻 BUILTIN_KEY),
             // 这样首次切"内置·肥猫"线路或切回时不再卡在加固 jar 的 Init.init() 解壳(几秒卡顿)。
             File jarDir = new File(dir, "jar");
@@ -377,6 +380,25 @@ public class RemoteServer extends NanoHTTPD {
             }
         } catch (Throwable th) {
             th.printStackTrace();
+        }
+    }
+
+    // 小贾影视仓 v15.10: 把内置壁纸 R.drawable.home_wallpaper 拷到 filesDir/wp(若不存在或太小)。
+    // changeWallpaper 主路径第一步读 filesDir/wp, 命中后就不用走内置回退那条有 bug 的分支
+    // (内置回退失败会掉到 color_theme 主题色兜底, 默认主题 #D81F26=红色)。
+    private void warmUpWallpaper() {
+        try {
+            File wp = new File(mContext.getFilesDir(), "wp");
+            if (wp.exists() && wp.length() > 1024) return;
+            android.content.res.Resources res = mContext.getResources();
+            try (java.io.InputStream in = res.openRawResource(com.github.tvbox.osc.R.drawable.home_wallpaper);
+                 java.io.FileOutputStream out = new java.io.FileOutputStream(wp)) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
