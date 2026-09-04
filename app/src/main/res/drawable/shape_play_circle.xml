@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.9: 方案B 精选 Banner 上的圆形播放按钮底(半透明白圆, 内含 ▶) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#CCFFFFFF" />
+    <stroke
+        android:width="2mm"
+        android:color="#FFFFFF" />
+</shape>
