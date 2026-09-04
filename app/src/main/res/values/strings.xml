@@ -43,6 +43,8 @@
     <string name="hm_btn_collected">已收藏</string>
     <string name="hm_fav_toast_add">已加入收藏</string>
     <string name="hm_fav_toast_del">已取消收藏</string>
+    // 小贾影视仓 v15.8 首页底部折叠入口 //
+    <string name="hm_dock_more">More</string>
 
     // Play Detail Page //
     <string name="det_play">Play</string>
