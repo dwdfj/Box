@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.9: 方案B 精选 Banner 底部渐变遮罩, 保证标题/按钮在壁纸或剧照上可读 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#00000000"
+        android:endColor="#F2000000" />
+</shape>
