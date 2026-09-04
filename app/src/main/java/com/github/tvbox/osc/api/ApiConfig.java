@@ -424,7 +424,7 @@ public class ApiConfig {
         if (builtinJar != null && builtinJar.exists()) {
             boolean md5ok = md5.isEmpty() || MD5.getFileMd5(builtinJar).equalsIgnoreCase(md5);
             if (md5ok) {
-                if (jarLoader.load(builtinJar.getAbsolutePath())) {
+                if (jarLoader.loadBuiltin(builtinJar.getAbsolutePath())) {
                     callback.success();
                 } else {
                     callback.error("从内置肥猫包加载jar失败");
@@ -546,6 +546,16 @@ public class ApiConfig {
                         callback.error(ex != null ? "从网络上加载jar失败：" + ex.getMessage() : "未知网络错误");
                     }
                 });
+    }
+
+    // 小贾影视仓 v15.9: 启动预热期预加载内置肥猫 jar(常驻 BUILTIN_KEY),
+    // 避免首次切"内置·肥猫"线路或切回时才卡在加固 jar 的 Init.init() 解壳(几秒卡顿)。
+    public void loadBuiltinJar(String path) {
+        try {
+            jarLoader.loadBuiltin(path);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
     // 小贾影视仓 v15.8: 把肥猫 config 的相对路径 jar(如 "./jar/aidaox-xxx.jar" / "feimao/jar/xxx.jar")
