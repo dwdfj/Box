@@ -90,6 +90,11 @@ public class ApiConfig {
     // 小贾影视仓 v15.4: 加载流水线任务代号 + OkGo 取消标签 —— 切线路/刷新时新任务顶掉旧任务,
     // 旧异步回调(最长10s超时窗口)回来时因代号不匹配被静默丢弃, 不再覆盖新状态/串台(对标 FongMi BaseConfig.load)
     private static final String LOAD_TAG = "xj_load_pipeline";
+    // 小贾影视仓 v15.8: jar 下载用独立取消标签。
+    // 此前 jar 请求与 config 共用 LOAD_TAG, 而 loadConfigUrl 开头会 cancelTag(LOAD_TAG) 清场,
+    // 于是"配置加载"会把正在飞的 jar 下载一并掐断 —— 内置肥猫包(3.3MB jar)几乎必然踩中,
+    // 表现就是固定报「从网络上加载jar失败」, 与网络/源文件好坏无关。
+    private static final String JAR_TAG = "xj_jar_pipeline";
     private final java.util.concurrent.atomic.AtomicInteger mLoadTask = new java.util.concurrent.atomic.AtomicInteger(0);
 
     private ApiConfig() {
@@ -412,6 +417,23 @@ public class ApiConfig {
         String[] urls = spider.split(";md5;");
         String jarUrl = urls[0];
         String md5 = urls.length > 1 ? urls[1].trim() : "";
+        // ===== 小贾影视仓 v15.8: 内置肥猫包 jar 本地直取 =====
+        // config 里 spider 是相对路径 "./jar/aidaox-xxx.jar", 指向已释放到 filesDir/feimao/jar/ 的真实文件。
+        // 原实现直接当 HTTP URL 去 OkGo.get 必然失败, 报"从网络上加载jar失败"。这里优先本地直取, 绕开 127.0.0.1 回环下载。
+        File builtinJar = resolveBuiltinFeimaoJar(jarUrl);
+        if (builtinJar != null && builtinJar.exists()) {
+            boolean md5ok = md5.isEmpty() || MD5.getFileMd5(builtinJar).equalsIgnoreCase(md5);
+            if (md5ok) {
+                if (jarLoader.load(builtinJar.getAbsolutePath())) {
+                    callback.success();
+                } else {
+                    callback.error("从内置肥猫包加载jar失败");
+                }
+            } else {
+                callback.error("内置肥猫 jar MD5 不匹配");
+            }
+            return;
+        }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/"+MD5.string2MD5(jarUrl)+".jar");
         if (!md5.isEmpty() || useCache) {
             if (cache.exists() && (useCache || MD5.getFileMd5(cache).equalsIgnoreCase(md5))) {
@@ -434,7 +456,7 @@ public class ApiConfig {
         boolean isJarInImg = jarUrl.startsWith("img+");
         jarUrl = jarUrl.replace("img+", "");
         OkGo.<File>get(jarUrl)
-                .tag(LOAD_TAG)
+                .tag(JAR_TAG)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
                 .execute(new AbsCallback<File>() {
@@ -524,6 +546,22 @@ public class ApiConfig {
                         callback.error(ex != null ? "从网络上加载jar失败：" + ex.getMessage() : "未知网络错误");
                     }
                 });
+    }
+
+    // 小贾影视仓 v15.8: 把肥猫 config 的相对路径 jar(如 "./jar/aidaox-xxx.jar" / "feimao/jar/xxx.jar")
+    // 解析为已释放到 filesDir/feimao/ 下的真实文件。返回 null 表示非内置肥猫相对路径或文件缺失
+    // (交给原 HTTP 流程处理远程 jar)。
+    private File resolveBuiltinFeimaoJar(String jarUrl) {
+        if (jarUrl == null || jarUrl.isEmpty()) return null;
+        String rel;
+        if (jarUrl.startsWith("./")) rel = jarUrl.substring(2);
+        else if (jarUrl.startsWith("feimao/")) rel = jarUrl;
+        else if (!jarUrl.startsWith("http") && jarUrl.endsWith(".jar")) rel = jarUrl; // 裸相对路径
+        else return null; // http(s) / 绝对路径等交给原 HTTP 流程
+        if (!rel.contains("jar/") && !rel.endsWith(".jar")) return null;
+        String full = rel.startsWith("feimao/") ? rel : ("feimao/" + rel);
+        File f = new File(App.getInstance().getFilesDir().getAbsolutePath(), full);
+        return f.exists() ? f : null;
     }
 
     private void parseJson(String apiUrl, File f) throws Throwable {
