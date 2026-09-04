@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v15.8: 首页底部「更多」圆形按钮底(半透明深底, 叠在壁纸上) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="28mm" />
+    <solid android:color="#E611161D" />
+</shape>
