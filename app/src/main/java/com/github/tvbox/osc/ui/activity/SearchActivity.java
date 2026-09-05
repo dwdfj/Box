@@ -811,6 +811,8 @@ public class SearchActivity extends BaseActivity {
 
     private void searchData(AbsXml absXml) {
         if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
+            // v15.13: 本批结果先收集成 batch, 稍后增量追加(不再每站全量 setNewData 重绘整墙)
+            java.util.ArrayList<Movie.Video> batch = new java.util.ArrayList<>();
             // 小贾影视仓: 按来源渠道分组收集
             for (Movie.Video video : absXml.movie.videoList) {
                 String sk = video.sourceKey == null || video.sourceKey.isEmpty() ? "未知" : video.sourceKey;
@@ -820,6 +822,7 @@ public class SearchActivity extends BaseActivity {
                     searchResultMap.put(sk, group);
                 }
                 group.add(video);
+                batch.add(video);
             }
             showSuccess();
             tv_history.setVisibility(View.GONE);
@@ -832,7 +835,19 @@ public class SearchActivity extends BaseActivity {
             if (mSearchSourceList != null && !sourceAdapter.getData().isEmpty()) {
                 mSearchSourceList.setVisibility(View.VISIBLE);
             }
-            showFilteredResults();
+            // v15.13: 全部视图下增量追加, 杜绝"每站全量重绘整墙闪烁/跳动";
+            // 单渠道过滤视图仍走 showFilteredResults(该组数据本来就小, 重绘无感)
+            if (currentFilterKey == null) {
+                if (!batch.isEmpty()) {
+                    if (searchAdapter.getData().isEmpty()) {
+                        searchAdapter.setNewData(batch);
+                    } else {
+                        searchAdapter.addData(batch);
+                    }
+                }
+            } else {
+                showFilteredResults();
+            }
         }
 
         int count = allRunCount.decrementAndGet();
@@ -840,6 +855,7 @@ public class SearchActivity extends BaseActivity {
             if (searchResultMap.isEmpty()) {
                 showEmpty();
             } else {
+                // v15.13: 全部站返回完才做一次最终 排序+去重 全量刷新(仅此一次, 消除每站跳动)
                 showFilteredResults();
             }
             cancel();
