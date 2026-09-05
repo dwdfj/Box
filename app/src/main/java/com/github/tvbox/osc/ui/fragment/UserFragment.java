@@ -59,6 +59,7 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
  *      v15.6.1 静态字段泄漏修复(onDestroyView 置空)、HomeActivity 通过 tvHotListForGrid 回滚。
  */
 public class UserFragment extends BaseLazyFragment implements View.OnClickListener {
+    private LinearLayout tvSearch;                    // v15.12: Dock 面板首位搜索入口
     private LinearLayout tvDrive;
     private LinearLayout tvLive;
     private LinearLayout tvHistory;
@@ -124,16 +125,19 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         // ---- 底部入口面板(默认收起) + 展开按钮 ----
         tvUserHome = findViewById(R.id.tvUserHome);
         tvDockBtn = findViewById(R.id.tvDockBtn);
+        tvSearch = findViewById(R.id.tvSearch);
         tvDrive = findViewById(R.id.tvDrive);
         tvLive = findViewById(R.id.tvLive);
         tvCollect = findViewById(R.id.tvFavorite);
         tvHistory = findViewById(R.id.tvHistory);
         tvPush = findViewById(R.id.tvPush);
+        tvSearch.setOnClickListener(this);
         tvDrive.setOnClickListener(this);
         tvLive.setOnClickListener(this);
         tvHistory.setOnClickListener(this);
         tvPush.setOnClickListener(this);
         tvCollect.setOnClickListener(this);
+        tvSearch.setOnFocusChangeListener(focusChangeListener);
         tvDrive.setOnFocusChangeListener(focusChangeListener);
         tvLive.setOnFocusChangeListener(focusChangeListener);
         tvHistory.setOnFocusChangeListener(focusChangeListener);
@@ -272,11 +276,12 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         if (tvUserHome == null) return;
         dockExpanded = !dockExpanded;
         tvUserHome.setVisibility(dockExpanded ? View.VISIBLE : View.GONE);
-        if (dockExpanded && tvHistory != null) {
-            tvHistory.post(new Runnable() {
+        if (dockExpanded && tvSearch != null) {
+            // v15.12: Dock 面板首位是「搜索」, 展开默认焦点落搜索, 按 OK 即搜
+            tvSearch.post(new Runnable() {
                 @Override
                 public void run() {
-                    tvHistory.requestFocus();
+                    tvSearch.requestFocus();
                 }
             });
         } else if (tvDockBtn != null) {
@@ -602,7 +607,10 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         FastClickCheckUtil.check(v);
         // 入口用完即收起(跳走前先折叠, 返回首页时面板是干净的收起态)
         collapseDock();
-        if (v.getId() == R.id.tvLive) {
+        if (v.getId() == R.id.tvSearch) {
+            // v15.12: Dock 面板搜索入口 → 搜索页
+            jumpActivity(SearchActivity.class);
+        } else if (v.getId() == R.id.tvLive) {
             jumpActivity(LivePlayActivity.class);
         } else if (v.getId() == R.id.tvHistory) {
             jumpActivity(HistoryActivity.class);
@@ -633,6 +641,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         homeHotVodAdapter = null;
         tvUserHome = null;
         tvDockBtn = null;
+        tvSearch = null;
         tvFeaturedBanner = null;
         ivBanner = null;
         tvBannerTitle = null;
