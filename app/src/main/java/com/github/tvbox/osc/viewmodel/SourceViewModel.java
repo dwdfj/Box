@@ -119,6 +119,55 @@ public class SourceViewModel extends ViewModel {
             return size() > 5;
         }
     };
+
+    // 小贾影视仓 v15.14: 首页"推荐影视"(videoList)按 站点key+当天 落盘。
+    // 根因: 推荐数据只在 getSort 成功时注入一次; 若 homeVideoContent/detail 兜底超时或失败
+    // -> videoList=null -> 首页 my0 注入空 -> 空屏且无任何自愈(重启才好)。
+    // 修复: 拉取成功即落盘, 失败时回填当天该站上次成功数据, 从机制上消除空屏。
+    private static String homeRecToday() {
+        try {
+            return new java.text.SimpleDateFormat("yyyyMMdd").format(new java.util.Date());
+        } catch (Throwable th) {
+            return "";
+        }
+    }
+
+    private static void saveHomeRecVideos(String sourceKey, List<Movie.Video> videos) {
+        try {
+            if (sourceKey == null || videos == null || videos.isEmpty()) return;
+            String day = homeRecToday();
+            if (day.isEmpty()) return;
+            Hawk.put("home_rec_day_" + sourceKey, day);
+            Hawk.put("home_rec_json_" + sourceKey, new Gson().toJson(videos));
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    private static List<Movie.Video> loadHomeRecVideos(String sourceKey) {
+        try {
+            if (sourceKey == null) return null;
+            String day = Hawk.get("home_rec_day_" + sourceKey, "");
+            if (!day.equals(homeRecToday())) return null;
+            String json = Hawk.get("home_rec_json_" + sourceKey, "");
+            if (json == null || json.isEmpty()) return null;
+            List<Movie.Video> list = new Gson().fromJson(json, new TypeToken<List<Movie.Video>>() {
+            }.getType());
+            return (list != null && !list.isEmpty()) ? list : null;
+        } catch (Throwable th) {
+            th.printStackTrace();
+            return null;
+        }
+    }
+
+    // 拉取成功 -> 写盘返回原值; 失败/空 -> 回填当天该站上次成功数据(可能仍为 null)
+    private static List<Movie.Video> storeOrBackfill(String sourceKey, List<Movie.Video> videos) {
+        if (videos != null && !videos.isEmpty()) {
+            saveHomeRecVideos(sourceKey, videos);
+            return videos;
+        }
+        return loadHomeRecVideos(sourceKey);
+    }
     // homeContent
     public void getSort(final String sourceKey) {
         LOG.i("echo--getSort-start");
@@ -165,11 +214,12 @@ public class SourceViewModel extends ViewModel {
                         if (sortJson != null) {
                             final AbsSortXml sortXml = sortJson(sortResult, sortJson);
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
-                                AbsXml absXml = json(null, sortJson, sourceBean.getKey());
-                                if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
-                                    sortXml.videoList = absXml.movie.videoList;
-                                    sortResult.postValue(sortXml);
-                                    sortCache.put(sourceKey, sortXml);
+                            AbsXml absXml = json(null, sortJson, sourceBean.getKey());
+                            if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
+                                saveHomeRecVideos(sourceBean.getKey(), absXml.movie.videoList);
+                                sortXml.videoList = absXml.movie.videoList;
+                                sortResult.postValue(sortXml);
+                                sortCache.put(sourceKey, sortXml);
                                 } else {
                                     getHomeRecList(sourceBean, null, new HomeRecCallback() {
                                         @Override
@@ -270,6 +320,7 @@ public class SourceViewModel extends ViewModel {
                                 if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                                     AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                                     if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
+                                        saveHomeRecVideos(sourceBean.getKey(), absXml.movie.videoList);
                                         sortXml.videoList = absXml.movie.videoList;
                                         sortResult.postValue(sortXml);
                                         sortCache.put(sourceKey, sortXml);
@@ -433,12 +484,12 @@ public class SourceViewModel extends ViewModel {
                         if (sortJson != null) {
                             AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                             if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
-                                callback.done(absXml.movie.videoList);
+                                callback.done(storeOrBackfill(sourceBean.getKey(), absXml.movie.videoList));
                             } else {
-                                callback.done(null);
+                                callback.done(storeOrBackfill(sourceBean.getKey(), null));
                             }
                         } else {
-                            callback.done(null);
+                            callback.done(storeOrBackfill(sourceBean.getKey(), null));
                         }
                         try {
                             executor.shutdown();
@@ -476,20 +527,20 @@ public class SourceViewModel extends ViewModel {
                                 absXml = json(null, json, sourceBean.getKey());
                             }
                             if (absXml != null && absXml.movie != null && absXml.movie.videoList != null) {
-                                callback.done(absXml.movie.videoList);
+                                callback.done(storeOrBackfill(sourceBean.getKey(), absXml.movie.videoList));
                             } else {
-                                callback.done(null);
+                                callback.done(storeOrBackfill(sourceBean.getKey(), null));
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            callback.done(null);
+                            callback.done(storeOrBackfill(sourceBean.getKey(), null));
                         }
                     });
         } else {
-            callback.done(null);
+            callback.done(storeOrBackfill(sourceBean.getKey(), null));
         }
     }
 
