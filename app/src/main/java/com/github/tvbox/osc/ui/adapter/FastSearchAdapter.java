@@ -31,11 +31,22 @@ public class FastSearchAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
             helper.setText(R.id.tvNote, item.note);
         }
         ImageView ivThumb = helper.getView(R.id.ivThumb);
-        if (!TextUtils.isEmpty(item.pic)) {
-            // takagen99 : Use Glide instead
-            ImgUtil.load(item.pic, ivThumb, 14);
-        } else {
-            ivThumb.setImageResource(R.drawable.img_loading_placeholder);
+        // v15.13: 封面闪烁修复 —— 对齐 SearchAdapter(v15.4.2): 多站并发搜索时结果不断到达,
+        // adapter 反复 setNewData/addData 触发整墙重绘, 若每次都对同一 URL 重新走
+        // placeholder→加载 流程会整墙闪烁跳动。用 tag 记录当前 URL: 相同则跳过(不重载不闪)。
+        String pic = item.pic == null ? "" : item.pic;
+        Object tag = ivThumb.getTag();
+        if (pic.isEmpty()) {
+            if (tag != null) {
+                ivThumb.setTag(null);
+                ivThumb.setImageResource(R.drawable.img_loading_placeholder);
+            }
+            return;
         }
+        if (pic.equals(tag)) {
+            return; // 同一封面已加载/加载中, 跳过避免闪烁
+        }
+        ivThumb.setTag(pic);
+        ImgUtil.load(pic, ivThumb, 14);
     }
 }
