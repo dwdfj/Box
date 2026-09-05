@@ -249,6 +249,36 @@
                 android:padding="@dimen/vs_4"
                 android:visibility="gone">
 
+                <!-- v15.12: Dock 首位加「搜索」入口(放大镜), 让用户收起/展开即有明确的搜索按钮 -->
+                <LinearLayout
+                    android:id="@+id/tvSearch"
+                    android:layout_width="@dimen/vs_60"
+                    android:layout_height="@dimen/vs_56"
+                    android:layout_margin="@dimen/vs_3"
+                    android:background="@drawable/shape_user_home_mini"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:nextFocusUp="@id/tvHotGrid"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/vs_22"
+                        android:layout_height="@dimen/vs_22"
+                        android:alpha="0.9"
+                        android:contentDescription="@string/hm_search"
+                        app:srcCompat="@drawable/hm_search" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:gravity="center"
+                        android:text="@string/hm_search"
+                        android:textColor="@color/color_FFFFFF_90"
+                        android:textSize="@dimen/ts_14" />
+                </LinearLayout>
+
                 <LinearLayout
                     android:id="@+id/tvHistory"
                     android:layout_width="@dimen/vs_60"
