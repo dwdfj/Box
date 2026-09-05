@@ -366,6 +366,23 @@ public class HomeActivity extends BaseActivity {
                     sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<>(), true));
                 }
                 initViewPager(absXml);
+                // 小贾影视仓 v15.14: 首页"推荐影视"(my0) 空数据自愈 —— 站点推荐模式(默认)下 getSort
+                // 返回的分类里若 videoList 为空(推荐兜底超时/失败/缓存也空), 先正常注入, 再延迟重拉一次。
+                // getSort 二次执行时会优先命中按天落盘缓存回填; guard 保证单 Activity 生命周期内至多重拉一次, 不构成死循环。
+                if (absXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1
+                        && (absXml.videoList == null || absXml.videoList.isEmpty())
+                        && !homeRecSelfHealFired) {
+                    homeRecSelfHealFired = true;
+                    final SourceBean healHome = ApiConfig.get().getHomeSourceBean();
+                    postDelayedIfAlive(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (healHome != null && alive()) {
+                                sourceViewModel.getSort(healHome.getKey());
+                            }
+                        }
+                    }, 1500);
+                }
                 // 小贾影视仓: 标题显示当前线路名(红底白字)
                 tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
                 tvName.clearAnimation();
@@ -388,6 +405,8 @@ public class HomeActivity extends BaseActivity {
     // 小贾影视仓 v15.4: 原地切源守卫 + 分类结果防串台(homeSortGuard=期望生效的站点key, 过期结果直接丢弃)
     private boolean inPlaceSwitching = false;
     private volatile String homeSortGuard = null;
+    // 小贾影视仓 v15.14: 首页推荐空数据自愈 guard(单 Activity 生命周期内至多重拉一次)
+    private boolean homeRecSelfHealFired = false;
     // 原地切站前记录的上一站点 key(切站失败回滚时用)
     private String homeSwitchPrevKey = null;
 
