@@ -191,7 +191,9 @@ public class FastSearchActivity extends BaseActivity {
 
             }
         });
-        // mGridView.setHasFixedSize(true);
+        // v15.13: 打开 setHasFixedSize —— 每站结果 addData 时不再整墙重测高度/重排,
+        // 消除搜索结果"卡片跳动"感(此前被注释导致 addData → notifyDataSetChanged 全量重排闪烁)
+        mGridView.setHasFixedSize(true);
         mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 4 : 5));
 
         searchAdapter = new FastSearchAdapter();
@@ -220,6 +222,7 @@ public class FastSearchActivity extends BaseActivity {
             }
         });
 
+        mGridViewFilter.setHasFixedSize(true); // v15.13: 同 mGridView, 过滤结果集切换不重排跳动
         mGridViewFilter.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 4 : 5));
         searchAdapterFilter = new FastSearchAdapter();
         mGridViewFilter.setAdapter(searchAdapterFilter);
