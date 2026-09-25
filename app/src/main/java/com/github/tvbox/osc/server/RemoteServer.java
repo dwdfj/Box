@@ -353,7 +353,10 @@ public class RemoteServer extends NanoHTTPD {
     }
 
     // ============ 小贾影视仓 v15.2: 内置本地包(assets/feimao -> filesDir/feimao) ============
-    private static final String BUILTIN_FEIMAO_VER = "feimao_20260824_v1";
+    // 小贾影视仓 v15.15: 版本戳 bump —— 内置包改为"去加固(plain)"jar(移除 4KB 对齐的 guard_v7/v8.so,
+    // 其在 Android 15+ 16KB 内存页设备上 dlopen 会直接 native 崩, 表现为"能进主界面随即闪退、无日志无弹窗")。
+    // bump 该常量强制升级用户端已释放的旧加固包。
+    private static final String BUILTIN_FEIMAO_VER = "feimao_20260925_v2";
     private File mFeimaoDir = null;
     private boolean mFeimaoReady = false;
 
@@ -366,14 +369,17 @@ public class RemoteServer extends NanoHTTPD {
             // 小贾影视仓 v15.10: 启动期把内置壁纸拷到 filesDir/wp(若不存在或太小),
             // changeWallpaper 主路径第一步读 filesDir/wp, 命中后就不用走内置回退那条有 bug 的分支
             warmUpWallpaper();
-            // 小贾影视仓 v15.9: 预热期顺便把内置肥猫主 jar 预解壳(常驻 BUILTIN_KEY),
-            // 这样首次切"内置·肥猫"线路或切回时不再卡在加固 jar 的 Init.init() 解壳(几秒卡顿)。
+            // 小贾影视仓 v15.15: 移除启动期"预解壳内置肥猫 jar"(v15.9 加的)。
+            // 原因: 内置包原为加固 jar, 其 guard_v7/v8.so 仅 4KB 对齐, 在 Android 15+ 16KB 内存页设备上
+            // dlopen 会 native 崩(Java 抓不到、无日志无弹窗, 表现"能进主界面随即闪退")。
+            // 启动期主动解壳会让**即使当前用的是在线线路的用户**也被拖崩; 改为只在真正选中内置线路时才加载,
+            // 加载失败由 HomeActivity 自动降级到默认在线线路。内置包本身也已换成去加固(plain)jar。
             File jarDir = new File(dir, "jar");
             File[] jars = jarDir.listFiles();
             if (jars != null) {
                 for (File j : jars) {
                     if (j.isFile() && j.getName().endsWith(".jar")) {
-                        ApiConfig.get().loadBuiltinJar(j.getAbsolutePath());
+                        android.util.Log.i("RemoteServer", "echo-feimao内置jar已释放(不再启动期解壳): " + j.getName());
                         break; // 内置肥猫只有一个主 jar
                     }
                 }
