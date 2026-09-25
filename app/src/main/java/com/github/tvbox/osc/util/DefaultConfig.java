@@ -38,13 +38,18 @@ public class DefaultConfig {
 
     public static List<MovieSort.SortData> adjustSort(String sourceKey, List<MovieSort.SortData> list, boolean withMy) {
         List<MovieSort.SortData> data = new ArrayList<>();
-        if (sourceKey != null) {
+        // 小贾影视仓 v17: 切线路闪退根因修复。
+        // 原代码: SourceBean sb = ApiConfig.get().getSource(sourceKey); sb.getCategories().isEmpty()
+        // 两处裸奔: ① getSource 在切线路瞬间(新配置尚未装载完/旧 key 已失效)会返回 null;
+        //          ② 手工 new 出来的 SourceBean(如注入站 __xiaojia_douban) categories 恒为 null。
+        // 崩在 LiveData 观察者里(postValue -> onChanged -> adjustSort), 表现为"切换线路闪退"。
+        if (sourceKey != null && list != null) {
             SourceBean sb = ApiConfig.get().getSource(sourceKey);
-            ArrayList<String> categories = sb.getCategories();
-            if (!categories.isEmpty()) {
+            ArrayList<String> categories = (sb == null) ? null : sb.getCategories();
+            if (categories != null && !categories.isEmpty()) {
                 for (String cate : categories) {
                     for (MovieSort.SortData sortData : list) {
-                        if (sortData.name.equals(cate)) {
+                        if (sortData != null && cate != null && cate.equals(sortData.name)) {
                             if (sortData.filters == null)
                                 sortData.filters = new ArrayList<>();
                             data.add(sortData);
@@ -53,6 +58,7 @@ public class DefaultConfig {
                 }
             } else {
                 for (MovieSort.SortData sortData : list) {
+                    if (sortData == null) continue;
                     if (sortData.filters == null)
                         sortData.filters = new ArrayList<>();
                     data.add(sortData);
