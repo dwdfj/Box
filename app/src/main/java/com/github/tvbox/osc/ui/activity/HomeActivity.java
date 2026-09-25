@@ -360,12 +360,23 @@ public class HomeActivity extends BaseActivity {
                     if (mGridView != null) mGridView.setSelection(0);
                 }
                 showSuccess();
+                // 小贾影视仓 v15.15: getHomeSourceBean() 判空 —— 配置加载失败时该对象为 null,
+                // 原代码直接 .getKey() 会 NPE 闪退(启动期最常见的一处裸奔点)。
+                SourceBean homeSortBean = ApiConfig.get().getHomeSourceBean();
+                String homeSortKey = homeSortBean == null ? "" : homeSortBean.getKey();
                 if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
-                    sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), absXml.classes.sortList, true));
+                    sortAdapter.setNewData(DefaultConfig.adjustSort(homeSortKey, absXml.classes.sortList, true));
                 } else {
-                    sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<>(), true));
+                    sortAdapter.setNewData(DefaultConfig.adjustSort(homeSortKey, new ArrayList<>(), true));
                 }
                 initViewPager(absXml);
+                // v15.15: 首页数据已到位 => 8 秒后判定本次启动成功, 清掉启动哨兵标记(native 崩溃不会清 => 下次启动计数+1)
+                postDelayedIfAlive(new Runnable() {
+                    @Override
+                    public void run() {
+                        markBootOk();
+                    }
+                }, 8000);
                 // 小贾影视仓 v15.14: 首页"推荐影视"(my0) 空数据自愈 —— 站点推荐模式(默认)下 getSort
                 // 返回的分类里若 videoList 为空(推荐兜底超时/失败/缓存也空), 先正常注入, 再延迟重拉一次。
                 // getSort 二次执行时会优先命中按天落盘缓存回填; guard 保证单 Activity 生命周期内至多重拉一次, 不构成死循环。
@@ -445,7 +456,11 @@ public class HomeActivity extends BaseActivity {
         mGridView.requestFocus();
 
         if (dataInitOk && jarInitOk) {
-            sourceViewModel.getSort(ApiConfig.get().getHomeSourceBean().getKey());
+            // 小贾影视仓 v15.15: 判空防 NPE(配置未就绪时 getHomeSourceBean 可能为 null)
+            SourceBean hsBean = ApiConfig.get().getHomeSourceBean();
+            if (hsBean != null) {
+                sourceViewModel.getSort(hsBean.getKey());
+            }
             if (hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 LOG.e("有");
             } else {
@@ -487,6 +502,15 @@ public class HomeActivity extends BaseActivity {
                         postDelayedIfAlive(new Runnable() {
                             @Override
                             public void run() {
+                                // 小贾影视仓 v15.15: 内置包(去加固 jar)加载失败 -> 自动降级到默认在线线路并重启首页,
+                                // 避免用户卡在"内置线路加载不出来又不自愈"的死状态。
+                                String curApi = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+                                if (curApi != null && curApi.startsWith("clan://")) {
+                                    Toast.makeText(HomeActivity.this, "内置包加载失败，已自动切到默认线路", Toast.LENGTH_LONG).show();
+                                    Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                                    restartHome(true);
+                                    return;
+                                }
                                 if ("".equals(msg))
                                     Toast.makeText(HomeActivity.this, getString(R.string.hm_notok), Toast.LENGTH_SHORT).show();
                                 else
@@ -752,6 +776,65 @@ public class HomeActivity extends BaseActivity {
 
         // v15.4.3: 傻瓜化崩溃上报 —— 上次闪退过则自动弹窗(摘要+一键复制/分享), 免去浏览器抓日志
         checkCrashReport();
+        // v15.15: 启动哨兵 —— 兜住 native 崩溃(Java 抓不到、无日志无弹窗)导致的"开一次崩一次"
+        checkBootSentinel();
+    }
+
+    // ===== 小贾影视仓 v15.15: 启动哨兵 —— 专治 native 崩溃"开一次崩一次" =====
+    // 背景: 加固 .so 在 Android 15+ 16KB 内存页设备上 dlopen 会原生崩溃, Java 层完全抓不到(不写 xj_crash.log、不弹窗),
+    // 用户重启多少次都还是崩。这里用"启动未完成标记"兜底: 标记还在 => 上次启动没走完(崩了/被杀) => 计数+1;
+    // 连续 2 次且当前是内置 clan 线路 => 自动切到默认在线线路; 连续 3 次(任意线路) => 也切回默认线路。首页数据到位后清标记。
+    private static final String BOOT_PENDING = "xj_boot_pending";
+    private static final String BOOT_FAIL_CNT = "xj_boot_fail_cnt";
+
+    private int readBootFail() {
+        try {
+            java.io.File f = new java.io.File(getFilesDir(), BOOT_FAIL_CNT);
+            if (!f.exists()) return 0;
+            java.io.FileInputStream fis = new java.io.FileInputStream(f);
+            byte[] b = new byte[16];
+            int n = fis.read(b);
+            fis.close();
+            return n > 0 ? Integer.parseInt(new String(b, 0, n, "UTF-8").trim()) : 0;
+        } catch (Throwable th) {
+            return 0;
+        }
+    }
+
+    private void writeBootFail(int v) {
+        try {
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(new java.io.File(getFilesDir(), BOOT_FAIL_CNT), false);
+            fos.write(String.valueOf(v).getBytes("UTF-8"));
+            fos.close();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void checkBootSentinel() {
+        try {
+            java.io.File pending = new java.io.File(getFilesDir(), BOOT_PENDING);
+            int fail = pending.exists() ? (readBootFail() + 1) : 0;
+            writeBootFail(fail);
+            pending.createNewFile();
+            String cur = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+            boolean isBuiltin = cur != null && cur.startsWith("clan://");
+            if ((fail >= 2 && isBuiltin) || fail >= 3) {
+                Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                writeBootFail(0);
+                pending.delete();
+                Toast.makeText(this, "检测到上次启动异常，已自动切到默认线路", Toast.LENGTH_LONG).show();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void markBootOk() {
+        try {
+            java.io.File pending = new java.io.File(getFilesDir(), BOOT_PENDING);
+            if (pending.exists()) pending.delete();
+            writeBootFail(0);
+        } catch (Throwable ignored) {
+        }
     }
 
     // v15.4.3: 检测上次崩溃(xj_crash_last.txt), 弹窗让用户一键复制/分享日志给开发者
@@ -1233,7 +1316,9 @@ public class HomeActivity extends BaseActivity {
     private void refreshEmpty() {
         skipNextUpdate=true;
         showSuccess();
-        sortAdapter.setNewData(DefaultConfig.adjustSort(ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<>(), true));
+        // 小贾影视仓 v15.15: 判空防 NPE
+        SourceBean emptyBean = ApiConfig.get().getHomeSourceBean();
+        sortAdapter.setNewData(DefaultConfig.adjustSort(emptyBean == null ? "" : emptyBean.getKey(), new ArrayList<>(), true));
         initViewPager(null);
         tvName.clearAnimation();
     }
