@@ -223,8 +223,17 @@ public class ApiConfig {
             }
         } else if (apiUrl.startsWith("clan")) {
             configUrl = clanToAddress(apiUrl);
+            // 小贾影视仓 v18: 本地回环服务未就绪时 clanToAddress() 会退化成 "file/..."(无 scheme),
+            // 交给 OkHttp 会直接抛 IllegalArgumentException 冒泡到主线程 —— 表现就是"切到内置线路闪退"。
+            // 这里显式拦下, 交给上层重试(下次 getAddress 会确保服务已启动)。
+            if (configUrl == null || !configUrl.startsWith("http")) {
+                callback.error("本地服务未就绪，请稍后重试");
+                return;
+            }
         } else if (!apiUrl.startsWith("http")) {
-            configUrl = "http://" + configUrl;
+            // 小贾影视仓 v18: 原为 "http://" + configUrl —— 此时 configUrl 恒为空串, 会拼出 "http://"
+            // 这种非法地址(同样会让 OkHttp 抛异常)。应拼接 apiUrl 本身。
+            configUrl = "http://" + normalizeUrl(apiUrl);
         } else {
             configUrl = apiUrl;
         }
@@ -421,6 +430,18 @@ public class ApiConfig {
         // config 里 spider 是相对路径 "./jar/aidaox-xxx.jar", 指向已释放到 filesDir/feimao/jar/ 的真实文件。
         // 原实现直接当 HTTP URL 去 OkGo.get 必然失败, 报"从网络上加载jar失败"。这里优先本地直取, 绕开 127.0.0.1 回环下载。
         File builtinJar = resolveBuiltinFeimaoJar(jarUrl);
+        // 小贾影视仓 v18: 内置包资源"未必已就绪" —— 启动预热是后台线程(用户可能没等释放完就切线路),
+        // 覆盖安装也可能清掉 filesDir/feimao。此前一旦缺失就会把 "./jar/aidaox-xxx.jar" 这种相对路径
+        // 直接交给 OkGo.get(), OkHttp 的 Request.Builder().url() 会抛 IllegalArgumentException("no scheme"),
+        // 冒泡到主线程 = 切到内置线路必闪退(v15.16 起多个版本的高发崩点)。
+        // 现在: ① 先从 assets 同步补拷 ② 仍不可用则明确报错, 绝不把相对路径当网络地址。
+        if (builtinJar == null && isBuiltinFeimaoRel(jarUrl)) {
+            builtinJar = copyBuiltinFeimaoJarFromAssets(jarUrl);
+            if (builtinJar == null || !builtinJar.exists()) {
+                callback.error("内置包资源未就绪，请稍后重试");
+                return;
+            }
+        }
         if (builtinJar != null && builtinJar.exists()) {
             boolean md5ok = md5.isEmpty() || MD5.getFileMd5(builtinJar).equalsIgnoreCase(md5);
             if (md5ok) {
@@ -430,8 +451,21 @@ public class ApiConfig {
                     callback.error("从内置肥猫包加载jar失败");
                 }
             } else {
+                // md5 不匹配说明本地文件损坏/是旧版 -> 从 assets 重拷一次再验
+                File retry = copyBuiltinFeimaoJarFromAssets(jarUrl);
+                if (retry != null && retry.exists() && MD5.getFileMd5(retry).equalsIgnoreCase(md5)
+                        && jarLoader.loadBuiltin(retry.getAbsolutePath())) {
+                    callback.success();
+                    return;
+                }
                 callback.error("内置肥猫 jar MD5 不匹配");
             }
+            return;
+        }
+        // 小贾影视仓 v18: 走到这里仍是无 scheme 的地址 -> 直接在 OkGo 之前拦下。
+        // (带 "://" 的 img+/http 地址不受影响, 会继续走下面的正常网络流程)
+        if (jarUrl.indexOf("://") < 0) {
+            callback.error("jar 地址无效: " + jarUrl);
             return;
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/"+MD5.string2MD5(jarUrl)+".jar");
@@ -572,6 +606,55 @@ public class ApiConfig {
         String full = rel.startsWith("feimao/") ? rel : ("feimao/" + rel);
         File f = new File(App.getInstance().getFilesDir().getAbsolutePath(), full);
         return f.exists() ? f : null;
+    }
+
+    // 小贾影视仓 v18: 是否"内置肥猫包的相对路径 jar"(./jar/aidaox-xxx.jar / jar/xxx.jar / feimao/jar/xxx.jar)。
+    // 用白名单前缀判断, 不看后缀 —— 否则 img+https://xxx.jar 这类合法网络地址会被误判。
+    private boolean isBuiltinFeimaoRel(String jarUrl) {
+        if (jarUrl == null || jarUrl.isEmpty()) return false;
+        if (jarUrl.startsWith("img+") || jarUrl.startsWith("http")) return false;
+        return jarUrl.startsWith("./jar/") || jarUrl.startsWith("jar/") || jarUrl.startsWith("feimao/");
+    }
+
+    // 小贾影视仓 v18: 内置包 jar 兜底自愈 —— 预热线程尚未跑完 / 私有目录被清理 / 覆盖安装残留时,
+    // 直接(同步)从 assets/feimao/jar/ 补拷到 filesDir/feimao/jar/, 让内置线路"第一次切过去就能用"。
+    // 返回可用的 jar 文件; 任何一步失败返回 null(由调用方决定报错, 不抛异常)。
+    private File copyBuiltinFeimaoJarFromAssets(String jarUrl) {
+        try {
+            String rel = jarUrl.startsWith("./") ? jarUrl.substring(2) : jarUrl;
+            if (!rel.startsWith("feimao/")) rel = "feimao/" + rel;
+            String name = rel.substring(rel.lastIndexOf('/') + 1);
+            if (!name.endsWith(".jar")) return null;
+            File dir = new File(App.getInstance().getFilesDir(), "feimao/jar");
+            if (!dir.exists() && !dir.mkdirs()) return null;
+            File out = new File(dir, name);
+            if (out.exists() && out.length() > 0) return out;
+            java.io.InputStream in = null;
+            java.io.FileOutputStream fos = null;
+            try {
+                in = App.getInstance().getAssets().open("feimao/jar/" + name);
+                File tmp = new File(dir, name + ".part");
+                fos = new java.io.FileOutputStream(tmp);
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) fos.write(buf, 0, n);
+                fos.flush();
+                fos.close();
+                fos = null;
+                if (out.exists()) out.delete();
+                if (!tmp.renameTo(out)) {
+                    tmp.delete();
+                    return null;
+                }
+            } finally {
+                try { if (in != null) in.close(); } catch (Throwable ignored) {}
+                try { if (fos != null) fos.close(); } catch (Throwable ignored) {}
+            }
+            return (out.exists() && out.length() > 0) ? out : null;
+        } catch (Throwable th) {
+            th.printStackTrace();
+            return null;
+        }
     }
 
     private void parseJson(String apiUrl, File f) throws Throwable {
