@@ -75,6 +75,14 @@ public class SourceViewModel extends ViewModel {
     private ExecutorService searchExecutorService;
     public Gson gson;
 
+    // 小贾影视仓 v16: "静默"快速搜索回调 —— 播放失败自动换源用,
+    // 走本回调时不再向 EventBus 广播 TYPE_QUICK_SEARCH_RESULT, 避免污染详情页的快速搜索面板。
+    public interface QuickSearchCallback {
+        void done(AbsXml data);
+    }
+
+    private QuickSearchCallback quietQuickCb = null;
+
     public void initExecutor() {
         if (searchExecutorService != null) {
             searchExecutorService.shutdownNow();
@@ -750,6 +758,14 @@ public class SourceViewModel extends ViewModel {
 
     // searchContent
     public void getQuickSearch(String sourceKey, String wd) {
+        getQuickSearch(sourceKey, wd, null);
+    }
+
+    /**
+     * 小贾影视仓 v16: cb 非空时为"静默模式" —— 结果只回调给调用方, 不发 EventBus。
+     */
+    public void getQuickSearch(String sourceKey, String wd, QuickSearchCallback cb) {
+        quietQuickCb = cb;
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
         int type = sourceBean.getType();
         if (type == 3) {
@@ -790,7 +806,11 @@ public class SourceViewModel extends ViewModel {
                         public void onError(Response<String> response) {
                             super.onError(response);
                             // quickSearchResult.postValue(null);
-                            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                            if (quietQuickCb != null) {
+                                quietQuickCb.done(null);
+                            } else {
+                                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                            }
                         }
                     });
         } else if (type == 4) {
@@ -824,7 +844,11 @@ public class SourceViewModel extends ViewModel {
                         }
                     });
         } else {
-            quickSearchResult.postValue(null);
+            if (quietQuickCb != null) {
+                quietQuickCb.done(null);
+            } else {
+                quickSearchResult.postValue(null);
+            }
         }
     }
 
@@ -1261,7 +1285,11 @@ public class SourceViewModel extends ViewModel {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+                if (quietQuickCb != null) {
+                    quietQuickCb.done(data);
+                } else {
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+                }
             } else if (result != null) {
                 if (result == detailResult) {
                     data = checkPush(data);
@@ -1275,7 +1303,11 @@ public class SourceViewModel extends ViewModel {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                if (quietQuickCb != null) {
+                    quietQuickCb.done(null);
+                } else {
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                }
             } else if (result != null) {
                 result.postValue(null);
             }
@@ -1309,7 +1341,11 @@ public class SourceViewModel extends ViewModel {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, data));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+                if (quietQuickCb != null) {
+                    quietQuickCb.done(data);
+                } else {
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, data));
+                }
             } else if (result != null) {
                 if (result == detailResult) {
                     data = checkPush(data);
@@ -1323,7 +1359,11 @@ public class SourceViewModel extends ViewModel {
             if (searchResult == result) {
                 EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SEARCH_RESULT, null));
             } else if (quickSearchResult == result) {
-                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                if (quietQuickCb != null) {
+                    quietQuickCb.done(null);
+                } else {
+                    EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH_RESULT, null));
+                }
             } else if (result != null) {
                 result.postValue(null);
             }
