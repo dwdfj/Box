@@ -118,7 +118,19 @@ public class SourceViewModel extends ViewModel {
         gson=new Gson();
     }
 
-    public static final ExecutorService spThreadPool = Executors.newSingleThreadExecutor();
+    // 小贾影视仓 v17: 原为 Executors.newSingleThreadExecutor()。
+    // 首页分类(getSort)/影片详情(getDetail)/推荐兜底(getHomeRecList) 全部挤在这一个线程上,
+    // 而 getSort 的 homeContent 超时上限高达 20 秒 —— 首页那个请求没跑完之前, 你点开影片的
+    // 详情请求只能干排队, 表现就是"加载影视信息很慢"(与线路无关, 是壳子自身的串行瓶颈)。
+    // 改为固定 4 线程: 首页/详情/推荐可以并行, 详情基本能立刻开跑。
+    public static final ExecutorService spThreadPool = Executors.newFixedThreadPool(4);
+
+    // 小贾影视仓 v17: extend 拉取专用池。
+    // 原 getFixUrl() 走 spThreadPool.submit + future.get(5s)。当它本身就跑在 spThreadPool 线程里时
+    // (getDetail(type0/1/4) 与播放解析链路都会), 等于"自己排队自己", 必然等满 5 秒超时才降级 ——
+    // 每次首页/详情/播放都白等 5 秒。独立池后既不会自我阻塞, 也不会被首页长任务拖住。
+    // 用 4 线程是因为 prefetchExt() 自己是"池内再 submit"的一层, 要留出足够槽位避免相互占满。
+    private static final ExecutorService fixUrlPool = Executors.newFixedThreadPool(4);
 
     //homeContent缓存，最多存储5个sourceKey的AbsSortXml对象
     private static final Map<String, AbsSortXml> sortCache = new LinkedHashMap<String, AbsSortXml>(5, 0.75f, true) {
@@ -197,6 +209,12 @@ public class SourceViewModel extends ViewModel {
         }
 
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
+        // 小贾影视仓 v17: getSource 可能返回 null(切线路瞬间旧 key 已失效/新配置尚未装载完),
+        // 原代码下一行直接 sourceBean.getType() 会 NPE 闪退 —— 与 adjustSort 那处同属"切线路崩溃"链路。
+        if (sourceBean == null) {
+            sortResult.postValue(null);
+            return;
+        }
         final int type = sourceBean.getType();
         if (type == 3) {
             Runnable waitResponse = new Runnable() {
@@ -212,7 +230,9 @@ public class SourceViewModel extends ViewModel {
                     });
                     String sortJson = null;
                     try {
-                        sortJson = future.get(20, TimeUnit.SECONDS);
+                        // 小贾影视仓 v17: 20s -> 10s。首页主内容等待过久是"打开首页慢"的主因;
+                        // 超时后已有 v15.14 的按天落盘缓存回填兜底, 不会再空屏, 所以没必要死等 20 秒。
+                        sortJson = future.get(10, TimeUnit.SECONDS);
                     } catch (TimeoutException e) {
                         e.printStackTrace();
                         future.cancel(true);
@@ -482,7 +502,8 @@ public class SourceViewModel extends ViewModel {
                     });
                     String sortJson = null;
                     try {
-                        sortJson = future.get(15, TimeUnit.SECONDS);
+                        // 小贾影视仓 v17: 15s -> 8s。推荐兜底失败已有按天缓存回填, 死等只会拖慢首页。
+                        sortJson = future.get(8, TimeUnit.SECONDS);
                     } catch (TimeoutException e) {
                         e.printStackTrace();
                         future.cancel(true);
@@ -600,7 +621,8 @@ public class SourceViewModel extends ViewModel {
 
                     String json = null;
                     try {
-                        json = future.get(15, TimeUnit.SECONDS);
+                        // 小贾影视仓 v17: 15s -> 10s。慢源快速失败, 避免"点了影片干等 15 秒"。
+                        json = future.get(10, TimeUnit.SECONDS);
                         LOG.i("echo--getDetail--result:" + json);
                     } catch (TimeoutException e) {
                         LOG.i("echo--getDetail--timeout");
@@ -858,7 +880,10 @@ public class SourceViewModel extends ViewModel {
 
     public void getPlay(String sourceKey, String playFlag, String progressKey, String url, String subtitleKey) {
         if (threadPoolGetPlay != null) threadPoolGetPlay.shutdownNow();
-        threadPoolGetPlay = Executors.newFixedThreadPool(2);
+        // 小贾影视仓 v17: 2 -> 4。该池里存在"池内再 submit 自己"的写法(threadPoolGetPlay.execute
+        // 内部又 threadPoolGetPlay.submit + get(15s)), 2 线程时并发解析两次就可能互相占满而空转超时,
+        // 表现为"点播放没反应/解析失败"。加宽到 4 即可避免自锁。
+        threadPoolGetPlay = Executors.newFixedThreadPool(4);
         Callable<JSONObject> callable = () -> {
             if (Thread.currentThread().isInterrupted()) return null;
             SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
@@ -904,7 +929,37 @@ public class SourceViewModel extends ViewModel {
         });
     }
     private static final ConcurrentHashMap<String, String> extendCache = new ConcurrentHashMap<>();
+
+    /**
+     * 小贾影视仓 v17: 后台预热站点 extend(仅当 ext 是个 http 地址时才需要拉取)。
+     * <p>type=0/1/4 线路在 getSort/getDetail 里会同步调用 {@link #getFixUrl(String)} 拿 extend 内容,
+     * 首次未命中缓存时会把调用线程(首页是主线程)卡住最长 5 秒 —— 表现为"切完线路打开首页卡一下"。
+     * 在发起 getSort 之前先预热, 真正用到时已命中缓存, 主线程零等待。</p>
+     */
+    public void prefetchExt(final SourceBean bean) {
+        try {
+            if (bean == null) return;
+            final String ext = bean.getExt();
+            if (ext == null || ext.isEmpty() || !ext.startsWith("http")) return;
+            if (extendCache.containsKey(MD5.string2MD5(ext))) return;
+            fixUrlPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        getFixUrl(ext);
+                    } catch (Throwable th) {
+                        th.printStackTrace();
+                    }
+                }
+            });
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
     private String getFixUrl(final String extend) {
+        // 小贾影视仓 v17: 原代码 extend 为空直接 NPE(手工 new 的 SourceBean 里 ext 可能为 null)
+        if (extend == null || extend.isEmpty()) return extend;
         if(!extend.startsWith("http"))return extend;
         final String key = MD5.string2MD5(extend);
         if (extendCache.containsKey(key)) {
@@ -912,7 +967,8 @@ public class SourceViewModel extends ViewModel {
             return extendCache.get(key);
         }
         LOG.i("echo-getFixUrl load");
-        Future<String> future = spThreadPool.submit(new Callable<String>() {
+        // 小贾影视仓 v17: 用独立的 fixUrlPool, 不再走 spThreadPool —— 见 fixUrlPool 声明处注释
+        Future<String> future = fixUrlPool.submit(new Callable<String>() {
             @Override
             public String call() {
                 String result = extend;
