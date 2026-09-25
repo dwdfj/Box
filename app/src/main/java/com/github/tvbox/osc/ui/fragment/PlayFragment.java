@@ -83,6 +83,7 @@ import com.github.tvbox.osc.util.M3U8;
 import com.github.tvbox.osc.util.MD5;
 import com.github.tvbox.osc.util.parser.SuperParse;
 import com.github.tvbox.osc.util.PlayerHelper;
+import com.github.tvbox.osc.util.PlayFailover;
 import com.github.tvbox.osc.util.StringUtils;
 import com.github.tvbox.osc.util.SubtitleHelper;
 import com.github.tvbox.osc.util.VideoParseRuler;
@@ -173,8 +174,42 @@ public class PlayFragment extends BaseLazyFragment {
     protected void init() {
         initView();
         initViewModel();
+        initFailover();
         initData();
         initDanmuView();
+    }
+
+    // 小贾影视仓 v16: 播放失败自动换源(借鉴 FongMi/TV)
+    private PlayFailover playFailover;
+
+    private void initFailover() {
+        playFailover = new PlayFailover(new PlayFailover.Host() {
+            @Override
+            public SourceViewModel sourceViewModel() {
+                return sourceViewModel;
+            }
+
+            @Override
+            public void failoverTip(String msg, boolean loading, boolean err) {
+                setTip(msg, loading, err);
+            }
+
+            @Override
+            public void failoverSwitch(VodInfo info, String sourceName) {
+                try {
+                    mVodInfo = info;
+                    sourceKey = info.sourceKey;
+                    sourceBean = ApiConfig.get().getSource(sourceKey);
+                    autoRetryCount = 0;
+                    initPlayerCfg();
+                    Toast.makeText(requireContext(), "当前线路不可用，已自动切换：" + sourceName, Toast.LENGTH_SHORT).show();
+                    play(false);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+            }
+        });
+        playFailover.attach();
     }
     private void initDanmuView() {
         mDanmuView  = findViewById(R.id.danmaku);
@@ -1057,6 +1092,7 @@ public class PlayFragment extends BaseLazyFragment {
         mVodInfo = (VodInfo) bundle.getSerializable("VodInfo");
         sourceKey = bundle.getString("sourceKey");
         sourceBean = ApiConfig.get().getSource(sourceKey);
+        if (playFailover != null) playFailover.resetAll(); // v16: 换片清空换源候选
         initPlayerCfg();
         play(false);
     }
@@ -1165,6 +1201,7 @@ public class PlayFragment extends BaseLazyFragment {
         }
         //手动注销
         sourceViewModel.playResult.removeObserver(mObserverPlayResult);
+        if (playFailover != null) playFailover.destroy();
         EventBus.getDefault().unregister(this);
         if (mVideoView != null) {
             mVideoView.release();
@@ -1250,6 +1287,10 @@ public class PlayFragment extends BaseLazyFragment {
             return true;
         } else {
             autoRetryCount = 0;
+            // 小贾影视仓 v16: 本线路重试无效 → 自动跨源换线路(借鉴 FongMi/TV)
+            if (playFailover != null && playFailover.start(mVodInfo, sourceKey)) {
+                return true;
+            }
             return false;
         }
     }
@@ -1300,6 +1341,7 @@ public class PlayFragment extends BaseLazyFragment {
         RemoteServer.vodName = mVodInfo.name;
         RemoteServer.artist = vs.name;
 
+        if (playFailover != null) playFailover.resetRuntime(); // v16: 换集重置换源瞬时状态
         stopParse();
         initParseLoadFound();
         if (mVideoView != null) mVideoView.release();
