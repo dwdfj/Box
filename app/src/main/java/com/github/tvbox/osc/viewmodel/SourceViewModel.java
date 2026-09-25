@@ -132,6 +132,12 @@ public class SourceViewModel extends ViewModel {
     // 用 4 线程是因为 prefetchExt() 自己是"池内再 submit"的一层, 要留出足够槽位避免相互占满。
     private static final ExecutorService fixUrlPool = Executors.newFixedThreadPool(4);
 
+    // 小贾影视仓 v18: 标记"当前线程属于 fixUrlPool"。
+    // 池内线程再次 submit 到同一池并 future.get() 是典型的线程池饥饿死锁 —— 4 个并发任务就能把池占满,
+    // 每个都卡在"等待自己排在队尾的子任务"上, 直到 5 秒超时才降级, 表现为"切完线路首页空转 5 秒"。
+    // 有该标记后 getFixUrl() 在池内直接同步执行, 不再二次提交。
+    private static final ThreadLocal<Boolean> inFixPool = new ThreadLocal<Boolean>();
+
     //homeContent缓存，最多存储5个sourceKey的AbsSortXml对象
     private static final Map<String, AbsSortXml> sortCache = new LinkedHashMap<String, AbsSortXml>(5, 0.75f, true) {
         @Override
@@ -945,10 +951,15 @@ public class SourceViewModel extends ViewModel {
             fixUrlPool.execute(new Runnable() {
                 @Override
                 public void run() {
+                    // v18: 直接执行同步拉取体, 不再回调 getFixUrl() —— 后者会再 submit 到同一个池,
+                    // 4 个并发 prefetch 就能占满整池, 全部卡在 future.get(5s) 等队尾子任务(池内饥饿)。
+                    inFixPool.set(Boolean.TRUE);
                     try {
-                        getFixUrl(ext);
+                        fetchExtInline(ext);
                     } catch (Throwable th) {
                         th.printStackTrace();
+                    } finally {
+                        inFixPool.remove();
                     }
                 }
             });
@@ -967,25 +978,23 @@ public class SourceViewModel extends ViewModel {
             return extendCache.get(key);
         }
         LOG.i("echo-getFixUrl load");
+        // 小贾影视仓 v18: 当前线程本就在 fixUrlPool 内(如 prefetchExt 调用进来) -> 同步执行,
+        // 绝不再 submit 同池; 否则并发一多就把池占满, 每个任务都在等"排在自己后面的子任务" -> 卡满 5 秒。
+        if (Boolean.TRUE.equals(inFixPool.get())) {
+            fetchExtInline(extend);
+            return extendCache.containsKey(key) ? extendCache.get(key) : extend;
+        }
         // 小贾影视仓 v17: 用独立的 fixUrlPool, 不再走 spThreadPool —— 见 fixUrlPool 声明处注释
         Future<String> future = fixUrlPool.submit(new Callable<String>() {
             @Override
             public String call() {
-                String result = extend;
-                if (extend.startsWith("http://127.0.0.1")) {
-                    String path = extend.replaceAll("^http.+/file/", FileUtils.getRootPath() + "/");
-                    path = path.replaceAll("localhost/", "/");
-                    result = FileUtils.readFileToString(path, "UTF-8");
-                    result = tryMinifyJson(result);
-                    extendCache.putIfAbsent(key, result);
-                } else if (extend.startsWith("http")) {
-                    result = OkHttpUtil.string(extend, null);
-                    if (!result.isEmpty()) {
-                        result = tryMinifyJson(result);
-                        extendCache.putIfAbsent(key, result);
-                    }
+                inFixPool.set(Boolean.TRUE);
+                try {
+                    fetchExtInline(extend);
+                } finally {
+                    inFixPool.remove();
                 }
-                return result;
+                return extendCache.containsKey(key) ? extendCache.get(key) : extend;
             }
         });
 
@@ -998,6 +1007,28 @@ public class SourceViewModel extends ViewModel {
         } catch (Exception e) {
             e.printStackTrace();
             return extend;
+        }
+    }
+
+    // 小贾影视仓 v18: extend 拉取的唯一实现体(同步执行)。调用方负责保证自己已在后台线程 ——
+    // prefetchExt() 与 getFixUrl() 统一走这里, 杜绝"同一份拉取逻辑两处各提交一次任务"造成的池内饥饿。
+    private void fetchExtInline(final String extend) {
+        if (extend == null || extend.isEmpty() || !extend.startsWith("http")) return;
+        final String key = MD5.string2MD5(extend);
+        if (extendCache.containsKey(key)) return;
+        String result = extend;
+        if (extend.startsWith("http://127.0.0.1")) {
+            String path = extend.replaceAll("^http.+/file/", FileUtils.getRootPath() + "/");
+            path = path.replaceAll("localhost/", "/");
+            result = FileUtils.readFileToString(path, "UTF-8");
+            result = tryMinifyJson(result);
+            extendCache.putIfAbsent(key, result);
+        } else if (extend.startsWith("http")) {
+            result = OkHttpUtil.string(extend, null);
+            if (!result.isEmpty()) {
+                result = tryMinifyJson(result);
+                extendCache.putIfAbsent(key, result);
+            }
         }
     }
 
