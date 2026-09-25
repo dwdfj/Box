@@ -459,6 +459,8 @@ public class HomeActivity extends BaseActivity {
             // 小贾影视仓 v15.15: 判空防 NPE(配置未就绪时 getHomeSourceBean 可能为 null)
             SourceBean hsBean = ApiConfig.get().getHomeSourceBean();
             if (hsBean != null) {
+                // 小贾影视仓 v17: 先后台预热 extend(type0/1/4 线路), 避免 getSort 在主线程同步等它
+                sourceViewModel.prefetchExt(hsBean);
                 sourceViewModel.getSort(hsBean.getKey());
             }
             if (hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
@@ -1214,6 +1216,8 @@ public class HomeActivity extends BaseActivity {
         tvName.clearAnimation();
         tvName.setText(getString(R.string.app_name) + " · " + target.getName() + "(切换中…)");
         showLoading();
+        // 小贾影视仓 v17: 切线路时先预热目标站的 extend, 首页分类不必在主线程等它
+        sourceViewModel.prefetchExt(target);
         sourceViewModel.getSort(target.getKey());
     }
 
