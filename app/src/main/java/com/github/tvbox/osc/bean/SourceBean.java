@@ -99,6 +99,11 @@ public class SourceBean {
     }
 
     public ArrayList<String> getCategories() {
+        // 小贾影视仓 v17: 兜底非空 —— categories 字段默认为 null, 只有在配置解析循环里
+        // (ApiConfig 逐站 setCategories) 才会被赋值; 而代码中还有若干"手工 new SourceBean"的地方
+        // (如参考线路注入站 __xiaojia_douban、emptyHome、搜索页的伪条目), 它们从不设置 categories。
+        // 一旦该类 bean 被选为首页站点, adjustSort 里 categories.isEmpty() 会直接 NPE 闪退(切线路时高发)。
+        if (categories == null) categories = new ArrayList<>();
         return categories;
     }
 
