@@ -360,6 +360,7 @@ public class HomeActivity extends BaseActivity {
                     if (mGridView != null) mGridView.setSelection(0);
                 }
                 showSuccess();
+                cancelSortWatchdog();
                 // 小贾影视仓 v15.15: getHomeSourceBean() 判空 —— 配置加载失败时该对象为 null,
                 // 原代码直接 .getKey() 会 NPE 闪退(启动期最常见的一处裸奔点)。
                 SourceBean homeSortBean = ApiConfig.get().getHomeSourceBean();
@@ -418,6 +419,44 @@ public class HomeActivity extends BaseActivity {
     private volatile String homeSortGuard = null;
     // 小贾影视仓 v15.14: 首页推荐空数据自愈 guard(单 Activity 生命周期内至多重拉一次)
     private boolean homeRecSelfHealFired = false;
+
+    // 小贾影视仓 v18: getSort "结果永远不到场"的兜底。
+    // spThreadPool(4 线程)若被多个长任务(详情/推荐兜底)占满, sortResult.postValue 会长时间不执行,
+    // 首页就一直停在 LoadingCallback 转圈 —— 即用户反馈的"一直加载影视封面"。
+    // 到点仍在 loading 就直接结束加载, 并借已有的"推荐空→重拉"自愈再触发一次 getSort(guard 保证不自旋)。
+    private Runnable sortWatchdog;
+
+    private void armSortWatchdog() {
+        cancelSortWatchdog();
+        sortWatchdog = new Runnable() {
+            @Override
+            public void run() {
+                sortWatchdog = null;
+                if (!alive() || !isLoading()) return;
+                LOG.e("echo--getSort-watchdog--force-end");
+                showSuccess();
+                SourceBean hb = ApiConfig.get().getHomeSourceBean();
+                if (hb != null && !homeRecSelfHealFired) {
+                    homeRecSelfHealFired = true;
+                    sourceViewModel.getSort(hb.getKey());
+                }
+            }
+        };
+        try {
+            mHandler.postDelayed(sortWatchdog, 12000);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void cancelSortWatchdog() {
+        if (sortWatchdog != null) {
+            try {
+                mHandler.removeCallbacks(sortWatchdog);
+            } catch (Throwable ignored) {
+            }
+            sortWatchdog = null;
+        }
+    }
     // 原地切站前记录的上一站点 key(切站失败回滚时用)
     private String homeSwitchPrevKey = null;
 
@@ -462,6 +501,8 @@ public class HomeActivity extends BaseActivity {
                 // 小贾影视仓 v17: 先后台预热 extend(type0/1/4 线路), 避免 getSort 在主线程同步等它
                 sourceViewModel.prefetchExt(hsBean);
                 sourceViewModel.getSort(hsBean.getKey());
+                // 小贾影视仓 v18: 起"结果不到场"守卫, 防止线程池饥饿让首页永远停在 loading
+                armSortWatchdog();
             }
             if (hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 LOG.e("有");
