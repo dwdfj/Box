@@ -17,6 +17,7 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Rational;
@@ -54,6 +55,8 @@ import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.App;
 import com.github.tvbox.osc.base.BaseActivity;
+import com.github.tvbox.osc.bean.AbsXml;
+import com.github.tvbox.osc.bean.Movie;
 import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.bean.SubtitleBean;
@@ -88,6 +91,8 @@ import com.github.tvbox.osc.util.LOG;
 import com.github.tvbox.osc.util.M3U8;
 import com.github.tvbox.osc.util.MD5;
 import com.github.tvbox.osc.util.PlayerHelper;
+import com.github.tvbox.osc.util.PlayFailover;
+import com.github.tvbox.osc.util.SearchHelper;
 import com.github.tvbox.osc.util.parser.SuperParse;
 import com.github.tvbox.osc.util.StringUtils;
 import com.github.tvbox.osc.util.SubtitleHelper;
@@ -126,6 +131,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -189,8 +195,42 @@ public class PlayActivity extends BaseActivity {
         EventBus.getDefault().register(this);
         initView();
         initViewModel();
+        initFailover();
         initData();
         initDanmuView();
+    }
+
+    // 小贾影视仓 v16: 播放失败自动换源(借鉴 FongMi/TV)
+    private PlayFailover playFailover;
+
+    private void initFailover() {
+        playFailover = new PlayFailover(new PlayFailover.Host() {
+            @Override
+            public SourceViewModel sourceViewModel() {
+                return sourceViewModel;
+            }
+
+            @Override
+            public void failoverTip(String msg, boolean loading, boolean err) {
+                setTip(msg, loading, err);
+            }
+
+            @Override
+            public void failoverSwitch(VodInfo info, String sourceName) {
+                try {
+                    mVodInfo = info;
+                    sourceKey = info.sourceKey;
+                    sourceBean = ApiConfig.get().getSource(sourceKey);
+                    autoRetryCount = 0;
+                    initPlayerCfg();
+                    Toast.makeText(PlayActivity.this, "当前线路不可用，已自动切换：" + sourceName, Toast.LENGTH_SHORT).show();
+                    play(false);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+            }
+        });
+        playFailover.attach();
     }
     private void initDanmuView() {
         mDanmuView  = findViewById(R.id.danmaku);
@@ -1072,6 +1112,7 @@ public class PlayActivity extends BaseActivity {
             mVodInfo = (VodInfo) bundle.getSerializable("VodInfo");
             sourceKey = bundle.getString("sourceKey");
             sourceBean = ApiConfig.get().getSource(sourceKey);
+            if (playFailover != null) playFailover.resetAll(); // v16: 换片清空换源候选
             initPlayerCfg();
             play(false);
         }
@@ -1295,6 +1336,7 @@ public class PlayActivity extends BaseActivity {
         }
         //手动注销
         sourceViewModel.playResult.removeObserver(mObserverPlayResult);
+        if (playFailover != null) playFailover.destroy();
         if (mVideoView != null) {
             mVideoView.release();
             mVideoView = null;
@@ -1373,9 +1415,14 @@ public class PlayActivity extends BaseActivity {
             return true;
         } else {
             autoRetryCount = 0;
+            // 小贾影视仓 v16: 本线路重试无效 → 自动跨源换线路(借鉴 FongMi/TV)
+            if (playFailover != null && playFailover.start(mVodInfo, sourceKey)) {
+                return true;
+            }
             return false;
         }
     }
+
 
     void switchPlayer() {
         try {
@@ -1411,6 +1458,7 @@ public class PlayActivity extends BaseActivity {
         RemoteServer.vodName = mVodInfo.name;
         RemoteServer.artist = vs.name;
 
+        if (playFailover != null) playFailover.resetRuntime(); // v16: 换集时重置换源瞬时状态
         stopParse();
         initParseLoadFound();
         if (mVideoView != null) mVideoView.release();
