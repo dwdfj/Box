@@ -44,6 +44,8 @@ public class HawkConfig {
     public static final String EXO_RENDERER = "exo_renderer";
     public static final String EXO_RENDERER_MODE = "exo_renderer_mode";
     public static final String VOD_PLAYER_PREFERRED = "vod_player_preferred";
+    // 小贾影视仓 v16: 播放失败自动换源(跨线路容错, 借鉴 FongMi/TV)
+    public static final String PLAY_FAILOVER = "play_failover";
 
 
     // Other Settings
