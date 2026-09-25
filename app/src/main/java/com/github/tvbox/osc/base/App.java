@@ -92,36 +92,68 @@ public class App extends MultiDexApplication {
             });
         } catch (Throwable ignored) {
         }
-        SubtitleHelper.initSubtitleColor(this);
-        initParams();
+        // 小贾影视仓 v15.15: 启动期"防崩溃"加固 —— onCreate 里任何一步抛异常都会导致"点图标即闪退",
+        // 逐项 try/catch 隔离: 单项失败只降级该项功能, 绝不让整个 App 起不来。
+        try {
+            SubtitleHelper.initSubtitleColor(this);
+        } catch (Throwable ignored) {
+        }
+        try {
+            initParams();
+        } catch (Throwable ignored) {
+        }
         // takagen99 : Initialize Locale
-        initLocale();
+        try {
+            initLocale();
+        } catch (Throwable ignored) {
+        }
         // OKGo
-        OkGoHelper.init();
+        try {
+            OkGoHelper.init();
+        } catch (Throwable ignored) {
+        }
         // 闭关检查模式
-        XXPermissions.setCheckMode(false);
+        try {
+            XXPermissions.setCheckMode(false);
+        } catch (Throwable ignored) {
+        }
         // Get EPG Info
-        EpgUtil.init();
+        try {
+            EpgUtil.init();
+        } catch (Throwable ignored) {
+        }
         // 初始化Web服务器
-        ControlManager.init(this);
+        try {
+            ControlManager.init(this);
+        } catch (Throwable ignored) {
+        }
         //初始化数据库
-        AppDataManager.init();
+        try {
+            AppDataManager.init();
+        } catch (Throwable ignored) {
+        }
         LoadSir.beginBuilder()
                 .addCallback(new EmptyCallback())
                 .addCallback(new LoadingCallback())
                 .commit();
-        AutoSizeConfig.getInstance().setCustomFragment(true).getUnitsManager()
-                .setSupportDP(false)
-                .setSupportSP(false)
-                .setSupportSubunits(Subunits.MM);
-        // 修复 Android 14+：冷启动时 ScreenUtils 可能获取到竖屏宽度，导致 xdpi 计算错误、UI 变小
-        int screenWidth = AutoSizeConfig.getInstance().getScreenWidth();
-        int screenHeight = AutoSizeConfig.getInstance().getScreenHeight();
-        if (screenWidth < screenHeight) {
-            AutoSizeConfig.getInstance().setScreenWidth(screenHeight);
-            AutoSizeConfig.getInstance().setScreenHeight(screenWidth);
+        try {
+            AutoSizeConfig.getInstance().setCustomFragment(true).getUnitsManager()
+                    .setSupportDP(false)
+                    .setSupportSP(false)
+                    .setSupportSubunits(Subunits.MM);
+            // 修复 Android 14+：冷启动时 ScreenUtils 可能获取到竖屏宽度，导致 xdpi 计算错误、UI 变小
+            int screenWidth = AutoSizeConfig.getInstance().getScreenWidth();
+            int screenHeight = AutoSizeConfig.getInstance().getScreenHeight();
+            if (screenWidth < screenHeight) {
+                AutoSizeConfig.getInstance().setScreenWidth(screenHeight);
+                AutoSizeConfig.getInstance().setScreenHeight(screenWidth);
+            }
+        } catch (Throwable ignored) {
         }
-        PlayerHelper.init();
+        try {
+            PlayerHelper.init();
+        } catch (Throwable ignored) {
+        }
 
         // Delete Cache
         /*File dir = getCacheDir();
@@ -129,10 +161,16 @@ public class App extends MultiDexApplication {
         dir = getExternalCacheDir();
         FileUtils.recursiveDelete(dir);*/
 
-        FileUtils.cleanPlayerCache();
+        try {
+            FileUtils.cleanPlayerCache();
+        } catch (Throwable ignored) {
+        }
 
         // Add JS support
-        QuickJSLoader.init();
+        try {
+            QuickJSLoader.init();
+        } catch (Throwable ignored) {
+        }
 
         // add font support, my tv embed font not include emoji
         String extStorageDir = Environment.getExternalStorageDirectory().getAbsolutePath();
