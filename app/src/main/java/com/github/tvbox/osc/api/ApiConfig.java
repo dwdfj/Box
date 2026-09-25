@@ -695,6 +695,13 @@ public class ApiConfig {
                             inj.setJar(refJar);
                             inj.setSearchable(0);
                             inj.setQuickSearch(0);
+                            // 小贾影视仓 v17: 手工 new 的 bean 不会走配置解析循环, categories 默认 null,
+                            // 被选为首页站后 adjustSort 里 isEmpty() 会 NPE 闪退(切线路高发)。
+                            // 该注入站复用参考线路的 api/ext, 分类自然应继承参考站。
+                            inj.setCategories(new ArrayList<>(referenceDouban.getCategories()));
+                            inj.setPlayerUrl("");
+                            inj.setClickSelector("");
+                            inj.setStyle("");
                             sourceBeanList.put(inj.getKey(), inj);
                             sh = inj;
                         }
