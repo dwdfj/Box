@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v15.9: 首页「横屏 · 精选大图 + 网格」(方案B)——
-     1. 根布局透明: 透出 BaseActivity 设在 window 上的内置壁纸; 底部叠渐变遮罩保可读性。
-     2. 顶行: 数据源模式胶囊(豆瓣热播/站点推荐/播放历史) + 计数 + 操作提示。
-     3. 主体(横屏宽屏): 左侧「精选大图 Banner」(剧照 + 标题 + 圆形播放钮 + 收藏钮),
-        随右侧网格焦点联动; 右侧「多列海报网格」(4 列)铺开, 信息密度高、无大空白。
-     4. 底部入口收成 1 个「更多」按钮, 点击展开 5 项面板(历史/直播/收藏/推送/网盘)。
-     保留旧 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvHotListForGrid(本版指右侧网格)/tvUserHome
-     /tvHistory/tvLive/tvFavorite/tvPush/tvDrive -->
+<!-- 小贾影视仓 v23 —— 竖屏版首页「沉浸海报流」(方案A)。
+     v22 及以前是横屏的「左精选大图 Banner + 右 4 列网格」并排; v23 转竖屏后改为上下堆叠:
+       1. 根布局透明: 透出 BaseActivity 设在 window 上的内置壁纸; 底部叠渐变遮罩保可读性。
+       2. 顶行: 数据源模式胶囊(豆瓣热播/站点推荐/播放历史) + 计数 + 操作提示。
+       3. 主体: 上方「精选大图 Banner」(剧照 + 标题 + 圆形播放钮 + 收藏钮, 随下方网格焦点联动),
+          下方「3 列海报网格」(列数在 UserFragment 里 V7GridLayoutManager 设置, 竖屏=3)。
+       4. 底部入口收成 1 个「更多」按钮, 点击展开 6 项面板(搜索/历史/直播/收藏/推送/网盘)。
+     保留旧 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvHotGrid(=UserFragment.tvHotListForGrid)
+     /tvUserHome/tvHistory/tvLive/tvFavorite/tvPush/tvDrive/tvSearch/tvDockBtn -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -14,10 +15,10 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- 底部渐变遮罩: 壁纸照常透出, 仅压暗下方信息区保证可读性 -->
+    <!-- 底部渐变遮罩: 壁纸照常透出, 仅压暗下方信息区保证可读性(竖屏下信息区更靠下, 遮罩加高) -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_250"
+        android:layout_height="@dimen/vs_600"
         android:layout_gravity="bottom"
         android:background="@drawable/shape_home_scrim_bottom"
         android:focusable="false" />
@@ -29,8 +30,8 @@
         android:clipToPadding="false"
         android:focusable="false"
         android:orientation="vertical"
-        android:paddingLeft="@dimen/vs_50"
-        android:paddingRight="@dimen/vs_50">
+        android:paddingLeft="@dimen/vs_40"
+        android:paddingRight="@dimen/vs_40">
 
         <!-- ① 顶行: 数据源模式胶囊 + 计数 + 操作提示 -->
         <LinearLayout
@@ -47,24 +48,24 @@
                 android:background="@drawable/btn_focus_tag"
                 android:focusable="false"
                 android:gravity="center"
-                android:paddingLeft="@dimen/vs_14"
-                android:paddingRight="@dimen/vs_14"
-                android:paddingTop="@dimen/vs_2"
-                android:paddingBottom="@dimen/vs_2"
+                android:paddingLeft="@dimen/vs_22"
+                android:paddingRight="@dimen/vs_22"
+                android:paddingTop="@dimen/vs_6"
+                android:paddingBottom="@dimen/vs_6"
                 android:text="@string/hm_focus_enter"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_18" />
+                android:textSize="@dimen/ts_24" />
 
             <TextView
                 android:id="@+id/tvHotCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_12"
-                android:layout_marginStart="@dimen/vs_12"
+                android:layout_marginLeft="@dimen/vs_16"
+                android:layout_marginStart="@dimen/vs_16"
                 android:focusable="false"
                 android:gravity="center_vertical"
                 android:textColor="@color/color_FFFFFF_70"
-                android:textSize="@dimen/ts_18" />
+                android:textSize="@dimen/ts_24" />
 
             <View
                 android:layout_width="@dimen/vs_0"
@@ -79,152 +80,139 @@
                 android:focusable="false"
                 android:text="@string/hm_home_hint"
                 android:textColor="@color/color_FFFFFF_40"
-                android:textSize="@dimen/ts_15" />
+                android:textSize="@dimen/ts_20" />
         </LinearLayout>
 
-        <!-- ② 主体: 左侧精选 Banner + 右侧多列网格 -->
-        <LinearLayout
+        <!-- ② 精选大图 Banner(竖屏: 独占一行, 随下方网格焦点联动) -->
+        <FrameLayout
+            android:id="@+id/tvFeaturedBanner"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="@dimen/vs_12"
+            android:layout_height="@dimen/vs_760"
+            android:layout_marginTop="@dimen/vs_14"
+            android:background="@drawable/shape_home_banner"
+            android:clickable="true"
+            android:focusable="true"
+            android:nextFocusDown="@id/tvHotGrid"
+            android:padding="@dimen/vs_2">
+
+            <ImageView
+                android:id="@+id/ivBanner"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/img_loading_placeholder" />
+
+            <!-- 底部渐变遮罩, 保证标题/按钮可读 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_460"
+                android:layout_gravity="bottom"
+                android:background="@drawable/shape_banner_scrim"
+                android:focusable="false" />
+
+            <!-- 底部信息区: 标题 + 元信息 + 操作钮 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:focusable="false"
+                android:orientation="vertical"
+                android:padding="@dimen/vs_40">
+
+                <TextView
+                    android:id="@+id/tvBannerTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:focusable="false"
+                    android:maxLines="2"
+                    android:text=""
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_50"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvBannerMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_8"
+                    android:ellipsize="end"
+                    android:focusable="false"
+                    android:singleLine="true"
+                    android:text=""
+                    android:textColor="@color/color_FFFFFF_70"
+                    android:textSize="@dimen/ts_26"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_24"
+                    android:focusable="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- 圆形播放钮(视觉, 整体 Banner 可点即播) -->
+                    <FrameLayout
+                        android:layout_width="@dimen/vs_100"
+                        android:layout_height="@dimen/vs_100"
+                        android:background="@drawable/shape_play_circle"
+                        android:focusable="false"
+                        android:gravity="center">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:focusable="false"
+                            android:text="▶"
+                            android:textColor="#FF000000"
+                            android:textSize="@dimen/ts_40" />
+                    </FrameLayout>
+
+                    <!-- 收藏钮(可聚焦) -->
+                    <TextView
+                        android:id="@+id/btnBannerCollect"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="@dimen/vs_26"
+                        android:layout_marginStart="@dimen/vs_26"
+                        android:background="@drawable/btn_focus_detail"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:nextFocusDown="@id/tvHotGrid"
+                        android:nextFocusUp="@id/tvFeaturedBanner"
+                        android:paddingLeft="@dimen/vs_40"
+                        android:paddingRight="@dimen/vs_40"
+                        android:paddingTop="@dimen/vs_14"
+                        android:paddingBottom="@dimen/vs_14"
+                        android:text="@string/hm_btn_collect"
+                        android:textColor="@android:color/white"
+                        android:textSize="@dimen/ts_30" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- ③ 3 列海报网格(竖屏铺满剩余高度, 可竖向滚动) -->
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/tvHotGrid"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_0"
+            android:layout_marginTop="@dimen/vs_20"
             android:layout_weight="1"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:focusable="false"
-            android:orientation="horizontal">
-
-            <!-- 左侧: 精选大图 Banner(随网格焦点联动) -->
-            <FrameLayout
-                android:id="@+id/tvFeaturedBanner"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginRight="@dimen/vs_16"
-                android:layout_weight="0.42"
-                android:background="@drawable/shape_home_banner"
-                android:clickable="true"
-                android:focusable="true"
-                android:nextFocusDown="@id/tvDockBtn"
-                android:nextFocusRight="@id/tvHotGrid"
-                android:padding="@dimen/vs_1">
-
-                <ImageView
-                    android:id="@+id/ivBanner"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/img_loading_placeholder" />
-
-                <!-- 底部渐变遮罩, 保证标题/按钮可读 -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_200"
-                    android:layout_gravity="bottom"
-                    android:background="@drawable/shape_banner_scrim"
-                    android:focusable="false" />
-
-                <!-- 底部信息区: 标题 + 元信息 + 操作钮 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
-                    android:focusable="false"
-                    android:orientation="vertical"
-                    android:padding="@dimen/vs_20">
-
-                    <TextView
-                        android:id="@+id/tvBannerTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:focusable="false"
-                        android:maxLines="2"
-                        android:text=""
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_36"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvBannerMeta"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/vs_4"
-                        android:ellipsize="end"
-                        android:focusable="false"
-                        android:singleLine="true"
-                        android:text=""
-                        android:textColor="@color/color_FFFFFF_70"
-                        android:textSize="@dimen/ts_18"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/vs_14"
-                        android:focusable="false"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <!-- 圆形播放钮(视觉, 整体 Banner 可点即播) -->
-                        <FrameLayout
-                            android:layout_width="@dimen/vs_56"
-                            android:layout_height="@dimen/vs_56"
-                            android:background="@drawable/shape_play_circle"
-                            android:focusable="false"
-                            android:gravity="center">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:text="▶"
-                                android:textColor="#FF000000"
-                                android:textSize="@dimen/ts_26" />
-                        </FrameLayout>
-
-                        <!-- 收藏钮(可聚焦) -->
-                        <TextView
-                            android:id="@+id/btnBannerCollect"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginLeft="@dimen/vs_16"
-                            android:layout_marginStart="@dimen/vs_16"
-                            android:background="@drawable/btn_focus_detail"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:nextFocusDown="@id/tvDockBtn"
-                            android:nextFocusLeft="@id/tvFeaturedBanner"
-                            android:paddingLeft="@dimen/vs_26"
-                            android:paddingRight="@dimen/vs_26"
-                            android:paddingTop="@dimen/vs_8"
-                            android:paddingBottom="@dimen/vs_8"
-                            android:text="@string/hm_btn_collect"
-                            android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_20" />
-                    </LinearLayout>
-                </LinearLayout>
-            </FrameLayout>
-
-            <!-- 右侧: 多列海报网格(默认 4 列, 横屏铺满) -->
-            <com.owen.tvrecyclerview.widget.TvRecyclerView
-                android:id="@+id/tvHotGrid"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="0.58"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                android:descendantFocusability="afterDescendants"
-                android:nextFocusLeft="@id/tvFeaturedBanner"
-                android:nextFocusUp="@id/mGridViewCategory"
-                app:tv_selectedItemIsCentered="false" />
-        </LinearLayout>
+            android:descendantFocusability="afterDescendants"
+            android:nextFocusDown="@id/tvDockBtn"
+            android:nextFocusUp="@id/tvFeaturedBanner"
+            app:tv_selectedItemIsCentered="false" />
 
         <View
             android:layout_width="@dimen/vs_0"
-            android:layout_height="@dimen/vs_4"
+            android:layout_height="@dimen/vs_8"
             android:focusable="false" />
 
-        <!-- ④ 底部入口: 单按钮 + 点击展开的 5 项面板 -->
+        <!-- ④ 底部入口: 单按钮 + 点击展开的 6 项面板 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -233,7 +221,7 @@
             android:focusable="false"
             android:gravity="right|center_vertical"
             android:orientation="horizontal"
-            android:paddingBottom="@dimen/vs_6">
+            android:paddingBottom="@dimen/vs_14">
 
             <!-- 展开后的入口面板(默认 GONE, 点击右侧按钮才出现) -->
             <LinearLayout
@@ -246,15 +234,14 @@
                 android:focusable="false"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="@dimen/vs_4"
+                android:padding="@dimen/vs_6"
                 android:visibility="gone">
 
-                <!-- v15.12: Dock 首位加「搜索」入口(放大镜), 让用户收起/展开即有明确的搜索按钮 -->
                 <LinearLayout
                     android:id="@+id/tvSearch"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -263,8 +250,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_search"
                         app:srcCompat="@drawable/hm_search" />
@@ -276,14 +263,14 @@
                         android:gravity="center"
                         android:text="@string/hm_search"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/tvHistory"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -292,8 +279,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_hist"
                         app:srcCompat="@drawable/hm_history" />
@@ -305,14 +292,14 @@
                         android:gravity="center"
                         android:text="@string/hm_hist"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/tvLive"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -321,8 +308,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_live"
                         app:srcCompat="@drawable/hm_live" />
@@ -334,14 +321,14 @@
                         android:gravity="center"
                         android:text="@string/hm_live"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/tvFavorite"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -350,8 +337,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_fav"
                         app:srcCompat="@drawable/hm_fav" />
@@ -363,14 +350,14 @@
                         android:gravity="center"
                         android:text="@string/hm_fav"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/tvPush"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -379,8 +366,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_push"
                         app:srcCompat="@drawable/hm_push" />
@@ -392,14 +379,14 @@
                         android:gravity="center"
                         android:text="@string/hm_push"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/tvDrive"
-                    android:layout_width="@dimen/vs_60"
-                    android:layout_height="@dimen/vs_56"
-                    android:layout_margin="@dimen/vs_3"
+                    android:layout_width="@dimen/vs_100"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_margin="@dimen/vs_5"
                     android:background="@drawable/shape_user_home_mini"
                     android:clickable="true"
                     android:focusable="true"
@@ -408,8 +395,8 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:layout_width="@dimen/vs_22"
-                        android:layout_height="@dimen/vs_22"
+                        android:layout_width="@dimen/vs_38"
+                        android:layout_height="@dimen/vs_38"
                         android:alpha="0.9"
                         android:contentDescription="@string/hm_file"
                         app:srcCompat="@drawable/hm_folder" />
@@ -421,17 +408,17 @@
                         android:gravity="center"
                         android:text="@string/hm_file"
                         android:textColor="@color/color_FFFFFF_90"
-                        android:textSize="@dimen/ts_14" />
+                        android:textSize="@dimen/ts_22" />
                 </LinearLayout>
             </LinearLayout>
 
             <!-- 「更多」按钮: 点击展开/收起上面的入口面板 -->
             <LinearLayout
                 android:id="@+id/tvDockBtn"
-                android:layout_width="@dimen/vs_60"
-                android:layout_height="@dimen/vs_56"
-                android:layout_marginLeft="@dimen/vs_10"
-                android:layout_marginStart="@dimen/vs_10"
+                android:layout_width="@dimen/vs_100"
+                android:layout_height="@dimen/vs_96"
+                android:layout_marginLeft="@dimen/vs_16"
+                android:layout_marginStart="@dimen/vs_16"
                 android:background="@drawable/shape_dock_btn"
                 android:clickable="true"
                 android:focusable="true"
@@ -441,8 +428,8 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="@dimen/vs_26"
-                    android:layout_height="@dimen/vs_26"
+                    android:layout_width="@dimen/vs_42"
+                    android:layout_height="@dimen/vs_42"
                     android:alpha="0.95"
                     android:contentDescription="@string/hm_dock_more"
                     app:srcCompat="@drawable/hm_drawer" />
