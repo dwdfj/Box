@@ -178,7 +178,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                     return false;
                 Movie.Video vod = (Movie.Video) adapter.getItem(position);
                 if ((vod.id != null && !vod.id.isEmpty()) && (Hawk.get(HawkConfig.HOME_REC, 0) == 2)) {
-                    HawkConfig.hotVDelete = !HawkConfig.hotVodDelete;
+                    HawkConfig.hotVodDelete = !HawkConfig.hotVodDelete;
                     homeHotVodAdapter.notifyDataSetChanged();
                     return true;
                 }
