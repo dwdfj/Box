@@ -1439,6 +1439,35 @@ public class ApiConfig {
         return new ArrayList<>(sourceBeanList.values());
     }
 
+    /**
+     * 小贾影视仓 v23.2: 取「可作为首页并列分类入口」的本地 py 源(短剧/小说/漫画/动漫)。
+     * 这些源本质是独立站点, 但用户希望它们和「电影/电视剧」分类一样从首页分类胶囊直接进入,
+     * 而不必先把它们切成首页站(那会顶掉影视站的分类列表)。
+     * 返回的 SourceBean 供 GridFragment 以 overrideSourceKey 模式取数。
+     */
+    public List<SourceBean> getLocalPyParallelSources() {
+        List<SourceBean> out = new ArrayList<>();
+        try {
+            for (SourceBean sb : sourceBeanList.values()) {
+                if (sb == null) continue;
+                String key = sb.getKey();
+                if (key == null || !key.startsWith("py_local_")) continue;   // 只取本地 py 注入源
+                String name = sb.getName();
+                if (name == null) continue;
+                String n = name.toLowerCase();
+                boolean isTarget = name.contains("短剧") || n.contains("duanju") || n.contains("short")
+                        || name.contains("小说") || n.contains("novel") || n.contains("book") || n.contains("read")
+                        || name.contains("漫画") || n.contains("comic") || n.contains("manga")
+                        || name.contains("动漫") || n.contains("anime") || n.contains("bangumi");
+                if (isTarget) {
+                    out.add(sb);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
     public List<ParseBean> getParseBeanList() {
         return parseBeanList;
     }
