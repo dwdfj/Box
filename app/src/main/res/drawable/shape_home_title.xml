@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v22: 首页标题胶囊(点=信号源面板)。
-     旧版 radius vs_10 配 vs_40 的高度, 是个"方角红块"。本版把半径提到 vs_18,
-     在 40 单位的行高里接近全圆(胶囊形), 与右侧两个圆形图标按钮的观感统一。红色底保留(用户拍板)。 -->
+<!-- 小贾影视仓 v23: 首页标题胶囊(点=信号源面板)。
+     竖屏顶栏行高提到 vs_140, 半径同步提到 vs_70(= 行高一半) 才是标准胶囊形;
+     若被用在更矮的行上, corner radius 会被自动钳到"半高", 仍是胶囊, 不会画错。
+     红色底保留(用户拍板)。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <corners android:radius="@dimen/vs_18" />
+    <corners android:radius="@dimen/vs_70" />
     <solid android:color="#E53935" />
 </shape>
