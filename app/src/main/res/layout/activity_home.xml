@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 首页顶部栏 -->
+<!-- 小贾影视仓 v23 —— 竖屏版首页(v23 起 App 锁竖屏, 见 AndroidManifest screenOrientation=sensorPortrait)。
+     自上而下: 顶栏胶囊(标题=信号源面板 / 搜索 / 设置) → 通栏搜索框 → 分类胶囊 → ViewPager(推荐页 + 各分类页)。
+     主题是全屏(windowFullscreen=true, 无通知栏), 所以顶栏只留一点呼吸边距, 不需要避让状态栏。
+
+     ⚠️ AutoSize 基准(勿改): App.java 里已确保 screenWidth = 屏幕**短边**。竖屏下系数 = 短边px / 1280
+     (Mate70: 1224/1280 ≈ 0.956), 所以这里的 `vs_N` 就是"1280 宽设计稿单位", 占屏宽比例恒定:
+     vs_40 = 3.1% 屏宽, vs_140 = 10.9% 屏宽(≈手机 56dp 标准顶栏), vs_64 ≈ 24dp 图标。
+     ⚠️ 高度预算: 首页推荐区是 weight=1 弹性布局, 固定部分(顶栏+搜索框+分类)合计 ≈ 436 单位,
+     屏高约 2824 单位(2700px/0.956) → 剩余 ≈ 2388 给内容区。新增顶部控件前务必先算这笔账。 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 小贾影视仓 v21: 顶栏瘦身 50->40 —— 为搜索框腾高度(见下方 contentLayout 内注释) -->
     <LinearLayout
         android:id="@+id/topLayout"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_40"
-        android:layout_marginTop="@dimen/vs_18"
+        android:layout_height="@dimen/vs_140"
+        android:layout_marginTop="@dimen/vs_30"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="@dimen/vs_50"
-        android:paddingRight="@dimen/vs_50"
+        android:paddingLeft="@dimen/vs_40"
+        android:paddingRight="@dimen/vs_40"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -23,35 +29,31 @@
         <View
             android:layout_width="@dimen/vs_5"
             android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:layout_marginTop="@dimen/vs_6"
-            android:layout_marginEnd="@dimen/vs_12"
-            android:layout_marginRight="@dimen/vs_12"
-            android:layout_marginBottom="@dimen/vs_6"
+            android:layout_marginTop="@dimen/vs_34"
+            android:layout_marginEnd="@dimen/vs_16"
+            android:layout_marginRight="@dimen/vs_16"
+            android:layout_marginBottom="@dimen/vs_34"
             android:background="?attr/color_theme" />
 
-        <!-- 小贾影视仓 v22: 标题改为「跟着文字自适应宽度」的胶囊。
-             旧版是 vs_0 + weight=1 —— 吃满整行, 红底被拉成一条长色块, 显得笨重;
-             现在靠下面的 spacer 把右侧图标组顶到最右边, 中间自然留白, 层次清爽。 -->
+        <!-- 标题胶囊: 跟着文字自适应宽度, 右侧 spacer 把图标组顶到最右 -->
         <TextView
             android:id="@+id/tvName"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
+            android:background="@drawable/shape_home_title"
             android:clickable="true"
             android:ellipsize="marquee"
             android:focusable="true"
             android:focusableInTouchMode="false"
             android:gravity="left|center_vertical"
-            android:nextFocusRight="@id/tvFind"
             android:nextFocusDown="@id/homeSearchBar"
+            android:nextFocusRight="@id/tvFind"
+            android:paddingLeft="@dimen/vs_30"
+            android:paddingRight="@dimen/vs_30"
             android:singleLine="true"
             android:text="@string/app_name"
-            android:textAlignment="gravity"
             android:textColor="@android:color/white"
-            android:background="@drawable/shape_home_title"
-            android:paddingLeft="@dimen/vs_20"
-            android:paddingRight="@dimen/vs_20"
-            android:textSize="@dimen/ts_26"
+            android:textSize="@dimen/ts_40"
             android:textStyle="bold" />
 
         <!-- 撑开用: 把右侧「搜索 / 设置」图标组顶到最右端 -->
@@ -62,44 +64,34 @@
 
         <ImageView
             android:id="@+id/tvFind"
-            android:layout_width="@dimen/vs_40"
-            android:layout_height="@dimen/vs_40"
-            android:layout_marginStart="@dimen/vs_12"
-            android:layout_marginLeft="@dimen/vs_12"
-            android:layout_marginEnd="@dimen/vs_12"
-            android:layout_marginRight="@dimen/vs_12"
+            android:layout_width="@dimen/vs_64"
+            android:layout_height="@dimen/vs_64"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
             android:nextFocusRight="@id/tvMenu"
-            android:padding="@dimen/vs_5"
+            android:padding="@dimen/vs_14"
             android:src="@drawable/hm_search" />
 
         <ImageView
             android:id="@+id/tvMenu"
-            android:layout_width="@dimen/vs_40"
-            android:layout_height="@dimen/vs_40"
-            android:layout_marginStart="@dimen/vs_12"
-            android:layout_marginLeft="@dimen/vs_12"
-            android:layout_marginEnd="@dimen/vs_12"
-            android:layout_marginRight="@dimen/vs_12"
+            android:layout_width="@dimen/vs_64"
+            android:layout_height="@dimen/vs_64"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
             android:nextFocusDown="@id/tvDrive"
-            android:padding="@dimen/vs_5"
+            android:padding="@dimen/vs_14"
             android:src="@drawable/hm_settings" />
 
     </LinearLayout>
 
-    <!-- 小贾影视仓 v15.7: 方案A「顶栏胶囊」—— 分类导航改回顶部横向胶囊行(仿原版顶部导航, 保留焦点居中),
-         下方 ViewPager 内容区吃满; 撤销 v15.6 左侧竖排导航(150mm)结构 -->
-
-    <!-- ⚠️ 小贾影视仓 v21 重要修复: 搜索框必须放在 contentLayout **内部**当第一行, 不能放在它上面当兄弟节点。
-         本项目的 dimen 用的是电视设计稿单位(mm), 首页内容区高度 = 屏高 - 顶栏所占; v20 把搜索框(44+10)放在
-         contentLayout 上方, 等于把整个内容区往下压了 54 个单位 —— 而首页推荐区(fragment_user 的 Banner+网格)
-         是 height=0dp + weight=1 的弹性布局, 空间被压掉后高度归零 → **整块推荐不渲染**(用户反馈"没有影视推荐")。
-         放进 contentLayout 内部后, 内容区总高与改版前一致, 只从内容区内部让出搜索框那一点高度。 -->
+    <!-- 搜索框放在 contentLayout **内部**当第一行: 首页推荐区是 weight=1 弹性布局,
+         放在外面当兄弟节点会整体压缩内容区高度(v20 踩过这个坑, 见 MEMORY 高度预算铁律)。 -->
     <LinearLayout
         android:id="@+id/contentLayout"
         android:layout_width="@dimen/vs_0"
@@ -112,22 +104,17 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/topLayout">
 
-        <!-- 首页通栏搜索框(独立一条, 宽度吃满, 点击直达搜索页)
-             v22 美化: 行高 vs_26 → vs_36(手机上是舒服的点击高度), 图标 vs_16 → vs_18,
-             提示文字 ts_16 → ts_20, 左右内边距 vs_20 → vs_24, 底样式圆角同步收敛。
-             ⚠️ 高度预算: 本条净增 10 单位, 已由「顶栏 marginTop 20→18」+「分类行 marginBottom 6→4」找平,
-             合计净增仅 +6 单位 —— 首页推荐区是 weight=1 弹性布局, 顶部每多占一点都在扣它的高度,
-             加控件前务必先算这笔账(见 v20 的血泪教训)。 -->
+        <!-- 通栏搜索框(独立一条, 宽度吃满, 点击直达搜索页) -->
         <LinearLayout
             android:id="@+id/homeSearchBar"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_36"
-            android:layout_marginLeft="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_50"
-            android:layout_marginTop="@dimen/vs_2"
-            android:layout_marginRight="@dimen/vs_50"
-            android:layout_marginEnd="@dimen/vs_50"
-            android:layout_marginBottom="@dimen/vs_4"
+            android:layout_height="@dimen/vs_128"
+            android:layout_marginLeft="@dimen/vs_40"
+            android:layout_marginStart="@dimen/vs_40"
+            android:layout_marginTop="@dimen/vs_16"
+            android:layout_marginRight="@dimen/vs_40"
+            android:layout_marginEnd="@dimen/vs_40"
+            android:layout_marginBottom="@dimen/vs_16"
             android:background="@drawable/shape_home_search_box"
             android:clickable="true"
             android:focusable="true"
@@ -135,12 +122,12 @@
             android:nextFocusDown="@id/mGridViewCategory"
             android:nextFocusUp="@id/tvName"
             android:orientation="horizontal"
-            android:paddingLeft="@dimen/vs_24"
-            android:paddingRight="@dimen/vs_24">
+            android:paddingLeft="@dimen/vs_36"
+            android:paddingRight="@dimen/vs_36">
 
             <ImageView
-                android:layout_width="@dimen/vs_18"
-                android:layout_height="@dimen/vs_18"
+                android:layout_width="@dimen/vs_36"
+                android:layout_height="@dimen/vs_36"
                 android:alpha="0.75"
                 android:contentDescription="@string/hm_search"
                 android:focusable="false"
@@ -149,24 +136,24 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_12"
-                android:layout_marginStart="@dimen/vs_12"
+                android:layout_marginLeft="@dimen/vs_18"
+                android:layout_marginStart="@dimen/vs_18"
                 android:focusable="false"
                 android:text="@string/hm_search_box_hint"
                 android:textColor="@color/color_FFFFFF_60"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="@dimen/ts_30" />
         </LinearLayout>
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridViewCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/vs_4"
+            android:layout_marginBottom="@dimen/vs_10"
             android:clipChildren="false"
             android:clipToPadding="false"
             android:nextFocusDown="@id/mViewPager"
-            android:paddingLeft="@dimen/vs_50"
-            android:paddingRight="@dimen/vs_50"
+            android:paddingLeft="@dimen/vs_40"
+            android:paddingRight="@dimen/vs_40"
             app:tv_selectedItemIsCentered="true" />
 
         <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
