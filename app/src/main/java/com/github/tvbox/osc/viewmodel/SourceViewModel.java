@@ -389,8 +389,15 @@ public class SourceViewModel extends ViewModel {
     }
 
     // categoryContent
+    // 小贾影视仓 v23.2: 新增重载 —— 允许显式指定数据源。
+    // 用途: 让本地 py 源(小说/短剧/漫画)作为与「电影/电视剧」并列的分类页出现,
+    // 而不必把它切成首页站(那会顶掉影视站的分类列表)。
     public void getList(MovieSort.SortData sortData, int page) {
-        SourceBean homeSourceBean = ApiConfig.get().getHomeSourceBean();
+        getList(sortData, page, null);
+    }
+
+    public void getList(MovieSort.SortData sortData, int page, SourceBean overrideSource) {
+        SourceBean homeSourceBean = (overrideSource != null) ? overrideSource : ApiConfig.get().getHomeSourceBean();
         int type = homeSourceBean.getType();
         if (type == 3) {
             spThreadPool.execute(new Runnable() {
