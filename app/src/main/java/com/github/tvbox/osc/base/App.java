@@ -155,10 +155,14 @@ public class App extends MultiDexApplication {
                     .setSupportDP(false)
                     .setSupportSP(false)
                     .setSupportSubunits(Subunits.MM);
-            // 修复 Android 14+：冷启动时 ScreenUtils 可能获取到竖屏宽度，导致 xdpi 计算错误、UI 变小
+            // 小贾影视仓 v23: App 已由「锁横屏」改为「锁竖屏」——
+            // AutoSize 按 screenWidth/designWidthInDp(=1280) 算缩放系数，所以必须让 screenWidth = 屏幕**短边**:
+            //   竖屏下短边 = 实际屏宽(如 Mate70 的 1224) -> 系数 0.956, 元素占屏宽比例与横屏一致;
+            //   若错用长边(2700) -> 系数 2.11, 全站元素放大 2.2 倍, 竖屏 UI 直接撑爆。
+            // Android 14+ 冷启动时 ScreenUtils 可能拿到未旋转的尺寸，所以这里无条件把大的那个换到 screenHeight。
             int screenWidth = AutoSizeConfig.getInstance().getScreenWidth();
             int screenHeight = AutoSizeConfig.getInstance().getScreenHeight();
-            if (screenWidth < screenHeight) {
+            if (screenWidth > screenHeight) {
                 AutoSizeConfig.getInstance().setScreenWidth(screenHeight);
                 AutoSizeConfig.getInstance().setScreenHeight(screenWidth);
             }
