@@ -192,7 +192,9 @@ public class RemoteServer extends NanoHTTPD {
                         if (privateFile.exists() && privateFile.isFile()) {
                             return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, "application/octet-stream", new FileInputStream(privateFile));
                         }
-                        return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "File " + file + " not found!");
+                        // v20 修复编译错误: `file` 只在上面"外部存储"分支的作用域内声明(且 feimao/ 走不到那里),
+                        // 这里统一用相对路径 f 报错, 否则 javac: cannot find symbol variable file。
+                        return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "File " + f + " not found!");
                     } catch (Throwable th) {
                         return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, th.getMessage());
                     }
