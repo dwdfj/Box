@@ -356,7 +356,7 @@ public class RemoteServer extends NanoHTTPD {
     // 小贾影视仓 v15.15: 版本戳 bump —— 内置包改为"去加固(plain)"jar(移除 4KB 对齐的 guard_v7/v8.so,
     // 其在 Android 15+ 16KB 内存页设备上 dlopen 会直接 native 崩, 表现为"能进主界面随即闪退、无日志无弹窗")。
     // bump 该常量强制升级用户端已释放的旧加固包。
-    private static final String BUILTIN_FEIMAO_VER = "feimao_20260925_v2";
+    private static final String BUILTIN_FEIMAO_VER = "feimao_20261007_v3_native16k";
     private File mFeimaoDir = null;
     private boolean mFeimaoReady = false;
 
