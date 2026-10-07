@@ -92,6 +92,20 @@ public class App extends MultiDexApplication {
             });
         } catch (Throwable ignored) {
         }
+        // 小贾影视仓 v19.1: 落一份「本机内存页大小」到私有目录 —— 加固 .so 能否 dlopen 与页大小强相关,
+        // 4KB 页设备上用原始 4KB 对齐 .so 即可; 16KB 页设备才需要 16KB 对齐(且不能改字节)。
+        // 有此文件后, /crash 诊断通道可直接看到设备页大小, 不必再靠推断。
+        try {
+            long pageSize = android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE);
+            java.io.File pf = new java.io.File(getFilesDir(), "xj_pagesize.txt");
+            java.io.FileOutputStream pfo = new java.io.FileOutputStream(pf, false);
+            pfo.write(("PAGE_SIZE=" + pageSize + "  android=" + android.os.Build.VERSION.RELEASE
+                    + "  abi=" + android.os.Build.SUPPORTED_ABIS[0]
+                    + "  model=" + android.os.Build.MODEL
+                    + "  @ " + new java.util.Date() + "\n").getBytes("UTF-8"));
+            pfo.close();
+        } catch (Throwable ignored) {
+        }
         // 小贾影视仓 v15.15: 启动期"防崩溃"加固 —— onCreate 里任何一步抛异常都会导致"点图标即闪退",
         // 逐项 try/catch 隔离: 单项失败只降级该项功能, 绝不让整个 App 起不来。
         try {
