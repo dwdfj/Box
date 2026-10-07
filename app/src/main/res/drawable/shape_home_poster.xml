@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v22: 首页网格海报卡片的圆角底。
+     旧版沿用 shape_thumb_radius 的 `14px` 字面半径 —— 在 120x160 的卡片上几乎等于直角,
+     看起来"糊成一片"。本资源改用项目统一的设计稿单位(vs_16), 圆角随屏宽等比缩放,
+     并保留"聚焦=白描边+主题色底"的反馈(海报图铺满时仅 padding 1 单位的一圈可见)。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_16" />
+            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_focused="false">
+        <shape>
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#26FFFFFF" />
+        </shape>
+    </item>
+</selector>
