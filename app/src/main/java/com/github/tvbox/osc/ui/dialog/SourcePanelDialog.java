@@ -46,6 +46,9 @@ public class SourcePanelDialog extends BaseDialog {
         void onOpenConfig();
 
         void onToggleHomeStyle();
+
+        /** 小贾影视仓 v21: 加载本地 .py 单源(弹出系统文件选择器) */
+        void onPickLocalPy();
     }
 
     private OnSourcePanelAction action;
@@ -167,6 +170,16 @@ public class SourcePanelDialog extends BaseDialog {
                 if (action != null) {
                     dismiss();
                     action.onOpenConfig();
+                }
+            }
+        });
+        // 小贾影视仓 v21: 加载本地 .py 单源
+        findViewById(R.id.panelPyBtn).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (action != null) {
+                    dismiss();
+                    action.onPickLocalPy();
                 }
             }
         });
