@@ -54,20 +54,12 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
  * 2. 顶行: 数据源模式胶囊(豆瓣热播/站点推荐/播放历史) + 计数 + 操作提示;
  * 3. 主体(横屏宽屏): 左侧「精选大图 Banner」(剧照+标题+圆形播放钮+收藏钮, 随右侧网格焦点联动),
  *    右侧「多列海报网格」(默认 4 列)铺开, 信息密度高、无大空白;
- * 4. 底部入口收成 1 个按钮(tvDockBtn), 点击才展开 5 项面板(历史/直播/收藏/推送/网盘)。
- * 保留: 三模式切换(长按历史入口或数据源胶囊)、长按搜全网、播放历史删除模式、
+ * 4. 底部入口已移除(v23.x 用户反馈): 历史/收藏/推送/网盘改走设置页与搜索页; 直播上移至顶栏。
+ * 保留: 三模式切换(长按历史入口或数据源胶囊)、播放历史删除模式(长按网格项)、
  *      v15.6.1 静态字段泄漏修复(onDestroyView 置空)、HomeActivity 通过 tvHotListForGrid 回滚。
  */
 public class UserFragment extends BaseLazyFragment implements View.OnClickListener {
-    private LinearLayout tvSearch;                    // v15.12: Dock 面板首位搜索入口
-    private LinearLayout tvDrive;
-    private LinearLayout tvLive;
-    private LinearLayout tvHistory;
-    private LinearLayout tvCollect;
-    private LinearLayout tvPush;
-    private LinearLayout tvUserHome;                  // 底部入口折叠面板(默认 GONE)
-    private LinearLayout tvDockBtn;                   // 底部「更多」按钮(点击展开/收起面板)
-    private boolean dockExpanded = false;
+    // 小贾影视仓 v23.x: 底部 dock 已移除, 入口改放顶栏(搜索/直播/设置); 历史/收藏等走设置页与搜索页
     public static UserHomeRowAdapter homeHotVodAdapter;   // 网格适配器(静态: HomeActivity 删除模式退出时刷新)
     public static TvRecyclerView tvHotListForGrid;        // 右侧网格容器(静态别名, 兼容 HomeActivity 回滚; 本版指 tvHotGrid)
     private List<Movie.Video> homeSourceRec;              // 站点推荐数据(模式1)
@@ -122,36 +114,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     protected void init() {
         EventBus.getDefault().register(this);
 
-        // ---- 底部入口面板(默认收起) + 展开按钮 ----
-        tvUserHome = findViewById(R.id.tvUserHome);
-        tvDockBtn = findViewById(R.id.tvDockBtn);
-        tvSearch = findViewById(R.id.tvSearch);
-        tvDrive = findViewById(R.id.tvDrive);
-        tvLive = findViewById(R.id.tvLive);
-        tvCollect = findViewById(R.id.tvFavorite);
-        tvHistory = findViewById(R.id.tvHistory);
-        tvPush = findViewById(R.id.tvPush);
-        tvSearch.setOnClickListener(this);
-        tvDrive.setOnClickListener(this);
-        tvLive.setOnClickListener(this);
-        tvHistory.setOnClickListener(this);
-        tvPush.setOnClickListener(this);
-        tvCollect.setOnClickListener(this);
-        tvSearch.setOnFocusChangeListener(focusChangeListener);
-        tvDrive.setOnFocusChangeListener(focusChangeListener);
-        tvLive.setOnFocusChangeListener(focusChangeListener);
-        tvHistory.setOnFocusChangeListener(focusChangeListener);
-        tvPush.setOnFocusChangeListener(focusChangeListener);
-        tvCollect.setOnFocusChangeListener(focusChangeListener);
-        tvDockBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FastClickCheckUtil.check(v);
-                toggleDock();
-            }
-        });
-        tvDockBtn.setOnFocusChangeListener(focusChangeListener);
-
         // ---- 顶行: 数据源模式胶囊 / 计数 / 提示 ----
         tvModeTag = findViewById(R.id.tvModeTag);
         tvHotCount = findViewById(R.id.tvHotCount);
@@ -166,7 +128,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             }
         };
         tvModeTag.setOnLongClickListener(switchModeListener);
-        tvHistory.setOnLongClickListener(switchModeListener);
 
         // ---- 左侧精选大图 Banner ----
         tvFeaturedBanner = findViewById(R.id.tvFeaturedBanner);
@@ -193,8 +154,10 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
         // ---- 海报网格(小贾影视仓 v23 竖屏: 4 列 → 3 列, 卡片够大才看得清片名) ----
         tvHotListForGrid = findViewById(R.id.tvHotGrid);
-        tvHotListForGrid.setHasFixedSize(true);
+        tvHotListForGrid.setHasFixedSize(false);
         tvHotListForGrid.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
+        // 小贾影视仓 v23.x: 整页滚动(Banner 随列表滚走), 网格自身不独立滚动
+        tvHotListForGrid.setNestedScrollingEnabled(false);
         tvHotListForGrid.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 12.0f), AutoSizeUtils.dp2px(this.mContext, 14.0f));
 
         homeHotVodAdapter = new UserHomeRowAdapter(true, R.layout.item_user_home_grid);
@@ -207,7 +170,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 openVod(vod);
             }
         });
-        // takagen99: 长按 —— 播放历史模式下进入/退出删除模式, 其余长按搜全网
+        // 小贾影视仓 v23: 长按只用于「播放历史」模式下的删除模式; 进入 v23 后不再触发「搜全网」
         homeHotVodAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(BaseQuickAdapter adapter, View view, int position) {
@@ -215,12 +178,11 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                     return false;
                 Movie.Video vod = (Movie.Video) adapter.getItem(position);
                 if ((vod.id != null && !vod.id.isEmpty()) && (Hawk.get(HawkConfig.HOME_REC, 0) == 2)) {
-                    HawkConfig.hotVodDelete = !HawkConfig.hotVodDelete;
+                    HawkConfig.hotVDelete = !HawkConfig.hotVodDelete;
                     homeHotVodAdapter.notifyDataSetChanged();
-                } else {
-                    startFastSearch(vod);
+                    return true;
                 }
-                return true;
+                return false;
             }
         });
         // 焦点联动: 选中卡 -> 放大 + 计数 + Banner 联动
@@ -268,32 +230,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
 
         initHomeHotVod(homeHotVodAdapter);
-    }
-
-    // ===== 底部入口: 折叠 / 展开 =====
-
-    private void toggleDock() {
-        if (tvUserHome == null) return;
-        dockExpanded = !dockExpanded;
-        tvUserHome.setVisibility(dockExpanded ? View.VISIBLE : View.GONE);
-        if (dockExpanded && tvSearch != null) {
-            // v15.12: Dock 面板首位是「搜索」, 展开默认焦点落搜索, 按 OK 即搜
-            tvSearch.post(new Runnable() {
-                @Override
-                public void run() {
-                    tvSearch.requestFocus();
-                }
-            });
-        } else if (tvDockBtn != null) {
-            tvDockBtn.requestFocus();
-        }
-    }
-
-    private void collapseDock() {
-        dockExpanded = false;
-        if (tvUserHome != null) {
-            tvUserHome.setVisibility(View.GONE);
-        }
     }
 
     // ===== 左侧 Banner 联动 =====
@@ -601,26 +537,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     @Override
     public void onClick(View v) {
-        // takagen99: Remove Delete Mode
-        HawkConfig.hotVodDelete = false;
-
+        // 小贾影视仓 v23.x: 底部 dock 已移除, 无按钮使用本回调; 保留接口兼容
         FastClickCheckUtil.check(v);
-        // 入口用完即收起(跳走前先折叠, 返回首页时面板是干净的收起态)
-        collapseDock();
-        if (v.getId() == R.id.tvSearch) {
-            // v15.12: Dock 面板搜索入口 → 搜索页
-            jumpActivity(SearchActivity.class);
-        } else if (v.getId() == R.id.tvLive) {
-            jumpActivity(LivePlayActivity.class);
-        } else if (v.getId() == R.id.tvHistory) {
-            jumpActivity(HistoryActivity.class);
-        } else if (v.getId() == R.id.tvPush) {
-            jumpActivity(PushActivity.class);
-        } else if (v.getId() == R.id.tvFavorite) {
-            jumpActivity(CollectActivity.class);
-        } else if (v.getId() == R.id.tvDrive) {
-            jumpActivity(DriveActivity.class);
-        }
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -639,9 +557,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvHotListForGrid = null;
         }
         homeHotVodAdapter = null;
-        tvUserHome = null;
-        tvDockBtn = null;
-        tvSearch = null;
         tvFeaturedBanner = null;
         ivBanner = null;
         tvBannerTitle = null;
