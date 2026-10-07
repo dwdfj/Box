@@ -191,10 +191,10 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
         btnBannerCollect.setOnFocusChangeListener(focusChangeListener);
 
-        // ---- 右侧多列海报网格(默认 4 列, 横屏铺满) ----
+        // ---- 海报网格(小贾影视仓 v23 竖屏: 4 列 → 3 列, 卡片够大才看得清片名) ----
         tvHotListForGrid = findViewById(R.id.tvHotGrid);
         tvHotListForGrid.setHasFixedSize(true);
-        tvHotListForGrid.setLayoutManager(new V7GridLayoutManager(this.mContext, 4));
+        tvHotListForGrid.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
         tvHotListForGrid.setSpacingWithMargins(AutoSizeUtils.dp2px(this.mContext, 12.0f), AutoSizeUtils.dp2px(this.mContext, 14.0f));
 
         homeHotVodAdapter = new UserHomeRowAdapter(true, R.layout.item_user_home_grid);
