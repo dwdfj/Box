@@ -166,17 +166,23 @@ public class RemoteServer extends NanoHTTPD {
                 } else if (fileName.startsWith("/file/")) {
                     try {
                         String f = fileName.substring(6);
-                        String root = Environment.getExternalStorageDirectory().getAbsolutePath();
-                        String file = root + "/" + f;
-                        File localFile = new File(file);
-                        if (localFile.exists()) {
-                            if (localFile.isFile()) {
-                                return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, "application/octet-stream", new FileInputStream(localFile));
-                            } else {
-                                return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, fileList(root, f));
+                        // 小贾影视仓 v19.1: 内置包(feimao/)强制只读私有目录 —— 早期版本可能把同名文件
+                        // 释放在外部存储(且是旧的无 .so jar), 外部优先会造成「换了新包、改了 assets,
+                        // 运行时读到的仍是外部旧 jar」的假象, 让任何修复都看起来无效。内置包随 App 分发,
+                        // 不应被外部同名文件覆盖; 其它 /file/ 路径保持原有"外部优先"行为不变。
+                        if (!f.startsWith("feimao/")) {
+                            String root = Environment.getExternalStorageDirectory().getAbsolutePath();
+                            String file = root + "/" + f;
+                            File localFile = new File(file);
+                            if (localFile.exists()) {
+                                if (localFile.isFile()) {
+                                    return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, "application/octet-stream", new FileInputStream(localFile));
+                                } else {
+                                    return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_PLAINTEXT, fileList(root, f));
+                                }
                             }
                         }
-                        // 小贾影视仓 v15.2: 内置肥猫全能包 —— 外部存储没有时, 兜底读私有目录 filesDir/<f>
+                        // 小贾影视仓 v15.2: 内置肥猫全能包 —— 兜底读私有目录 filesDir/<f>
                         // (clan://localhost/feimao/config.json 这类"内置线路"无需存储权限、断网可用)
                         File privateFile = new File(mContext.getFilesDir(), f);
                         if (!privateFile.exists() && f.startsWith("feimao/")) {
@@ -203,7 +209,7 @@ public class RemoteServer extends NanoHTTPD {
                     // v15.4.1/v15.4.2: 诊断通道 —— 浏览器访问 http://<ip>:9978/crash 查看崩溃日志(xj_crash.log)与搜索日志(xj_search.log)
                     // v15.4.2: HTML 排版, 手机直接看堆栈; 只保留最近 3 段崩溃(日志按崩溃追加, 取尾部 260 行)防止超大
                     StringBuilder text = new StringBuilder();
-                    for (String fn : new String[]{"xj_crash.log", "xj_search.log"}) {
+                    for (String fn : new String[]{"xj_pagesize.txt", "xj_crash.log", "xj_search.log"}) {
                         java.io.File lf = new java.io.File(mContext.getFilesDir(), fn);
                         if (lf.exists()) {
                             text.append("===== ").append(fn).append(" =====\n");
@@ -353,10 +359,15 @@ public class RemoteServer extends NanoHTTPD {
     }
 
     // ============ 小贾影视仓 v15.2: 内置本地包(assets/feimao -> filesDir/feimao) ============
-    // 小贾影视仓 v15.15: 版本戳 bump —— 内置包改为"去加固(plain)"jar(移除 4KB 对齐的 guard_v7/v8.so,
-    // 其在 Android 15+ 16KB 内存页设备上 dlopen 会直接 native 崩, 表现为"能进主界面随即闪退、无日志无弹窗")。
-    // bump 该常量强制升级用户端已释放的旧加固包。
-    private static final String BUILTIN_FEIMAO_VER = "feimao_20261007_v3_native16k";
+    // 小贾影视仓 v19.1(2026-10-07): 版本戳再次 bump —— 内置包恢复为**作者原版加固 jar**
+    // (guard_v7/v8.so 保持原始 4KB 对齐, 不做任何字节改动)。
+    // 复盘: v15.15 的「删 .so」是错的(Guard.loadSo() 读不到 → 抛异常, 该线路不可用);
+    //       v19 的「把 .so 修补成 16KB 对齐」也是错的 —— 改动了作者的二进制 → 触发 .so 内部
+    //       自校验 → abort, 表现为 native 崩(Java 抓不到、无 xj_crash.log、无弹窗)。
+    // 用户设备为 4KB 内存页(华为 HarmonyOS 4.x = AOSP12 基底; 小米13 默认 4KB),
+    // 原始 4KB 对齐的 .so 本来就是正确形态, 不需要做任何 ELF 修补。
+    // bump 该常量强制覆盖用户端已释放的旧包(无论之前是「无 .so 版」还是「16KB 修补版」)。
+    private static final String BUILTIN_FEIMAO_VER = "feimao_20261007_v4_origso";
     private File mFeimaoDir = null;
     private boolean mFeimaoReady = false;
 
