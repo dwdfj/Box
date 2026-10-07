@@ -1,26 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v15.9: 方案B「精选大图 + 网格」右侧网格卡 —— 海报 120x160 + 下方片名。
-     结构对齐 item_user_home_big(角标/片名/删除遮罩), 仅整体缩小一档以在网格里多列铺开。 -->
+<!-- 小贾影视仓 v23 竖屏: 首页 3 列网格卡 —— 宽度不再写死 vs_120, 改为 match_parent(V7GridLayoutManager
+     会按 spanCount 给出精确列宽), 海报高度 vs_160 → vs_520, 片名 ts_18 → ts_26。
+     结构对齐 item_user_home_big(角标/片名/删除遮罩)。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:padding="@dimen/vs_3">
+    android:padding="@dimen/vs_6">
 
     <LinearLayout
-        android:layout_width="@dimen/vs_120"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:focusable="false"
         android:orientation="vertical">
 
         <FrameLayout
             android:id="@+id/mItemFrame"
-            android:layout_width="@dimen/vs_120"
-            android:layout_height="@dimen/vs_160"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_520"
             android:background="@drawable/shape_home_poster"
             android:focusable="false"
-            android:padding="@dimen/vs_1">
+            android:padding="@dimen/vs_2">
 
             <ImageView
                 android:id="@+id/ivThumb"
@@ -34,17 +35,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|right"
-                android:layout_marginRight="@dimen/vs_4"
-                android:layout_marginTop="@dimen/vs_4"
+                android:layout_marginRight="@dimen/vs_8"
+                android:layout_marginTop="@dimen/vs_8"
                 android:background="@drawable/shape_thumb_note"
                 android:ellipsize="end"
                 android:gravity="center"
-                android:maxWidth="@dimen/vs_70"
-                android:paddingLeft="@dimen/vs_5"
-                android:paddingRight="@dimen/vs_5"
+                android:maxWidth="@dimen/vs_110"
+                android:paddingLeft="@dimen/vs_10"
+                android:paddingRight="@dimen/vs_10"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_16"
+                android:textSize="@dimen/ts_22"
                 android:visibility="gone" />
 
             <!-- 删除模式遮罩(仅播放历史模式长按进入后显示) -->
@@ -57,8 +58,8 @@
                 android:visibility="gone">
 
                 <ImageView
-                    android:layout_width="@dimen/vs_44"
-                    android:layout_height="@dimen/vs_44"
+                    android:layout_width="@dimen/vs_80"
+                    android:layout_height="@dimen/vs_80"
                     android:layout_gravity="center"
                     android:src="@drawable/icon_delete" />
             </FrameLayout>
@@ -68,12 +69,12 @@
             android:id="@+id/tvName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_6"
+            android:layout_marginTop="@dimen/vs_10"
             android:ellipsize="end"
             android:gravity="center"
             android:singleLine="true"
             android:text=""
             android:textColor="@color/color_FFFFFF_90"
-            android:textSize="@dimen/ts_18" />
+            android:textSize="@dimen/ts_26" />
     </LinearLayout>
 </FrameLayout>
