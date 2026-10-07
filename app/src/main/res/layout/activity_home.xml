@@ -56,7 +56,7 @@
             android:textSize="@dimen/ts_40"
             android:textStyle="bold" />
 
-        <!-- 撑开用: 把右侧「搜索 / 设置」图标组顶到最右端 -->
+        <!-- 撑开用: 把右侧「搜索 / 直播 / 设置」图标组顶到最右端 -->
         <View
             android:layout_width="@dimen/vs_0"
             android:layout_height="@dimen/vs_1"
@@ -64,28 +64,44 @@
 
         <ImageView
             android:id="@+id/tvFind"
-            android:layout_width="@dimen/vs_64"
-            android:layout_height="@dimen/vs_64"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
             android:layout_marginStart="@dimen/vs_20"
             android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
-            android:nextFocusRight="@id/tvMenu"
-            android:padding="@dimen/vs_14"
+            android:nextFocusRight="@id/tvLive"
+            android:padding="@dimen/vs_18"
             android:src="@drawable/hm_search" />
+
+        <!-- 直播: 小贾影视仓 v23 —— 从首页底部 dock 上移至顶栏, 紧挨设置(用户要求) -->
+        <ImageView
+            android:id="@+id/tvLive"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
+            android:background="@drawable/shape_top_icon_btn"
+            android:clickable="true"
+            android:focusable="true"
+            android:nextFocusLeft="@id/tvFind"
+            android:nextFocusRight="@id/tvMenu"
+            android:padding="@dimen/vs_18"
+            android:src="@drawable/hm_live" />
 
         <ImageView
             android:id="@+id/tvMenu"
-            android:layout_width="@dimen/vs_64"
-            android:layout_height="@dimen/vs_64"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
             android:layout_marginStart="@dimen/vs_20"
             android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
-            android:nextFocusDown="@id/tvDrive"
-            android:padding="@dimen/vs_14"
+            android:nextFocusLeft="@id/tvLive"
+            android:nextFocusDown="@id/homeSearchBar"
+            android:padding="@dimen/vs_18"
             android:src="@drawable/hm_settings" />
 
     </LinearLayout>
