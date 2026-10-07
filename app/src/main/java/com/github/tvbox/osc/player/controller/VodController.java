@@ -657,15 +657,11 @@ public class VodController extends BaseController {
             }
         });
         // takagen99 : Long Press to change orientation
+        // 小贾影视仓 v23.2: 竖屏版 —— 不再允许长按切横屏, 一律锁竖屏(整页为竖屏半屏播放布局)。
         mPlayerScaleBtn.setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                int checkOrientation = mActivity.getRequestedOrientation();
-                if (checkOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE) {
-                    mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-                } else if (checkOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT) {
-                    mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-                }
+                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
                 return true;
             }
         });
@@ -1011,25 +1007,15 @@ public class VodController extends BaseController {
     }
 
     public void initLandscapePortraitBtnInfo() {
-        if (mControlWrapper != null) {
-            int width = mControlWrapper.getVideoSize()[0];
-            int height = mControlWrapper.getVideoSize()[1];
-            if (width < height) {
-                mLandscapePortraitBtn.setVisibility(View.VISIBLE);
-                mLvPortraitBtn.setImageResource(R.drawable.htov);
-            }
+        // 小贾影视仓 v23.2: 竖屏版 —— 不再提供横竖屏切换按钮, 隐藏以免误导。
+        if (mLandscapePortraitBtn != null) {
+            mLandscapePortraitBtn.setVisibility(View.GONE);
         }
     }
 
     void setLandscapePortrait() {
-        int requestedOrientation = mActivity.getRequestedOrientation();
-        if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE) {
-            mLvPortraitBtn.setImageResource(R.drawable.vtoh);
-            mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-        } else if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT || requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT) {
-            mLvPortraitBtn.setImageResource(R.drawable.htov);
-            mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        }
+        // 小贾影视仓 v23.2: 竖屏版 —— 方向切换按钮固定锁竖屏, 不再切横屏(播放页为竖屏半屏布局)。
+        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
     }
 
     void initSubtitleInfo() {
