@@ -102,6 +102,7 @@ public class HomeActivity extends BaseActivity {
     private TextView tvName;
     private ImageView tvFind;
     private ImageView tvMenu;
+    private ImageView tvLive;
     // 小贾影视仓 v20: 首页通栏搜索框(取代原顶栏"打开应用"位置, 原抽屉入口已移除)
     private LinearLayout homeSearchBar;
     private TvRecyclerView mGridView;
@@ -172,6 +173,7 @@ public class HomeActivity extends BaseActivity {
         this.tvName = findViewById(R.id.tvName);
         this.tvFind = findViewById(R.id.tvFind);
         this.tvMenu = findViewById(R.id.tvMenu);
+        this.tvLive = findViewById(R.id.tvLive);
         this.homeSearchBar = findViewById(R.id.homeSearchBar);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
@@ -303,6 +305,13 @@ public class HomeActivity extends BaseActivity {
             @Override
             public void onClick(View view) {
                 jumpActivity(SettingActivity.class);
+            }
+        });
+        // 小贾影视仓 v23: 直播入口(从底部 dock 上移至顶栏, 紧挨设置)
+        tvLive.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                jumpActivity(LivePlayActivity.class);
             }
         });
         // Button : Settings >> To go into App Settings ----------------
@@ -1101,6 +1110,7 @@ public class HomeActivity extends BaseActivity {
             tvName.setFocusable(false);
             tvFind.setFocusable(false);
             tvMenu.setFocusable(false);
+            tvLive.setFocusable(false);
             return;
         }
         // Show Top =======================================================
@@ -1117,6 +1127,7 @@ public class HomeActivity extends BaseActivity {
             tvName.setFocusable(true);
             tvFind.setFocusable(true);
             tvMenu.setFocusable(true);
+            tvLive.setFocusable(true);
         }
     }
 
