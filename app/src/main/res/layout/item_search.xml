@@ -8,8 +8,8 @@
     android:padding="@dimen/vs_1">
 
     <FrameLayout
-        android:layout_width="@dimen/vs_300"
-        android:layout_height="@dimen/vs_420">
+        android:layout_width="@dimen/vs_480"
+        android:layout_height="@dimen/vs_660">
 
         <ImageView
             android:id="@+id/ivThumb"
