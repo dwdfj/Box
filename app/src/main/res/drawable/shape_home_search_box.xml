@@ -1,32 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v22: 首页通栏搜索框底 ——
-     v20 引入时的形态是 height vs_26 + radius vs_22, 但 26 单位高在手机上只有二十几 px,
-     看起来像"一条色块"而不是输入框。v22 把行高提到 vs_36(舒服的点击高度) 并同步收敛半径到
-     vs_18, 默认态底色加深一档(#7A000000)、描边改项目统一单位(1.5mm)且略提亮,
-     聚焦/按压仍为主题色 + 白描边。 -->
+<!-- 小贾影视仓 v23: 首页通栏搜索框底(竖屏版)。
+     竖屏把行高提到 vs_128(≈手机 48dp 舒适点击高度), 半径同步收敛到 vs_60, 接近胶囊形。
+     默认态: 底色 #7A000000 + 细描边; 聚焦/按压: 主题色底 + 白描边。 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:state_pressed="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_18" />
+            <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
         </shape>
     </item>
     <item android:state_focused="false" android:state_pressed="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_18" />
+            <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_18" />
+            <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
             <stroke android:width="2mm" android:color="@android:color/white" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_18" />
+            <corners android:radius="@dimen/vs_60" />
             <solid android:color="#7A000000" />
             <stroke android:width="1.5mm" android:color="#4DFFFFFF" />
         </shape>
