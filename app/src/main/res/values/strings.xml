@@ -16,6 +16,8 @@
     <string name="hm_hist">History</string>
     <string name="hm_live">LiveTV</string>
     <string name="hm_search">Search</string>
+    <!-- 小贾影视仓 v20: 首页通栏搜索框占位文案 -->
+    <string name="hm_search_box_hint">搜索影视名称、演员…</string>
     <string name="hm_push">Push</string>
     <string name="hm_file">Drives</string>
     <string name="hm_fav">Favorite</string>
