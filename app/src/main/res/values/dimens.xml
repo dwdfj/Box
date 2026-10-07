@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="ts_10">10mm</dimen>
-    <dimen name="ts_12">12mm</dimen>
-    <dimen name="ts_14">14mm</dimen>
-    <dimen name="ts_15">15mm</dimen>
-    <dimen name="ts_16">16mm</dimen>
-    <dimen name="ts_18">18mm</dimen>
-    <dimen name="ts_20">20mm</dimen>
-    <dimen name="ts_22">22mm</dimen>
-    <dimen name="ts_24">24mm</dimen>
-    <dimen name="ts_26">26mm</dimen>
-    <dimen name="ts_30">30mm</dimen>
-    <dimen name="ts_34">34mm</dimen>
-    <dimen name="ts_36">36mm</dimen>
-    <dimen name="ts_40">40mm</dimen>
-    <dimen name="ts_50">50mm</dimen>
+    <!-- 小贾影视仓 v23.2: 竖屏系统性放大字号(≈1.7x), 原 1280 设计基线在手机短边上渲染偏小 -->
+    <dimen name="ts_10">18mm</dimen>
+    <dimen name="ts_12">20mm</dimen>
+    <dimen name="ts_14">24mm</dimen>
+    <dimen name="ts_15">26mm</dimen>
+    <dimen name="ts_16">28mm</dimen>
+    <dimen name="ts_18">30mm</dimen>
+    <dimen name="ts_20">34mm</dimen>
+    <dimen name="ts_22">36mm</dimen>
+    <dimen name="ts_24">40mm</dimen>
+    <dimen name="ts_26">44mm</dimen>
+    <dimen name="ts_30">50mm</dimen>
+    <dimen name="ts_34">56mm</dimen>
+    <dimen name="ts_36">60mm</dimen>
+    <dimen name="ts_40">64mm</dimen>
+    <dimen name="ts_50">76mm</dimen>
 
     <dimen name="vs_4_">-4mm</dimen>
     <dimen name="vs_20_">-20mm</dimen>
@@ -95,5 +96,11 @@
     <dimen name="vs_520">520mm</dimen>
     <dimen name="vs_760">760mm</dimen>
     <dimen name="vs_1180">1180mm</dimen>
+    <dimen name="vs_900">900mm</dimen>
     <dimen name="vs_1100">1100mm</dimen>
+
+    <!-- v23.2 竖屏放大: 详情封面/预览窗 / 搜索结果卡 / 播放视频区 -->
+    <dimen name="vs_380">380mm</dimen>
+    <dimen name="vs_660">660mm</dimen>
+    <dimen name="vs_700">700mm</dimen>
 </resources>
