@@ -31,7 +31,8 @@
 
     // 小贾影视仓 v15.6 横屏海报墙首页 //
     <string name="hm_focus_enter">首页推荐</string>
-    <string name="hm_home_hint">确定键播放 · 长按搜全网</string>
+    <string name="hm_home_hint">确定键播放</string>
+    <string name="empty"></string>
     <string name="hm_mode_douban">豆瓣热播</string>
     <string name="hm_mode_site">站点推荐</string>
     <string name="hm_mode_history">播放历史</string>
