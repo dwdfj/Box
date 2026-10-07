@@ -747,6 +747,8 @@ public class ApiConfig {
                 // 必须一并清掉, 否则该站首页/搜索仍是旧线路逻辑(表现为"切线路后搜索不显示")。
                 try { jsLoader.clear(); } catch (Throwable ignored) { }
             }
+            // 小贾影视仓 v21: 注入「本地 .py 单源」(用户通过信号源面板的"加载本地 .py"添加)
+            injectLocalPySites();
             // 小贾影视仓: 首页推荐"锁死豆瓣"——优先线路自带豆瓣; 线路没有豆瓣则注入参考豆瓣(自带其全局jar, 自包含可用)
             String home = Hawk.get(HawkConfig.HOME_API, "");
             SourceBean sh = getSource(home);
@@ -1362,6 +1364,58 @@ public class ApiConfig {
 
     public ParseBean getDefaultParse() {
         return mDefaultParse;
+    }
+
+    // 小贾影视仓 v21: 注入用户加载的「本地 .py 单源」(信号源面板 -> 加载本地 .py)。
+    // ⚠️ 站点 api 不能直接用 file:// —— PythonLoader.getFileString 内部走 OkHttp, 不认 file:// 协议。
+    // 所以这里拼成「本地 HTTP 服务地址」: RemoteServer 的 /file/ 端点读的正是 filesDir(与内置包同一条通道)。
+    // 而 ApiConfig.getCSP 见到 api 里含 ".py" 就会分发给 pyLoader, 后缀判断不受前缀影响。
+    // 每次线路配置解析完成后调用一次, 因此重启 App / 切线路后依然在; 同 key 已存在则不覆盖。
+    public void injectLocalPySites() {
+        try {
+            ArrayList<String> list = Hawk.get(HawkConfig.LOCAL_PY_LIST, new ArrayList<String>());
+            if (list == null || list.isEmpty()) return;
+            String addr = null;
+            try {
+                addr = ControlManager.get().getAddress(true);   // 形如 http://127.0.0.1:9978/
+            } catch (Throwable ignored) {
+            }
+            boolean addrOk = addr != null && addr.startsWith("http");
+            for (String item : list) {
+                if (item == null) continue;
+                int p = item.indexOf('|');
+                String name = p > 0 ? item.substring(0, p) : item;
+                // 存的是相对 filesDir 的路径, 如 "plugin/xxx.py"
+                String rel = p > 0 ? item.substring(p + 1) : "";
+                if (rel.isEmpty()) continue;
+                File local = new File(App.getInstance().getFilesDir(), rel);
+                if (!local.isFile()) continue;      // 用户清过数据 / 文件被删 -> 跳过
+                String key = "py_local_" + MD5.string2MD5(rel);
+                if (sourceBeanList.containsKey(key)) continue;
+                String api = addrOk ? (addr + "file/" + rel) : ("file://" + local.getAbsolutePath());
+                SourceBean sb = new SourceBean();
+                sb.setKey(key);
+                sb.setName(name + "(本地py)");
+                // type=3 + searchable=1: 单源形态 —— 即便该 py 没实现 homeContent, 搜索/详情仍可正常用
+                sb.setType(3);
+                sb.setApi(api);
+                sb.setExt("");
+                sb.setJar("");
+                sb.setSearchable(1);
+                sb.setQuickSearch(0);
+                sb.setFilterable(1);
+                sb.setHide(0);
+                sb.setPlayerUrl("");
+                sb.setClickSelector("");
+                sb.setStyle("");
+                // 手工 new 的 bean 不走配置解析循环, categories 恒为 null,
+                // 一旦被选为首页站, adjustSort 里 categories.isEmpty() 会 NPE(切线路高发) -> 必须显式给空表
+                sb.setCategories(new ArrayList<String>());
+                sourceBeanList.put(key, sb);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
     public List<SourceBean> getSourceBeanList() {
