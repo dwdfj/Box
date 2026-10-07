@@ -1395,7 +1395,10 @@ public class ApiConfig {
                 String api = addrOk ? (addr + "file/" + rel) : ("file://" + local.getAbsolutePath());
                 SourceBean sb = new SourceBean();
                 sb.setKey(key);
-                sb.setName(name + "(本地py)");
+                // 小贾影视仓 v23: 本地 py 源覆盖「影视 / 短剧 / 小说 / 漫画」各种内容 ——
+                // 它们走的是同一套 spider 机制(pyLoader 只认 .py 后缀, 与内容类型无关), 所以天然兼容;
+                // 这里只按文件名打个类型前缀, 方便在几十个站点里一眼找到自己在找哪一类。
+                sb.setName(localPyTag(name) + name + "(本地py)");
                 // type=3 + searchable=1: 单源形态 —— 即便该 py 没实现 homeContent, 搜索/详情仍可正常用
                 sb.setType(3);
                 sb.setApi(api);
@@ -1416,6 +1419,20 @@ public class ApiConfig {
         } catch (Throwable th) {
             th.printStackTrace();
         }
+    }
+
+    // 小贾影视仓 v23: 按文件名给本地 py 源打一个类型前缀(纯展示用, 完全不影响 spider 行为)。
+    // 短剧 / 小说 / 漫画 / 动漫 在壳子里都是**普通站点** —— pyLoader 只按 `.py` 后缀分发, 与内容类型无关,
+    // 所以它们天然兼容; 前缀只是让用户在几十个站点里一眼看出自己要找的是哪一类。
+    public static String localPyTag(String name) {
+        if (name == null || name.isEmpty()) return "";
+        String n = name.toLowerCase();
+        if (name.contains("短剧") || n.contains("duanju") || n.contains("short")) return "[短剧] ";
+        if (name.contains("小说") || n.contains("novel") || n.contains("book") || n.contains("read")) return "[小说] ";
+        if (name.contains("漫画") || n.contains("comic") || n.contains("manga")) return "[漫画] ";
+        if (name.contains("动漫") || n.contains("anime") || n.contains("bangumi")) return "[动漫] ";
+        if (name.contains("直播") || n.contains("live")) return "[直播] ";
+        return "";
     }
 
     public List<SourceBean> getSourceBeanList() {
