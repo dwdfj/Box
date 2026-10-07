@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v20: 首页通栏搜索框底 ——
+     默认态半透明深色(透壁纸) + 细白描边; 聚焦/按压态主题色 + 白描边。
+     与 shape_top_icon_btn 同风格, 但整条胶囊形(radius = 高度一半)。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_22" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_focused="false" android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_22" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_22" />
+            <solid android:color="?attr/color_theme_40" />
+            <stroke android:width="2mm" android:color="@android:color/white" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_22" />
+            <solid android:color="#66000000" />
+            <stroke android:width="1dp" android:color="#33FFFFFF" />
+        </shape>
+    </item>
+</selector>
