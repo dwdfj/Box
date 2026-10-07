@@ -45,7 +45,29 @@ public class Global {
     @Keep
     @Function
     public String js2Proxy(Boolean dynamic, Integer siteType, String siteKey, String url, JSObject headers) {
-        return getProxy(true) + "&from=catvod" + "&siteType=" + siteType + "&siteKey=" + siteKey + "&header=" + URLEncoder.encode(headers.toJsonString()) + "&url=" + URLEncoder.encode(url);
+        // 小贾影视仓 v19: siteKey 必须一并 URL 编码。
+        // 原来只编了 header/url, siteKey 裸拼 —— 而配置里大量站点的 key 是中文(内置包 120 站中 97 个),
+        // 中文/`&`/`=`/空格 直接进 URL 会让 OkHttp 抛 IllegalArgumentException(同步异常),
+        // 表现为"个别线路(中文 key 的站)在播放/代理时失效甚至闪退"。
+        String keyEnc;
+        try {
+            keyEnc = siteKey == null ? "" : URLEncoder.encode(siteKey, "UTF-8");
+        } catch (Exception e) {
+            keyEnc = siteKey == null ? "" : siteKey;
+        }
+        String headerEnc;
+        try {
+            headerEnc = headers == null ? "" : URLEncoder.encode(headers.toJsonString(), "UTF-8");
+        } catch (Exception e) {
+            headerEnc = "";
+        }
+        String urlEnc;
+        try {
+            urlEnc = url == null ? "" : URLEncoder.encode(url, "UTF-8");
+        } catch (Exception e) {
+            urlEnc = url == null ? "" : url;
+        }
+        return getProxy(true) + "&from=catvod" + "&siteType=" + siteType + "&siteKey=" + keyEnc + "&header=" + headerEnc + "&url=" + urlEnc;
     }
 
     @Keep
