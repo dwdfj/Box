@@ -333,6 +333,38 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
+    // 小贾影视仓 v23: 按屏幕比例"居中裁剪"壁纸(等价 ImageView.ScaleType.CENTER_CROP)。
+    // 为什么需要: window 背景的 BitmapDrawable 默认是 FILL(拉伸铺满), 而内置壁纸已换成 3:4 竖图、
+    // 手机屏约 9:20 —— 不预裁的话人像会被纵向拉长约 1.7 倍。先裁到屏幕比例, 再交给 window 铺满即可。
+    private Bitmap centerCropWallpaper(Bitmap src) {
+        if (src == null) return null;
+        try {
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int vw = dm.widthPixels, vh = dm.heightPixels;
+            int w = src.getWidth(), h = src.getHeight();
+            if (vw <= 0 || vh <= 0 || w <= 0 || h <= 0) return src;
+            float target = vw / (float) vh;     // 屏幕宽高比(竖屏 < 1)
+            float current = w / (float) h;      // 原图宽高比
+            int cw, ch;
+            if (current > target) {
+                // 原图比屏幕"更宽" -> 裁掉左右, 高度全保留
+                ch = h;
+                cw = Math.round(h * target);
+            } else {
+                // 原图比屏幕"更窄/更高" -> 裁掉上下, 宽度全保留
+                cw = w;
+                ch = Math.round(w / target);
+            }
+            if (cw == w && ch == h) return src;
+            int x = Math.max(0, (w - cw) / 2);
+            int y = Math.max(0, (h - ch) / 2);
+            Bitmap out = Bitmap.createBitmap(src, x, y, cw, ch);
+            return out == null ? src : out;
+        } catch (Throwable t) {
+            return src;
+        }
+    }
+
     public void changeWallpaper(boolean force) {
         if (!force && globalWp != null) {
             getWindow().setBackgroundDrawable(globalWp);
@@ -347,7 +379,8 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 // 从Options中获取图片的分辨率
                 int imageHeight = opts.outHeight;
                 int imageWidth = opts.outWidth;
-                int picHeight = 720;
+                // 小贾影视仓 v23: 基准从横屏 1080x720 改成竖屏 1080x1920 —— 否则 3:4 竖图会被算成 scale=2 白白降采样
+                int picHeight = 1920;
                 int picWidth = 1080;
                 int scaleX = imageWidth / picWidth;
                 int scaleY = imageHeight / picHeight;
@@ -355,7 +388,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 opts.inJustDecodeBounds = false;
                 // 采样率
                 opts.inSampleSize = scale;
-                globalWp = new BitmapDrawable(darkenWallpaper(BitmapFactory.decodeFile(wp.getAbsolutePath(), opts)));
+                globalWp = new BitmapDrawable(getResources(), darkenWallpaper(centerCropWallpaper(BitmapFactory.decodeFile(wp.getAbsolutePath(), opts))));
             } else {
                 globalWp = null;
             }
@@ -380,12 +413,13 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                     BitmapFactory.Options opts = new BitmapFactory.Options();
                     opts.inJustDecodeBounds = true;
                     BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
-                    int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 720), 1);
+                    // 小贾影视仓 v23: 基准同步改竖屏(原 1080x720 是横屏设计稿尺寸)
+                    int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 1920), 1);
                     opts.inJustDecodeBounds = false;
                     opts.inSampleSize = scale;
                     Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
                     if (bmp != null) {
-                        globalWp = new BitmapDrawable(res, darkenWallpaper(bmp));
+                        globalWp = new BitmapDrawable(res, darkenWallpaper(centerCropWallpaper(bmp)));
                         getWindow().setBackgroundDrawable(globalWp);
                         return;
                     }
