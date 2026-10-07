@@ -55,6 +55,9 @@ import java.util.Stack;
  */
 public class GridFragment extends BaseLazyFragment {
     private MovieSort.SortData sortData = null;
+    // 小贾影视仓 v23.2: 非空时本页数据来自「指定站点」而非当前首页站。
+    // 用于把本地 py 源(小说/短剧/漫画)作为与电影/电视剧并列的分类页展示, 无需把它切成首页站。
+    private String overrideSourceKey = null;
     private TvRecyclerView mGridView;
     private SourceViewModel sourceViewModel;
     private GridFilterDialog gridFilterDialog;
@@ -81,9 +84,28 @@ public class GridFragment extends BaseLazyFragment {
         return new GridFragment().setArguments(sortData);
     }
 
+    // 小贾影视仓 v23.2: 指定数据源的分类页(小说/短剧/漫画 与电影/电视剧 并列入口)
+    public static GridFragment newInstance(MovieSort.SortData sortData, String overrideSourceKey) {
+        GridFragment f = new GridFragment().setArguments(sortData);
+        f.overrideSourceKey = overrideSourceKey;
+        return f;
+    }
+
     public GridFragment setArguments(MovieSort.SortData sortData) {
         this.sortData = sortData;
         return this;
+    }
+
+    // 小贾影视仓 v23.2: 解析本页要用的数据源(指定源优先, 失败则回落首页站)
+    private SourceBean resolveSource() {
+        if (overrideSourceKey != null && !overrideSourceKey.isEmpty()) {
+            try {
+                SourceBean sb = ApiConfig.get().getSource(overrideSourceKey);
+                if (sb != null) return sb;
+            } catch (Throwable ignored) {
+            }
+        }
+        return ApiConfig.get().getHomeSourceBean();
     }
 
     @Override
@@ -201,7 +223,7 @@ public class GridFragment extends BaseLazyFragment {
         if (isFolederMode()) {
             mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         } else {
-            int spanCount = isBaseOnWidth() ? 5 : 6;
+            int spanCount = isBaseOnWidth() ? 5 : 3;
             if (style != null) {
                 spanCount = ImgUtil.spanCountByStyle(style, spanCount);
             }
@@ -216,7 +238,8 @@ public class GridFragment extends BaseLazyFragment {
             @Override
             public void onLoadMoreRequested() {
                 gridAdapter.setEnableLoadMore(true);
-                sourceViewModel.getList(sortData, page);
+                // 小贾影视仓 v23.2: 指定源模式(小说/短剧/漫画)用本页自己的源
+                sourceViewModel.getList(sortData, page, resolveSource());
             }
         }, mGridView);
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
@@ -342,7 +365,8 @@ public class GridFragment extends BaseLazyFragment {
     }
 
     private void initData() {
-    	if (ApiConfig.get().getHomeSourceBean().getApi()==null) {
+    	// 小贾影视仓 v23.2: 指定源模式(小说/短剧/漫画)校验本页自己的源, 不用首页站, 否则会误判为空
+    	if (resolveSource().getApi()==null) {
             showEmpty();
             return;
         }
@@ -350,7 +374,8 @@ public class GridFragment extends BaseLazyFragment {
         isLoad = false;
         scrollTop();
         toggleFilterStatus();
-        sourceViewModel.getList(sortData, page);
+        // 小贾影视仓 v23.2: 指定源模式(小说/短剧/漫画)用本页自己的源
+        sourceViewModel.getList(sortData, page, resolveSource());
     }
 
     private void toggleFilterStatus() {
