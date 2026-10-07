@@ -1160,7 +1160,13 @@ public class HomeActivity extends BaseActivity {
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                 {"日后", "http://rihou.cc:88/demo.php"},
                 {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
-                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                // 小贾影视仓 v19: 用户提供的新接口(2026-10-07 实测可用)
+                {"摸鱼儿·97站", "http://我不是.摸鱼儿.top"},
+                {"嗷呜呜·78站", "http://www.英格里希嗷呜.top/tv"},
+                {"挺好的·46站", "https://ztha.top/TVBox/thdjk.json"},
+                {"小白马·62站", "https://szyyds.cn/tv/x.json"},
+                {"菜泥丝·46站", "https://tv.xn--yhqu5zs87a.top"}
         };
         for (String[] p : presetLines) {
             if (!lines.containsValue(p[1])) lines.put(p[0], p[1]);
@@ -1344,7 +1350,13 @@ public class HomeActivity extends BaseActivity {
                 {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
                 {"日后", "http://rihou.cc:88/demo.php"},
                 {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
-                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"}
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                // 小贾影视仓 v19: 用户提供的新接口(2026-10-07 实测可用)
+                {"摸鱼儿·97站", "http://我不是.摸鱼儿.top"},
+                {"嗷呜呜·78站", "http://www.英格里希嗷呜.top/tv"},
+                {"挺好的·46站", "https://ztha.top/TVBox/thdjk.json"},
+                {"小白马·62站", "https://szyyds.cn/tv/x.json"},
+                {"菜泥丝·46站", "https://tv.xn--yhqu5zs87a.top"}
         };
         for (String[] p : presetLines) {
             if (url.equals(p[1])) return p[0];
