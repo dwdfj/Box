@@ -100,7 +100,7 @@
                 android:layout_height="match_parent"
                 android:layout_marginRight="@dimen/vs_16"
                 android:layout_weight="0.42"
-                android:background="@drawable/shape_dock_btn"
+                android:background="@drawable/shape_home_banner"
                 android:clickable="true"
                 android:focusable="true"
                 android:nextFocusDown="@id/tvDockBtn"
@@ -129,7 +129,7 @@
                     android:layout_gravity="bottom"
                     android:focusable="false"
                     android:orientation="vertical"
-                    android:padding="@dimen/vs_18">
+                    android:padding="@dimen/vs_20">
 
                     <TextView
                         android:id="@+id/tvBannerTitle"
