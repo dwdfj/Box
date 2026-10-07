@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v22: 顶栏分类胶囊的文字色。
+     旧版文字恒为 FFFFFF_70, 选中与否颜色一样 —— 只有底色在变, 选中态辨识度低。
+     这里让"聚焦(=当前选中项)"的文字提到纯白, 未选中保持 70% 白, 层级一眼可辨。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/color_FFFFFF" />
+    <item android:color="@color/color_FFFFFF_70" />
+</selector>
