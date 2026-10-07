@@ -408,8 +408,22 @@ public class RemoteServer extends NanoHTTPD {
     private void warmUpWallpaper() {
         try {
             File wp = new File(mContext.getFilesDir(), "wp");
-            if (wp.exists() && wp.length() > 1024) return;
             android.content.res.Resources res = mContext.getResources();
+            // 小贾影视仓 v23: 只判"存在且够大"的话, 换了内置壁纸老用户也永远看不到新的
+            // (filesDir/wp 里还是旧图)。这里追加"长度必须与内置资源一致"的判据 —— 换图必然改长度, 自动重拷。
+            long builtinLen = -1;
+            try {
+                android.content.res.AssetFileDescriptor afd = res.openRawResourceFd(com.github.tvbox.osc.R.drawable.home_wallpaper);
+                if (afd != null) {
+                    builtinLen = afd.getLength();
+                    try {
+                        afd.close();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            if (wp.exists() && wp.length() > 1024 && (builtinLen <= 0 || wp.length() == builtinLen)) return;
             try (java.io.InputStream in = res.openRawResource(com.github.tvbox.osc.R.drawable.home_wallpaper);
                  java.io.FileOutputStream out = new java.io.FileOutputStream(wp)) {
                 byte[] buf = new byte[8192];
