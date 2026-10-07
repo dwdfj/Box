@@ -22,7 +22,7 @@
         android:focusable="false"
         android:gravity="center"
         android:singleLine="true"
-        android:textColor="@color/color_FFFFFF_70"
+        android:textColor="@color/color_home_sort_title"
         android:textSize="@dimen/ts_30" />
 
     <ImageView
