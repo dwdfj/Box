@@ -97,6 +97,27 @@ public class PythonLoader {
 
     String cache = "/storage/emulated/0/plugin/";
 
+    // 小贾影视仓 v19: 插件目录改为"外部优先 + 内部兜底"。
+    // 原实现硬编码 /storage/emulated/0/plugin/, 在未授予存储权限(或 Android 11+ 分区存储受限)时不可写,
+    // downloadPlugin 会失败 -> py spider 静默失效(表现为"全能版装了但 .py 用不了")。
+    // 应用私有目录 filesDir 始终可写, 且 Chaquopy 的 Python 与本进程同权限可直接访问, 作为兜底可确保可用。
+    private String pluginDir() {
+        try {
+            java.io.File ext = new java.io.File(cache != null && !cache.isEmpty() ? cache : "/storage/emulated/0/plugin/");
+            if ((ext.exists() || ext.mkdirs()) && ext.isDirectory() && ext.canWrite()) {
+                return ext.getAbsolutePath() + "/";
+            }
+        } catch (Throwable ignored) { }
+        if (app != null) {
+            try {
+                java.io.File in = new java.io.File(app.getFilesDir(), "plugin/");
+                in.mkdirs();
+                return in.getAbsolutePath() + "/";
+            } catch (Throwable ignored) { }
+        }
+        return cache;
+    }
+
     public PythonLoader setPluginConfig(String config) {
         this.cache = config;
         return this;
@@ -131,7 +152,7 @@ public class PythonLoader {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future<?> future = null;
         try {
-            PythonSpider sp = new PythonSpider(key, cache);
+            PythonSpider sp = new PythonSpider(key, pluginDir());
 
             // 提交初始化任务
             future = executor.submit(() -> {
