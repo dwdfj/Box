@@ -101,8 +101,9 @@ public class HomeActivity extends BaseActivity {
     private LinearLayout contentLayout;
     private TextView tvName;
     private ImageView tvFind;
-    private ImageView tvDraw;
     private ImageView tvMenu;
+    // 小贾影视仓 v20: 首页通栏搜索框(取代原顶栏"打开应用"位置, 原抽屉入口已移除)
+    private LinearLayout homeSearchBar;
     private TvRecyclerView mGridView;
     private NoScrollViewPager mViewPager;
     private SourceViewModel sourceViewModel;
@@ -153,8 +154,8 @@ public class HomeActivity extends BaseActivity {
         this.topLayout = findViewById(R.id.topLayout);
         this.tvName = findViewById(R.id.tvName);
         this.tvFind = findViewById(R.id.tvFind);
-        this.tvDraw = findViewById(R.id.tvDrawer);
         this.tvMenu = findViewById(R.id.tvMenu);
+        this.homeSearchBar = findViewById(R.id.homeSearchBar);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
         this.mViewPager = findViewById(R.id.mViewPager);
@@ -270,14 +271,16 @@ public class HomeActivity extends BaseActivity {
                 jumpActivity(SearchActivity.class);
             }
         });
-        // 小贾影视仓 v15.4: 首页样式开关迁入「信号源」面板(toggleHomeStyle), 顶栏只留源胶囊+3 图标
-        // Button : Drawer >> To go into App Drawer -------------------
-        tvDraw.setOnClickListener(new View.OnClickListener() {
+        // 小贾影视仓 v20: 首页通栏搜索框 —— 独立入口, 点击直达搜索页
+        // (原路径: 顶栏小放大镜图标 / 底部「更多」面板里的搜索项, 均保留但不再是唯一入口)
+        homeSearchBar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                jumpActivity(AppsActivity.class);
+                jumpActivity(SearchActivity.class);
             }
         });
+        // 小贾影视仓 v15.4: 首页样式开关迁入「信号源」面板(toggleHomeStyle), 顶栏只留源胶囊+3 图标
+        // 小贾影视仓 v20: 移除顶栏「打开应用」(AppsActivity 抽屉) —— 首页不再提供该入口, 顶栏=标题+搜索+设置
         // Button : Settings >> To go into Settings --------------------
         tvMenu.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -1047,7 +1050,6 @@ public class HomeActivity extends BaseActivity {
             animatorSet.start();
             tvName.setFocusable(false);
             tvFind.setFocusable(false);
-            tvDraw.setFocusable(false);
             tvMenu.setFocusable(false);
             return;
         }
@@ -1064,7 +1066,6 @@ public class HomeActivity extends BaseActivity {
             animatorSet.start();
             tvName.setFocusable(true);
             tvFind.setFocusable(true);
-            tvDraw.setFocusable(true);
             tvMenu.setFocusable(true);
         }
     }
