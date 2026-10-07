@@ -87,4 +87,12 @@
     <dimen name="vs_720">720mm</dimen>
     <dimen name="vs_960">960mm</dimen>
     <dimen name="vs_250">250mm</dimen>
+
+    <!-- 小贾影视仓 v23 竖屏新增: 首页 3 列网格卡 / 底部入口 / Banner / 搜索面板 -->
+    <dimen name="vs_38">38mm</dimen>
+    <dimen name="vs_42">42mm</dimen>
+    <dimen name="vs_96">96mm</dimen>
+    <dimen name="vs_520">520mm</dimen>
+    <dimen name="vs_760">760mm</dimen>
+    <dimen name="vs_1100">1100mm</dimen>
 </resources>
