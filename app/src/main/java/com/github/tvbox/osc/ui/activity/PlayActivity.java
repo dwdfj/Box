@@ -146,6 +146,7 @@ import master.flame.danmaku.danmaku.model.IDisplayer;
 import master.flame.danmaku.danmaku.model.android.DanmakuContext;
 import master.flame.danmaku.ui.widget.DanmakuView;
 import me.jessyan.autosize.AutoSize;
+import me.jessyan.autosize.AutoSizeConfig;
 import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkTimedText;
 import xyz.doikki.videoplayer.player.AbstractPlayer;
@@ -267,6 +268,33 @@ public class PlayActivity extends BaseActivity {
             });
         }
     }
+    /**
+     * 小贾影视仓 v23.2: 竖屏半屏播放 —— 上半区视频高度按「屏宽 × 9/16」自适应,
+     * 保证 16:9 视频正好占满上半区宽度(不留黑边也不裁切), 下半区留给播放信息与控件。
+     * 换算走 AutoSize mm 体系: 1mm = 屏宽/1280 px, 故 mm 值 = 1280 × 9/16 = 720。
+     * 直接给 mm 换算后的 px, 不依赖 px2mm 重载。
+     */
+    private void applyPortraitVideoHeight() {
+        try {
+            android.view.View videoContainer = findViewById(R.id.videoContainer);
+            if (videoContainer == null) return;
+            int screenW = AutoSizeConfig.getInstance().getScreenWidth();
+            if (screenW <= 0) {
+                android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+                screenW = Math.min(dm.widthPixels, dm.heightPixels);
+            }
+            if (screenW <= 0) return;
+            // 视频区高度(px) = 屏宽 * 9/16, 正好一个 16:9 视频铺满上半区宽度
+            int targetPx = (int) (screenW * 9.0f / 16.0f);
+            android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
+            if (lp != null) {
+                lp.height = targetPx;
+                videoContainer.setLayoutParams(lp);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void initView() {
 
         // takagen99 : Hide only when video playing
@@ -292,6 +320,7 @@ public class PlayActivity extends BaseActivity {
         mPlayLoadTip = findViewById(R.id.play_load_tip);
         mPlayLoading = findViewById(R.id.play_loading);
         mPlayLoadErr = findViewById(R.id.play_load_error);
+        applyPortraitVideoHeight();
         mController = new VodController(this);
         mController.setCanChangePosition(true);
         mController.setEnableInNormal(true);
