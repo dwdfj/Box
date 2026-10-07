@@ -264,7 +264,7 @@ public class SearchActivity extends BaseActivity {
             mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
             // with preview
         else
-            mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
+            mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, 2));
         searchAdapter = new SearchAdapter();
         mGridView.setAdapter(searchAdapter);
         searchAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
