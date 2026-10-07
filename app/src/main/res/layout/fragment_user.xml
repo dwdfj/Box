@@ -87,7 +87,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:focusable="false"
-                    android:text="@string/hm_home_hint"
                     android:textColor="@color/color_FFFFFF_40"
                     android:textSize="@dimen/ts_20" />
             </LinearLayout>
