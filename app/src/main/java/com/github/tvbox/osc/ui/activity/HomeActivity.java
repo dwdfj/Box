@@ -397,9 +397,11 @@ public class HomeActivity extends BaseActivity {
                 SourceBean homeSortBean = ApiConfig.get().getHomeSourceBean();
                 String homeSortKey = homeSortBean == null ? "" : homeSortBean.getKey();
                 if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
-                    sortAdapter.setNewData(DefaultConfig.adjustSort(homeSortKey, absXml.classes.sortList, true));
+                    sortAdapter.setNewData(appendLocalPyParallelSorts(
+                            DefaultConfig.adjustSort(homeSortKey, absXml.classes.sortList, true)));
                 } else {
-                    sortAdapter.setNewData(DefaultConfig.adjustSort(homeSortKey, new ArrayList<>(), true));
+                    sortAdapter.setNewData(appendLocalPyParallelSorts(
+                            DefaultConfig.adjustSort(homeSortKey, new ArrayList<>(), true)));
                 }
                 initViewPager(absXml);
                 // v15.15: 首页数据已到位 => 8 秒后判定本次启动成功, 清掉启动哨兵标记(native 崩溃不会清 => 下次启动计数+1)
@@ -721,6 +723,46 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
+    // 小贾影视仓 v23.2: 分类 id -> 本地 py 源 key(指定源模式的并列分类页)
+    private final java.util.HashMap<String, String> parallelPySortMap = new java.util.HashMap<>();
+
+    /**
+     * 小贾影视仓 v23.2: 把本地 py 源(短剧/小说/漫画/动漫)追加为与「电影/电视剧」并列的首页分类。
+     * 这些源是独立站点(type=3), 直接当分类页进入时用 overrideSourceKey 指定源取数,
+     * 不影响当前首页站的正常分类。
+     */
+    private List<MovieSort.SortData> appendLocalPyParallelSorts(List<MovieSort.SortData> origin) {
+        try {
+            List<SourceBean> pys = ApiConfig.get().getLocalPyParallelSources();
+            if (pys == null || pys.isEmpty()) return origin;
+            // 先清掉旧的映射, 避免切线路后残留
+            parallelPySortMap.clear();
+            // 已存在的同名分类不重复添加
+            java.util.HashSet<String> exists = new java.util.HashSet<>();
+            if (origin != null) {
+                for (MovieSort.SortData s : origin) {
+                    if (s != null && s.name != null) exists.add(s.name);
+                }
+            }
+            for (SourceBean sb : pys) {
+                String raw = sb.getName();
+                if (raw == null) continue;
+                // 去掉注入时加的 "[小说] " 之类前缀, 用干净名做分类标题
+                String clean = raw.replaceAll("^\\[[^\\]]*\\]\\s*", "").replaceAll("\\s*\\(本地py\\)$", "");
+                if (clean.isEmpty() || exists.contains(clean)) continue;
+                MovieSort.SortData s = new MovieSort.SortData("pypar_" + sb.getKey(), clean);
+                // filters 必须非空: 分类胶囊点两下会判 filters.isEmpty() 来决定弹不弹筛选
+                s.filters = new ArrayList<>();
+                if (origin == null) origin = new ArrayList<>();
+                origin.add(s);
+                parallelPySortMap.put(s.id, sb.getKey());
+                exists.add(clean);
+            }
+        } catch (Throwable ignored) {
+        }
+        return (origin == null) ? new ArrayList<MovieSort.SortData>() : origin;
+    }
+
     private void initViewPager(AbsSortXml absXml) {
         // 小贾影视仓 v15.4: 每次重建前先原地销毁旧页(真 remove), 根治"页数翻倍/tag 冲突"
         clearPagesInPlace();
@@ -733,7 +775,13 @@ public class HomeActivity extends BaseActivity {
                         fragments.add(UserFragment.newInstance(null));
                     }
                 } else {
-                    fragments.add(GridFragment.newInstance(data));
+                    // 小贾影视仓 v23.2: 若该分类是本地 py 并列入口(小说/短剧/漫画), 用指定源建页
+                    String pyKey = parallelPySortMap.get(data.id);
+                    if (pyKey != null && !pyKey.isEmpty()) {
+                        fragments.add(GridFragment.newInstance(data, pyKey));
+                    } else {
+                        fragments.add(GridFragment.newInstance(data));
+                    }
                 }
             }
             pageAdapter = new HomePageAdapter(getSupportFragmentManager(), fragments);
