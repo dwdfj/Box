@@ -875,12 +875,43 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
+    // 小贾影视仓 v22.1: 用「进程 pid」区分两种"启动未完成" ——
+    //   ① 上次进程真的死了(native 崩/被系统杀)  → 该计数;
+    //   ② 同一进程内的 Activity 重启(切线路/长按刷新走 restartHome 新建 HomeActivity) → 不该计数。
+    // 旧实现只要 xj_boot_pending 存在就 fail+1, 而切线路恰恰会重建 Activity 并重进 onCreate;
+    // 于是"切到一条慢线路 → 首页数据还没到 → 用户等不及又切一次"会被记成一次"启动异常",
+    // 连续 3 次就强制回退默认线路 —— 正是用户看到的「个别线路加载慢, 还提示检测到上次线路启动异常」。
     private void checkBootSentinel() {
         try {
             java.io.File pending = new java.io.File(getFilesDir(), BOOT_PENDING);
-            int fail = pending.exists() ? (readBootFail() + 1) : 0;
+            int myPid = android.os.Process.myPid();
+            String lastPid = "";
+            if (pending.exists()) {
+                try {
+                    byte[] b = new byte[32];
+                    java.io.FileInputStream fis = new java.io.FileInputStream(pending);
+                    int n = fis.read(b);
+                    fis.close();
+                    if (n > 0) lastPid = new String(b, 0, n, "UTF-8").trim();
+                } catch (Throwable ignored) {
+                }
+            }
+            int fail;
+            if (!pending.exists() || lastPid.isEmpty()) {
+                // 首次启动, 或旧版本遗留的"空标记"文件(没有 pid 信息) —— 一律当首次, 不冤枉用户
+                fail = 0;
+            } else if (lastPid.equals(String.valueOf(myPid))) {
+                // 同一个进程里又新建了一次 HomeActivity = 切线路/刷新, 不是崩溃
+                fail = readBootFail();
+            } else {
+                fail = readBootFail() + 1;
+            }
             writeBootFail(fail);
-            pending.createNewFile();
+            // 标记内容写入当前 pid(同时完成"创建标记文件")
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(pending, false);
+            fos.write(String.valueOf(myPid).getBytes("UTF-8"));
+            fos.flush();
+            fos.close();
             String cur = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
             boolean isBuiltin = cur != null && cur.startsWith("clan://");
             if ((fail >= 2 && isBuiltin) || fail >= 3) {
@@ -1117,10 +1148,16 @@ public class HomeActivity extends BaseActivity {
             if (e.getValue().equals(curLine)) lineSelect = idx;
             idx++;
         }
+        // 小贾影视仓 v22.1: 用户自己加载的「本地 .py」站点排在宫格最前 ——
+        // 之前它们跟线路自带站点混在一起排在最后, 用户加载完在面板里根本找不到, 误以为"没加载成功"。
         List<SourceBean> sites = new ArrayList<>();
+        List<SourceBean> localPySites = new ArrayList<>();
         for (SourceBean sb : ApiConfig.get().getSourceBeanList()) {
-            if (sb.getHide() == 0) sites.add(sb);
+            if (sb.getHide() != 0) continue;
+            if (sb.getKey() != null && sb.getKey().startsWith("py_local_")) localPySites.add(sb);
+            else sites.add(sb);
         }
+        sites.addAll(0, localPySites);
         if (sites.isEmpty()) {
             Toast.makeText(this, "当前线路暂无站点, 请先点\"线路配置\"确认", Toast.LENGTH_SHORT).show();
             return;
@@ -1220,6 +1257,14 @@ public class HomeActivity extends BaseActivity {
         if (hist.size() > 20) hist.remove(20);
         Hawk.put(HawkConfig.API_HISTORY, hist);
         Hawk.put(HawkConfig.API_URL, url);
+        // 小贾影视仓 v22.1: 用户主动切线路 => 立刻清掉启动哨兵标记(计数 + 待完成标记)。
+        // 切线路会重建 HomeActivity, 新线路若加载慢, 用户等不及往往会再切一次;
+        // 旧逻辑会把这串正常操作累计成"启动异常"并在第 3 次强制回退默认线路。主动切换不算异常。
+        try {
+            writeBootFail(0);
+            new java.io.File(getFilesDir(), BOOT_PENDING).delete();
+        } catch (Throwable ignored) {
+        }
         Toast.makeText(this, "已切换到: " + name, Toast.LENGTH_SHORT).show();
         reloadHome();
     }
@@ -1369,12 +1414,14 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓 v21: 选择本地 .py 单源(信号源面板「加载本地 .py」触发)
+    // 小贾影视仓 v21 / v23: 选择本地 .py 源(信号源面板「加载本地 .py」触发)。
+    // v23 起允许**一次多选** —— 短剧源 + 小说源 + 影视源可以一起加载, 不用一个一个来。
     void pickLocalPy() {
         try {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             i.addCategory(Intent.CATEGORY_OPENABLE);
             i.setType("*/*");
+            i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
             i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
                     "text/x-python", "text/plain", "application/octet-stream"});
             startActivityForResult(i, REQ_PICK_LOCAL_PY);
@@ -1384,61 +1431,73 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓 v21: 收下选择的 .py —— 复制进 filesDir/plugin/, 记进 Hawk, 注入站点后刷新首页。
+    // 小贾影视仓 v21 / v23: 收下选择的本地 .py 源 —— 复制进 filesDir/plugin/, 记进 Hawk, 注入站点后刷新首页。
     // 之所以"复制"而不是直接引用原路径: SAF 给的 content:// 或外部存储路径本进程无权长期直读;
     // 落到私有目录后由本地 HTTP 服务(/file/plugin/xxx.py)稳定供给 pyLoader。
+    // v23: 支持**一次多选**(getClipData), 单选仍走 getData() —— 短剧源/小说源/影视源可以一起加载。
     void handleLocalPyPicked(int resultCode, Intent data) {
-        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        if (resultCode != RESULT_OK || data == null) return;
         try {
-            // 1) 取显示名(仅用于界面展示)
-            String showName = "local";
-            try {
-                android.database.Cursor c = getContentResolver().query(data.getData(), null, null, null, null);
-                if (c != null) {
-                    int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-                    if (idx >= 0 && c.moveToFirst()) {
-                        String v = c.getString(idx);
-                        if (v != null && !v.trim().isEmpty()) showName = v.trim();
-                    }
-                    c.close();
+            // 1) 收集本次选中的全部 uri(多选 / 单选两条路径)
+            ArrayList<android.net.Uri> uris = new ArrayList<>();
+            android.content.ClipData clip = data.getClipData();
+            if (clip != null && clip.getItemCount() > 0) {
+                for (int i = 0; i < clip.getItemCount(); i++) {
+                    android.net.Uri u = clip.getItemAt(i).getUri();
+                    if (u != null) uris.add(u);
                 }
-            } catch (Throwable ignored) {
+            } else if (data.getData() != null) {
+                uris.add(data.getData());
             }
-            if (showName.toLowerCase().endsWith(".py")) showName = showName.substring(0, showName.length() - 3);
-            if (showName.isEmpty()) showName = "local";
+            if (uris.isEmpty()) return;
 
-            // 2) 复制到私有目录
-            java.io.InputStream is = getContentResolver().openInputStream(data.getData());
-            if (is == null) {
-                Toast.makeText(this, "无法打开所选 py 文件", Toast.LENGTH_SHORT).show();
-                return;
-            }
             java.io.File dir = new java.io.File(getFilesDir(), "plugin");
             if (!dir.exists() && !dir.mkdirs()) {
-                is.close();
                 Toast.makeText(this, "无法创建插件目录", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // 文件名统一用 local_<时间戳>.py —— 绕开中文/空格在 URL 里被截断的老坑
-            String fileName = "local_" + System.currentTimeMillis() + ".py";
-            java.io.File out = new java.io.File(dir, fileName);
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(out);
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
-            fos.flush();
-            fos.close();
-            is.close();
-
-            // 3) 持久化(存相对 filesDir 的路径, 由 ApiConfig.injectLocalPySites 拼成本地服务地址)
-            String rel = "plugin/" + fileName;
             ArrayList<String> list = Hawk.get(HawkConfig.LOCAL_PY_LIST, new ArrayList<String>());
             if (list == null) list = new ArrayList<>();
-            for (int i = list.size() - 1; i >= 0; i--) {
-                String it = list.get(i);
-                if (it != null && it.startsWith(showName + "|")) list.remove(i);
+
+            int ok = 0;
+            StringBuilder loaded = new StringBuilder();
+            for (int i = 0; i < uris.size(); i++) {
+                try {
+                    android.net.Uri uri = uris.get(i);
+                    String showName = localPyDisplayName(uri);
+
+                    // 2) 复制到私有目录。文件名统一 local_<时间戳>_<序号>.py ——
+                    //    绕开中文/空格在 URL 里被截断的老坑, 序号保证"同批多选"不会撞名。
+                    java.io.InputStream is = getContentResolver().openInputStream(uri);
+                    if (is == null) continue;
+                    String fileName = "local_" + System.currentTimeMillis() + "_" + i + ".py";
+                    java.io.File out = new java.io.File(dir, fileName);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(out);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+                    fos.flush();
+                    fos.close();
+                    is.close();
+
+                    // 3) 持久化(存相对 filesDir 的路径, 由 ApiConfig.injectLocalPySites 拼成本地服务地址)
+                    String rel = "plugin/" + fileName;
+                    for (int k = list.size() - 1; k >= 0; k--) {
+                        String it = list.get(k);
+                        if (it != null && it.startsWith(showName + "|")) list.remove(k);
+                    }
+                    list.add(0, showName + "|" + rel);
+                    ok++;
+                    if (loaded.length() > 0) loaded.append("、");
+                    loaded.append(showName);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
             }
-            list.add(0, showName + "|" + rel);
+            if (ok == 0) {
+                Toast.makeText(this, "没有成功加载任何 .py", Toast.LENGTH_SHORT).show();
+                return;
+            }
             Hawk.put(HawkConfig.LOCAL_PY_LIST, list);
 
             // 4) 立即注入并重载首页(配置重解析时会再注入一次, 幂等)
@@ -1446,12 +1505,35 @@ public class HomeActivity extends BaseActivity {
                 ApiConfig.get().injectLocalPySites();
             } catch (Throwable ignored) {
             }
-            Toast.makeText(this, "已加载本地 py: " + showName, Toast.LENGTH_SHORT).show();
+            // 小贾影视仓 v22.1: 说清"加载到哪去了" —— 本地 py 不是一条独立"线路",
+            // 而是当前线路下的一个**站点(单源)**; 面板左侧永远是线路, 站点在右侧宫格最前面。
+            String head = (ok == 1) ? ("已加载「" + loaded + "」") : ("已加载 " + ok + " 个源: " + loaded);
+            Toast.makeText(this, head + "(本地py)：在信号源面板右侧「站点」最前面，或直接用搜索框搜片", Toast.LENGTH_LONG).show();
             reloadHome();
         } catch (Throwable th) {
             th.printStackTrace();
             Toast.makeText(this, "py 加载失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // 小贾影视仓 v23: 从 content uri 取文件显示名(DISPLAY_NAME), 去掉 .py 后缀
+    private String localPyDisplayName(android.net.Uri uri) {
+        String showName = "local";
+        try {
+            android.database.Cursor c = getContentResolver().query(uri, null, null, null, null);
+            if (c != null) {
+                int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0 && c.moveToFirst()) {
+                    String v = c.getString(idx);
+                    if (v != null && !v.trim().isEmpty()) showName = v.trim();
+                }
+                c.close();
+            }
+        } catch (Throwable ignored) {
+        }
+        if (showName.toLowerCase().endsWith(".py")) showName = showName.substring(0, showName.length() - 3);
+        if (showName.isEmpty()) showName = "local";
+        return showName;
     }
 
     // 小贾影视仓: 根据线路地址返回显示名称
