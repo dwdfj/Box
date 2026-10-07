@@ -142,6 +142,23 @@ public class HomeActivity extends BaseActivity {
             Bundle bundle = intent.getExtras();
             useCacheConfig = bundle.getBoolean("useCache", false);
         }
+        // 小贾影视仓 v21: 「内置·肥猫全能包·120站」已下线(内置加固包在部分机型点击即 native 崩)。
+        // 老用户配置里若还指着它, 这里静默回退到默认线路并清掉该历史项, 免得一进 App/一联网就踩雷。
+        try {
+            String oldApi = Hawk.get(HawkConfig.API_URL, "");
+            if (oldApi != null && oldApi.contains("feimao/config.json")) {
+                Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                ArrayList<String> hist = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+                if (hist != null) {
+                    for (int i = hist.size() - 1; i >= 0; i--) {
+                        String h = hist.get(i);
+                        if (h != null && h.contains("feimao/config.json")) hist.remove(i);
+                    }
+                    Hawk.put(HawkConfig.API_HISTORY, hist);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
         initData();
     }
 
@@ -323,6 +340,8 @@ public class HomeActivity extends BaseActivity {
     private boolean skipNextUpdate = false;
     // 小贾影视仓: 本地接口文件选择请求码(ApiDialog"本地文件"按钮发起)
     private static final int REQ_PICK_LOCAL_API = 0x5150;
+    // 小贾影视仓 v21: 本地 .py 单源选择请求码(信号源面板"加载本地 .py"按钮发起)
+    private static final int REQ_PICK_LOCAL_PY = 0x5151;
     private void initViewModel() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         sourceViewModel.sortResult.observe(this, new Observer<AbsSortXml>() {
@@ -1128,6 +1147,11 @@ public class HomeActivity extends BaseActivity {
             public void onToggleHomeStyle() {
                 toggleHomeStyle();
             }
+
+            @Override
+            public void onPickLocalPy() {
+                pickLocalPy();
+            }
         });
         panel.show();
         // 焦点落到右列站点列表(高频操作)
@@ -1152,7 +1176,10 @@ public class HomeActivity extends BaseActivity {
         // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
         String[][] presetLines = new String[][]{
                 {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
-                {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
+                // 小贾影视仓 v21: 「内置·肥猫全能包·120站」整条下线 —— 内置加固包(guard_v7/v8.so)在部分机型上
+                // 点击即 native 崩(无弹窗、无 xj_crash.log), 且所有公共接口的 spider 都是同款加固,
+                // 内置=定时炸弹。这正是 AVBox 的精髓所在: 它的 assets 里根本不内置任何加固包。
+                // (如需再启用, 只能改为"引导用户自配无需加固的 JS/Python 线路"。)
                 {"肥猫·net", "http://肥猫.net/tv"},
                 {"饭太硬·主", "http://www.饭太硬.art/tv"},
                 {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
@@ -1305,6 +1332,11 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        // 小贾影视仓 v21: 本地 .py 单源选择结果
+        if (requestCode == REQ_PICK_LOCAL_PY) {
+            handleLocalPyPicked(resultCode, data);
+            return;
+        }
         if (requestCode != REQ_PICK_LOCAL_API) return;
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         try {
@@ -1337,12 +1369,100 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
+    // 小贾影视仓 v21: 选择本地 .py 单源(信号源面板「加载本地 .py」触发)
+    void pickLocalPy() {
+        try {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                    "text/x-python", "text/plain", "application/octet-stream"});
+            startActivityForResult(i, REQ_PICK_LOCAL_PY);
+        } catch (Throwable th) {
+            th.printStackTrace();
+            Toast.makeText(this, "无法打开文件选择器: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // 小贾影视仓 v21: 收下选择的 .py —— 复制进 filesDir/plugin/, 记进 Hawk, 注入站点后刷新首页。
+    // 之所以"复制"而不是直接引用原路径: SAF 给的 content:// 或外部存储路径本进程无权长期直读;
+    // 落到私有目录后由本地 HTTP 服务(/file/plugin/xxx.py)稳定供给 pyLoader。
+    void handleLocalPyPicked(int resultCode, Intent data) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        try {
+            // 1) 取显示名(仅用于界面展示)
+            String showName = "local";
+            try {
+                android.database.Cursor c = getContentResolver().query(data.getData(), null, null, null, null);
+                if (c != null) {
+                    int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (idx >= 0 && c.moveToFirst()) {
+                        String v = c.getString(idx);
+                        if (v != null && !v.trim().isEmpty()) showName = v.trim();
+                    }
+                    c.close();
+                }
+            } catch (Throwable ignored) {
+            }
+            if (showName.toLowerCase().endsWith(".py")) showName = showName.substring(0, showName.length() - 3);
+            if (showName.isEmpty()) showName = "local";
+
+            // 2) 复制到私有目录
+            java.io.InputStream is = getContentResolver().openInputStream(data.getData());
+            if (is == null) {
+                Toast.makeText(this, "无法打开所选 py 文件", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            java.io.File dir = new java.io.File(getFilesDir(), "plugin");
+            if (!dir.exists() && !dir.mkdirs()) {
+                is.close();
+                Toast.makeText(this, "无法创建插件目录", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // 文件名统一用 local_<时间戳>.py —— 绕开中文/空格在 URL 里被截断的老坑
+            String fileName = "local_" + System.currentTimeMillis() + ".py";
+            java.io.File out = new java.io.File(dir, fileName);
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(out);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+            fos.flush();
+            fos.close();
+            is.close();
+
+            // 3) 持久化(存相对 filesDir 的路径, 由 ApiConfig.injectLocalPySites 拼成本地服务地址)
+            String rel = "plugin/" + fileName;
+            ArrayList<String> list = Hawk.get(HawkConfig.LOCAL_PY_LIST, new ArrayList<String>());
+            if (list == null) list = new ArrayList<>();
+            for (int i = list.size() - 1; i >= 0; i--) {
+                String it = list.get(i);
+                if (it != null && it.startsWith(showName + "|")) list.remove(i);
+            }
+            list.add(0, showName + "|" + rel);
+            Hawk.put(HawkConfig.LOCAL_PY_LIST, list);
+
+            // 4) 立即注入并重载首页(配置重解析时会再注入一次, 幂等)
+            try {
+                ApiConfig.get().injectLocalPySites();
+            } catch (Throwable ignored) {
+            }
+            Toast.makeText(this, "已加载本地 py: " + showName, Toast.LENGTH_SHORT).show();
+            reloadHome();
+        } catch (Throwable th) {
+            th.printStackTrace();
+            Toast.makeText(this, "py 加载失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     // 小贾影视仓: 根据线路地址返回显示名称
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
         String[][] presetLines = new String[][]{
                 {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
-                {"内置·肥猫全能包·120站", "clan://localhost/feimao/config.json"},
+                // 小贾影视仓 v21: 「内置·肥猫全能包·120站」整条下线 —— 内置加固包(guard_v7/v8.so)在部分机型上
+                // 点击即 native 崩(无弹窗、无 xj_crash.log), 且所有公共接口的 spider 都是同款加固,
+                // 内置=定时炸弹。这正是 AVBox 的精髓所在: 它的 assets 里根本不内置任何加固包。
+                // (如需再启用, 只能改为"引导用户自配无需加固的 JS/Python 线路"。)
                 {"肥猫·net", "http://肥猫.net/tv"},
                 {"饭太硬·主", "http://www.饭太硬.art/tv"},
                 {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
