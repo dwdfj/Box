@@ -1628,11 +1628,25 @@ public class VodController extends BaseController {
             hideBottom();
             return true;
         }
-        int checkOrientation = mActivity.getRequestedOrientation();
-        if (checkOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT || checkOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT) {
-            mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        }
+        // 小贾影视仓 v23: 竖屏 App —— 返回键不再强制切横屏, 直接保持竖屏退出播放
         return false;
+    }
+
+    // 小贾影视仓 v23: 竖屏 App —— 进入/退出全屏播放都保持竖屏, 不旋转成横屏(覆盖 doikki 库默认横屏)
+    @Override
+    protected boolean startFullScreen() {
+        if (mActivity == null || mActivity.isFinishing()) return false;
+        mControlWrapper.startFullScreen();
+        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        return true;
+    }
+
+    @Override
+    protected boolean stopFullScreen() {
+        if (mActivity == null || mActivity.isFinishing()) return false;
+        mControlWrapper.stopFullScreen();
+        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        return true;
     }
 
     public void updateDanmuBtn(){
