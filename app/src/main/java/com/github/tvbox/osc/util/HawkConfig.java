@@ -13,6 +13,9 @@ public class HawkConfig {
     // URL Configurations
     public static final String API_URL = "api_url";
     public static final String API_HISTORY = "api_history";
+    // 小贾影视仓 v21: 用户加载的本地 .py 单源列表(每项 "显示名|绝对路径"),
+    // 每次线路配置解析完成后由 ApiConfig.injectLocalPySites() 自动重新注入, 保证重启/切线路后仍在。
+    public static final String LOCAL_PY_LIST = "local_py_list";
     public static final String LIVE_URL = "live_url";
     public static final String LIVE_HISTORY = "live_history";
     public static final String EPG_URL = "epg_url";
