@@ -106,7 +106,14 @@ public class JarLoader {
                             public void run() {
                                 try {
                                     initMethod.invoke(null, App.getInstance());
-                                } catch (Exception e) {
+                                } catch (Throwable e) {
+                                    // 小贾影视仓 v19.1: 这是加固 jar 的解壳入口 Init.init()。
+                                    // 它内部会裸调 RemoteGate.bootstrap() / merge.h.b8.d() —— 门禁校验、
+                                    // native 绑定、自校验都可能在这里抛 Error(UnsatisfiedLinkError /
+                                    // NoSuchMethodError / AssertionError / ExceptionInInitializerError)。
+                                    // 原 catch(Exception) 抓不到 Error → 子线程未捕获异常 → 触发全局
+                                    // UncaughtExceptionHandler → 切到该线路即闪退。
+                                    Log.i("JarLoader", "echo-Init.init 异常(已隔离): " + e);
                                     e.printStackTrace();
                                 }
                             }
