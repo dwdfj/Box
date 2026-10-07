@@ -18,7 +18,7 @@
             android:id="@+id/mItemFrame"
             android:layout_width="@dimen/vs_120"
             android:layout_height="@dimen/vs_160"
-            android:background="@drawable/shape_thumb_radius"
+            android:background="@drawable/shape_home_poster"
             android:focusable="false"
             android:padding="@dimen/vs_1">
 
@@ -68,12 +68,12 @@
             android:id="@+id/tvName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_4"
+            android:layout_marginTop="@dimen/vs_6"
             android:ellipsize="end"
             android:gravity="center"
             android:singleLine="true"
             android:text=""
             android:textColor="@color/color_FFFFFF_90"
-            android:textSize="@dimen/ts_16" />
+            android:textSize="@dimen/ts_18" />
     </LinearLayout>
 </FrameLayout>
