@@ -54,9 +54,11 @@ public class pyLoader implements IPyLoader {
             return spiders.get(key);
         }
         try {
+            // 小贾影视仓 v19: 不再因缺 WRITE_EXTERNAL_STORAGE 直接返回 SpiderNull。
+            // PythonLoader 的插件目录已支持"外部优先 + filesDir 内部兜底", 内部目录无需该权限即可写;
+            // 原实现在未授权时静默放弃, 是"本地 .py 用不了"的直接原因之一。
             if (ContextCompat.checkSelfPermission(App.getInstance(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                Log.i("PyLoader", "无存储权限，终止执行");
-                return new SpiderNull();
+                Log.i("PyLoader", "无外部存储权限, 继续尝试(将使用应用内部插件目录)");
             }
             Log.i("PyLoader", "echo-getSpider url: " + getPyUrl(cls, ext));
             Spider sp = pythonLoader.getSpider(key, getPyUrl(cls, ext));
