@@ -43,6 +43,7 @@ import com.github.tvbox.osc.player.thirdparty.ReexPlayer;
 import com.github.tvbox.osc.subtitle.widget.SimpleSubtitleView;
 import com.github.tvbox.osc.ui.activity.DetailActivity;
 import com.github.tvbox.osc.ui.activity.HomeActivity;
+import com.github.tvbox.osc.ui.activity.PlayActivity;
 import com.github.tvbox.osc.ui.adapter.ParseAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
@@ -315,6 +316,10 @@ public class VodController extends BaseController {
     public TextView mPlayerTimeResetBtn;
     public ImageView mLvPortraitBtn;
     public LinearLayout mLandscapePortraitBtn;
+    // 注: 转屏按钮图标复用已存在的 mLvPortraitBtn(R.id.lv_portrait), 不另开字段。
+    // 小贾影视仓 v23.3: 画质切换 / 投屏 两个新按钮
+    private TextView mQualityBtn;
+    private TextView mCastBtn;
 
     // parse container
     LinearLayout mParseRoot;
@@ -422,6 +427,9 @@ public class VodController extends BaseController {
         mPlayerTimeResetBtn = findViewById(R.id.play_time_reset);
         mLandscapePortraitBtn = findViewById(R.id.landscape_portrait);
         mLvPortraitBtn = findViewById(R.id.lv_portrait);
+        // 小贾影视仓 v23.3
+        mQualityBtn = findViewById(R.id.play_quality);
+        mCastBtn = findViewById(R.id.play_cast);
 
         // parse container
         mParseRoot = findViewById(R.id.parse_root);
@@ -657,11 +665,11 @@ public class VodController extends BaseController {
             }
         });
         // takagen99 : Long Press to change orientation
-        // 小贾影视仓 v23.2: 竖屏版 —— 不再允许长按切横屏, 一律锁竖屏(整页为竖屏半屏播放布局)。
+        // 小贾影视仓 v23.3: 长按画面 = 横竖屏来回切(原先这里强制锁竖屏, 是"点播放跳横屏小窗"的真凶)。
         mPlayerScaleBtn.setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+                setLandscapePortrait();
                 return true;
             }
         });
@@ -784,6 +792,25 @@ public class VodController extends BaseController {
                 mPlayerIJKBtn.requestFocus();
             }
         });
+        // 小贾影视仓 v23.3: 画质切换 + 投屏 ----------------------------------------
+        if (mQualityBtn != null) {
+            mQualityBtn.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    FastClickCheckUtil.check(view);
+                    if (listener != null) listener.selectVideoQuality();
+                }
+            });
+        }
+        if (mCastBtn != null) {
+            mCastBtn.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    FastClickCheckUtil.check(view);
+                    if (listener != null) listener.gotoScreenCast();
+                }
+            });
+        }
         // Button : Subtitle selection ----------------------------------------
         mSubtitleBtn.setOnClickListener(new OnClickListener() {
             @Override
@@ -1007,15 +1034,43 @@ public class VodController extends BaseController {
     }
 
     public void initLandscapePortraitBtnInfo() {
-        // 小贾影视仓 v23.2: 竖屏版 —— 不再提供横竖屏切换按钮, 隐藏以免误导。
+        // 小贾影视仓 v23.3: 恢复横竖屏切换按钮(用户要求能全屏横屏播放)。
+        // 竖屏 = 卡片式信息页, 横屏 = 视频铺满全屏。按钮在两个方向都要能用, 故保持 VISIBLE。
         if (mLandscapePortraitBtn != null) {
-            mLandscapePortraitBtn.setVisibility(View.GONE);
+            mLandscapePortraitBtn.setVisibility(View.VISIBLE);
+            if (mLvPortraitBtn != null) {
+                mLvPortraitBtn.setImageResource(
+                        isPortrait() ? R.drawable.htov : R.drawable.vtoh);
+            }
+        }
+    }
+
+    /** 当前是否竖屏(以 Activity 请求方向为准, 比读 DisplayMetrics 可靠) */
+    private boolean isPortrait() {
+        try {
+            return mActivity.getResources().getConfiguration().orientation
+                    == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+        } catch (Throwable th) {
+            return true;
         }
     }
 
     void setLandscapePortrait() {
-        // 小贾影视仓 v23.2: 竖屏版 —— 方向切换按钮固定锁竖屏, 不再切横屏(播放页为竖屏半屏布局)。
-        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        // 小贾影视仓 v23.3: 转屏按钮 —— 竖屏↔横屏来回切(用户手动触发, 不自动转)。
+        // manifest 里 PlayActivity 已是 fullUser, configChanges 含 orientation, 旋转不重建 Activity。
+        if (mActivity == null || mActivity.isFinishing()) return;
+        boolean portrait = isPortrait();
+        mActivity.setRequestedOrientation(portrait
+                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        if (mLvPortraitBtn != null) {
+            mLvPortraitBtn.setImageResource(
+                    portrait ? R.drawable.vtoh : R.drawable.htov);
+        }
+        // 通知 Activity 布局切换(横屏要隐藏卡片区, 视频铺满)
+        if (mActivity instanceof PlayActivity) {
+            ((PlayActivity) mActivity).applyOrientationLayout(portrait);
+        }
     }
 
     void initSubtitleInfo() {
@@ -1093,6 +1148,18 @@ public class VodController extends BaseController {
         void selectSubtitle();
 
         void selectAudioTrack();
+
+        /** 小贾影视仓 v23.3: 画质切换(4K/1080P/720P 多清晰度) */
+        void selectVideoQuality();
+
+        /** 小贾影视仓 v23.3: 是否有多清晰度可选(控制条据此显隐画质按钮) */
+        boolean hasMultipleQuality();
+
+        /** 小贾影视仓 v23.3: 播放失败时回传的 DV/HDR 原因, 空串表示非此类问题 */
+        String detectDolbyOrHdr();
+
+        /** 小贾影视仓 v23.3: 投屏入口(跳系统无线显示设置) */
+        void gotoScreenCast();
 
         void openVideo();
 
@@ -1264,6 +1331,18 @@ public class VodController extends BaseController {
                     mPlayerResolution.setText(mControlWrapper.getVideoSize()[0] + " x " + mControlWrapper.getVideoSize()[1]);
                     initLandscapePortraitBtnInfo();
                 }
+                // 小贾影视仓 v23.3: 准备就绪后再判断有没有多清晰度, 决定画质按钮显隐。
+                // 必须在 PREPARED 之后查 —— 此时轨道信息才拿得到。
+                if (mQualityBtn != null) {
+                    boolean multi = false;
+                    try {
+                        multi = listener != null && listener.hasMultipleQuality();
+                    } catch (Throwable ignored) {
+                    }
+                    mQualityBtn.setVisibility(multi ? VISIBLE : GONE);
+                    mQualityBtn.setText(multi ? "画质" : "");
+                }
+                break;
             case VideoView.STATE_BUFFERED:
                 break;
             case VideoView.STATE_PREPARING:
@@ -1618,12 +1697,15 @@ public class VodController extends BaseController {
         return false;
     }
 
-    // 小贾影视仓 v23: 竖屏 App —— 进入/退出全屏播放都保持竖屏, 不旋转成横屏(覆盖 doikki 库默认横屏)
+    // 小贾影视仓 v23.3: 全屏播放 —— 恢复 doikki 库默认的横屏行为, 由转屏按钮手动触发。
+    // 竖屏时 startFullScreen 只放大控件不转屏(保持竖屏卡片版), 横屏时才真正转全屏。
     @Override
     protected boolean startFullScreen() {
         if (mActivity == null || mActivity.isFinishing()) return false;
         mControlWrapper.startFullScreen();
-        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        if (!isPortrait()) {
+            mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        }
         return true;
     }
 
@@ -1631,7 +1713,6 @@ public class VodController extends BaseController {
     protected boolean stopFullScreen() {
         if (mActivity == null || mActivity.isFinishing()) return false;
         mControlWrapper.stopFullScreen();
-        mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         return true;
     }
 
