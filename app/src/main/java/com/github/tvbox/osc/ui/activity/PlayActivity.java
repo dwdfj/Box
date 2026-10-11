@@ -37,6 +37,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -77,6 +78,7 @@ import com.github.tvbox.osc.player.thirdparty.ReexPlayer;
 import com.github.tvbox.osc.server.ControlManager;
 import com.github.tvbox.osc.server.RemoteServer;
 import com.github.tvbox.osc.subtitle.model.Subtitle;
+import com.github.tvbox.osc.ui.adapter.PlayChipAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.DanmuSettingDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSubtitleDialog;
@@ -110,6 +112,9 @@ import com.lzy.okgo.model.HttpHeaders;
 import com.lzy.okgo.model.Response;
 import com.obsez.android.lib.filechooser.ChooserDialog;
 import com.orhanobut.hawk.Hawk;
+import com.owen.tvrecyclerview.widget.TvRecyclerView;
+import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
+import com.owen.tvrecyclerview.widget.V7LinearLayoutManager;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -199,6 +204,21 @@ public class PlayActivity extends BaseActivity {
         initFailover();
         initData();
         initDanmuView();
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 旋转屏幕时重排布局。
+     * manifest 里 PlayActivity 配了 configChanges 含 orientation, 所以旋转不会重建 Activity,
+     * 视频不会中断 —— 但布局要自己切: 竖屏显示卡片信息区, 横屏隐藏卡片、视频铺满。
+     */
+    @Override
+    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        boolean portrait = newConfig.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+        applyOrientationLayout(portrait);
+        if (mController != null) {
+            mController.initLandscapePortraitBtnInfo();
+        }
     }
 
     // 小贾影视仓 v16: 播放失败自动换源(借鉴 FongMi/TV)
@@ -295,6 +315,208 @@ public class PlayActivity extends BaseActivity {
         }
     }
 
+    /**
+     * 小贾影视仓 v23.3: 按方向切换播放页布局。
+     * 竖屏 = 视频(屏宽 9/16) + 下方卡片信息区;
+     * 横屏 = 隐藏卡片区, 视频铺满整个屏幕(用户要求的"全屏横屏播放")。
+     *
+     * @param portrait true=切回竖屏卡片版, false=切横屏全屏
+     */
+    public void applyOrientationLayout(boolean portrait) {
+        try {
+            android.view.View infoScroll = findViewById(R.id.infoScroll);
+            if (portrait) {
+                if (infoScroll != null) infoScroll.setVisibility(View.VISIBLE);
+                applyPortraitVideoHeight();
+            } else {
+                // 横屏: 卡片区隐藏, 视频区直接吃满整屏(match_parent, 不按 16:9 算高 ——
+                // 横屏屏宽是长边, 按 16:9 算出来会比屏幕还宽, 反而不满屏)
+                if (infoScroll != null) infoScroll.setVisibility(View.GONE);
+                android.view.View videoContainer = findViewById(R.id.videoContainer);
+                if (videoContainer != null) {
+                    android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
+                    if (lp != null) {
+                        lp.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+                        videoContainer.setLayoutParams(lp);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 初始化竖屏卡片式播放信息区(标题行 / 简介 / 线路 / 选集)。
+     * 视频控件 VodController 覆盖在视频区之上, 本信息区在视频区下方, 互不遮挡。
+     */
+    private void initPlayInfoArea() {
+        mPlayTitle = findViewById(R.id.play_title);
+        mPlayDes = findViewById(R.id.play_des);
+        mPlayDesToggle = findViewById(R.id.play_des_toggle);
+        mPlayMetaRow = findViewById(R.id.play_meta_row);
+        mPlayLineCard = findViewById(R.id.play_line_card);
+        mPlayEpisodeCard = findViewById(R.id.play_episode_card);
+        mPlayLineList = findViewById(R.id.play_line_list);
+        mPlayEpisodeList = findViewById(R.id.play_episode_list);
+        mBtnEpisodeSort = findViewById(R.id.btn_episode_sort);
+
+        // 线路: 横排胶囊
+        mLineAdapter = new PlayChipAdapter();
+        mPlayLineList.setLayoutManager(new V7LinearLayoutManager(this, 1, true));
+        mPlayLineList.setAdapter(mLineAdapter);
+
+        // 选集: 横排胶囊(可换行的网格, 每行 3 个)
+        mEpisodeAdapter = new PlayChipAdapter();
+        mPlayEpisodeList.setLayoutManager(new V7GridLayoutManager(this, 3));
+        mPlayEpisodeList.setAdapter(mEpisodeAdapter);
+
+        // 简介展开/收起
+        mPlayDesToggle.setOnClickListener(v -> {
+            mDesExpanded = !mDesExpanded;
+            mPlayDes.setMaxLines(mDesExpanded ? 20 : 2);
+            mPlayDesToggle.setText(mDesExpanded ? "收起" : "展开");
+        });
+
+        // 倒序
+        mBtnEpisodeSort.setOnClickListener(v -> {
+            if (mVodInfo == null) return;
+            mVodInfo.reverseSort = !mVodInfo.reverseSort;
+            mBtnEpisodeSort.setText(mVodInfo.reverseSort ? "↑ 正序" : "↓ 倒序");
+            bindEpisodeList();
+            // 重新定位到当前集
+            int idx = currentEpisodeChipIndex();
+            if (idx >= 0 && idx < mEpisodeAdapter.getData().size()) {
+                mPlayEpisodeList.scrollToPosition(idx);
+            }
+        });
+
+        // 线路点击: 切线路
+        mLineAdapter.setOnItemClickListener((adapter, view, position) -> {
+            if (mVodInfo == null || mLineFlags.isEmpty()) return;
+            int p = adapter.getBindingAdapterPosition();
+            if (p < 0 || p >= mLineFlags.size()) return;
+            String flag = mLineFlags.get(p);
+            if (flag.equals(mVodInfo.playFlag)) return;
+            mVodInfo.playFlag = flag;
+            mVodInfo.playIndex = 0;
+            mVodInfo.playGroup = 0;
+            mVodInfo.playGroupCount = 0;
+            mLineAdapter.setSelectedIndex(p);
+            bindPlayInfo();
+            play(false);
+        });
+
+        // 选集点击: 切集
+        mEpisodeAdapter.setOnItemClickListener((adapter, view, position) -> {
+            int p = adapter.getBindingAdapterPosition();
+            if (p < 0 || mVodInfo == null) return;
+            if (p == mVodInfo.getplayIndex()) return;
+            mVodInfo.playIndex = p;
+            mVodInfo.playGroup = 0;
+            mVodInfo.playGroupCount = 0;
+            mEpisodeAdapter.setSelectedIndex(p);
+            play(false);
+        });
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 把 mVodInfo 的数据绑到卡片信息区(每次起播/换源后调用)。
+     */
+    private void bindPlayInfo() {
+        if (mVodInfo == null || mPlayTitle == null) return;
+
+        // 标题
+        mPlayTitle.setText(mVodInfo.name == null ? "" : mVodInfo.name);
+
+        // 来源 / 类型 / 年份 / 地区 胶囊(数量少, 直接 inflate 填进横向 LinearLayout)
+        java.util.ArrayList<String> metas = new ArrayList<>();
+        SourceBean sb = mVodInfo.sourceKey == null ? null : ApiConfig.get().getSource(mVodInfo.sourceKey);
+        if (sb != null && sb.getName() != null && !sb.getName().isEmpty()) {
+            metas.add(sb.getName());
+        }
+        if (mVodInfo.type != null && !mVodInfo.type.isEmpty()) metas.add(mVodInfo.type);
+        if (mVodInfo.year > 0) metas.add(String.valueOf(mVodInfo.year));
+        if (mVodInfo.area != null && !mVodInfo.area.isEmpty()) metas.add(mVodInfo.area);
+        if (mPlayMetaRow != null) {
+            mPlayMetaRow.removeAllViews();
+            if (!metas.isEmpty()) {
+                mPlayMetaRow.setVisibility(View.VISIBLE);
+                android.view.LayoutInflater inf = android.view.LayoutInflater.from(this);
+                for (String meta : metas) {
+                    TextView chip = (TextView) inf.inflate(R.layout.item_play_meta, mPlayMetaRow, false);
+                    chip.setText(meta);
+                    mPlayMetaRow.addView(chip);
+                }
+            } else {
+                mPlayMetaRow.setVisibility(View.GONE);
+            }
+        }
+
+        // 简介
+        if (mPlayDes != null) {
+            String des = mVodInfo.des == null ? "" : mVodInfo.des.trim();
+            if (des.isEmpty()) des = mVodInfo.note == null ? "" : mVodInfo.note.trim();
+            mPlayDes.setText(des);
+            mPlayDes.setVisibility(des.isEmpty() ? View.GONE : View.VISIBLE);
+            android.view.View desCard = findViewById(R.id.play_des_card);
+            if (desCard != null) desCard.setVisibility(des.isEmpty() ? View.GONE : View.VISIBLE);
+            if (mPlayDesToggle != null) {
+                // 简介够长(>2 行)才给"展开"
+                mPlayDesToggle.setVisibility(des.length() > 40 ? View.VISIBLE : View.GONE);
+                mPlayDesToggle.setText(mDesExpanded ? "收起" : "展开");
+            }
+        }
+
+        bindLineList();
+        bindEpisodeList();
+    }
+
+    private void bindLineList() {
+        if (mVodInfo == null || mLineAdapter == null) return;
+        mLineFlags.clear();
+        if (mVodInfo.seriesMap != null) {
+            mLineFlags.addAll(mVodInfo.seriesMap.keySet());
+        }
+        if (mLineFlags.isEmpty()) {
+            mPlayLineCard.setVisibility(View.GONE);
+            return;
+        }
+        mPlayLineCard.setVisibility(View.VISIBLE);
+        mLineAdapter.setNewData(new ArrayList<>(mLineFlags));
+        int cur = mLineFlags.indexOf(mVodInfo.playFlag);
+        mLineAdapter.setSelectedIndex(cur);
+    }
+
+    private void bindEpisodeList() {
+        if (mVodInfo == null || mEpisodeAdapter == null) return;
+        java.util.List<VodInfo.VodSeries> list = null;
+        if (mVodInfo.seriesMap != null) {
+            list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        }
+        if (list == null || list.isEmpty()) {
+            mPlayEpisodeCard.setVisibility(View.GONE);
+            return;
+        }
+        mPlayEpisodeCard.setVisibility(View.VISIBLE);
+        java.util.ArrayList<String> names = new ArrayList<>();
+        for (VodInfo.VodSeries v : list) {
+            names.add(v.name == null ? "" : v.name);
+        }
+        mEpisodeAdapter.setNewData(names);
+        mEpisodeAdapter.setSelectedIndex(currentEpisodeChipIndex());
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 倒序时把「真实播放序号」换算成「胶囊列表里的位置」。
+     */
+    private int currentEpisodeChipIndex() {
+        if (mVodInfo == null || mVodInfo.seriesMap == null) return -1;
+        java.util.List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+        if (list == null || list.isEmpty()) return -1;
+        if (!mVodInfo.reverseSort) return mVodInfo.getplayIndex();
+        return list.size() - 1 - mVodInfo.getplayIndex();
+    }
+
     private void initView() {
 
         // takagen99 : Hide only when video playing
@@ -321,6 +543,7 @@ public class PlayActivity extends BaseActivity {
         mPlayLoading = findViewById(R.id.play_loading);
         mPlayLoadErr = findViewById(R.id.play_load_error);
         applyPortraitVideoHeight();
+        initPlayInfoArea();
         mController = new VodController(this);
         mController.setCanChangePosition(true);
         mController.setEnableInNormal(true);
@@ -410,6 +633,13 @@ public class PlayActivity extends BaseActivity {
 
             @Override
             public void errReplay() {
+                // 小贾影视仓 v23.3: 播放失败时先探一下是不是 DV/HDR 片源 ——
+                // 这类片子在部分手机上表现为"黑屏/无画面但有声音", 直接报"播放出错"用户无从下手。
+                String dv = detectDolbyOrHdr();
+                if (dv != null && !dv.isEmpty()) {
+                    Toast.makeText(mContext, dv + ", 建议在控制条切换播放内核或改用软解后重试",
+                            Toast.LENGTH_LONG).show();
+                }
                 errorWithRetry("视频播放出错", false);
             }
 
@@ -425,6 +655,26 @@ public class PlayActivity extends BaseActivity {
             @Override
             public void selectAudioTrack() {
                 selectMyAudioTrack();
+            }
+
+            @Override
+            public void selectVideoQuality() {
+                selectMyVideoQuality();
+            }
+
+            @Override
+            public boolean hasMultipleQuality() {
+                return PlayActivity.this.hasMultipleQuality();
+            }
+
+            @Override
+            public String detectDolbyOrHdr() {
+                return PlayActivity.this.detectDolbyOrHdr();
+            }
+
+            @Override
+            public void gotoScreenCast() {
+                PlayActivity.this.gotoScreenCast();
             }
 
             @Override
@@ -697,6 +947,153 @@ public class PlayActivity extends BaseActivity {
             }
         }, bean, trackInfo.getAudioSelected(false));
         dialog.show();
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 画质切换(4K / 1080P / 720P …)。
+     * <p>仅 ExoPlayer 有效 —— DASH/HLS 流才会带多个 video 轨, 单文件 MP4 只有一个轨, 无从选择。
+     * IJK 与系统 MediaPlayer 不提供该能力, 故直接提示而不是给一个死按钮。</p>
+     * 切换走 SelectionOverride, 需要重新加载流, 因此先保存进度、切轨后再 seek 回原位置,
+     * 观感上会闪一下(与项目内既有"换内核/换字幕"的处理方式一致)。
+     */
+    void selectMyVideoQuality() {
+        AbstractPlayer mediaPlayer = mVideoView.getMediaPlayer();
+        if (!(mediaPlayer instanceof EXOmPlayer)) {
+            Toast.makeText(mContext, "当前内核不支持画质切换(仅 Exo 内核的多清晰度流可用)",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        TrackInfo trackInfo = ((EXOmPlayer) mediaPlayer).getTrackInfo();
+        if (trackInfo == null || trackInfo.getVideo().isEmpty()) {
+            Toast.makeText(mContext, "当前片源没有多清晰度可选", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 按分辨率从高到低排, 让 4K 排在最上面
+        final List<TrackInfoBean> bean = new ArrayList<>(trackInfo.getVideo());
+        Collections.sort(bean, (a, b) -> {
+            long pa = (long) a.width * a.height;
+            long pb = (long) b.width * b.height;
+            if (pa != pb) return Long.compare(pb, pa);
+            return Integer.compare(b.bitrate, a.bitrate);
+        });
+
+        SelectDialog<TrackInfoBean> dialog = new SelectDialog<>(PlayActivity.this);
+        dialog.setTip("画质");
+        dialog.setAdapter(null, new SelectDialogAdapter.SelectDialogInterface<TrackInfoBean>() {
+            @Override
+            public void click(TrackInfoBean value, int pos) {
+                try {
+                    for (TrackInfoBean v : bean) {
+                        v.selected = (v.width == value.width && v.height == value.height
+                                && v.trackId == value.trackId);
+                    }
+                    mediaPlayer.pause();
+                    final long progress = mediaPlayer.getCurrentPosition();
+                    ((EXOmPlayer) mediaPlayer).selectExoTrack(value);
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            mediaPlayer.seekTo(progress);
+                            mediaPlayer.start();
+                            mController.startProgress();
+                        }
+                    }, 800);
+                    dialog.dismiss();
+                } catch (Exception e) {
+                    LOG.e("切换画质出错");
+                }
+            }
+
+            @Override
+            public String getDisplay(TrackInfoBean val) {
+                String label = qualityLabel(val.height);
+                if (!StringUtils.isEmpty(label)) return label;
+                return val.name;
+            }
+        }, new DiffUtil.ItemCallback<TrackInfoBean>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull @NotNull TrackInfoBean oldItem, @NonNull @NotNull TrackInfoBean newItem) {
+                return oldItem.trackId == newItem.trackId && oldItem.height == newItem.height;
+            }
+
+            @Override
+            public boolean areContentsTheSame(@NonNull @NotNull TrackInfoBean oldItem, @NonNull @NotNull TrackInfoBean newItem) {
+                return oldItem.trackId == newItem.trackId && oldItem.height == newItem.height;
+            }
+        }, bean, indexOfSelected(bean));
+        dialog.show();
+    }
+
+    /** 小贾影视仓 v23.3: 画质档位友好名(4K/1080P/720P…), 认不出来时返回空串走原始文案 */
+    static String qualityLabel(int height) {
+        if (height <= 0) return "";
+        if (height >= 2000) return "4K (" + height + "P)";
+        if (height >= 1400) return "2K (" + height + "P)";
+        if (height >= 1000) return "1080P";
+        if (height >= 700) return "720P";
+        if (height >= 500) return "576P";
+        if (height >= 400) return "480P";
+        if (height >= 200) return "360P";
+        return height + "P";
+    }
+
+    private static int indexOfSelected(List<TrackInfoBean> list) {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).selected) return i;
+        }
+        return 0;
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 当前是否有多清晰度可选(供控制条决定画质按钮显隐)。
+     */
+    public boolean hasMultipleQuality() {
+        AbstractPlayer mediaPlayer = mVideoView == null ? null : mVideoView.getMediaPlayer();
+        if (!(mediaPlayer instanceof EXOmPlayer)) return false;
+        try {
+            TrackInfo ti = ((EXOmPlayer) mediaPlayer).getTrackInfo();
+            return ti != null && ti.hasMultipleVideo();
+        } catch (Throwable th) {
+            return false;
+        }
+    }
+
+    /**
+     * 小贾影视仓 v23.3: 杜比视界 / HDR 检测(用于播放失败时的降级提示)。
+     * 真正的 DV 色调映射手机端做不到, 这里只做"识别出来 -> 提示换内核/软解", 避免用户对着黑屏干瞪眼。
+     *
+     * @return "" 表示不是 DV/HDR 片源; 否则是可读的原因描述
+     */
+    public String detectDolbyOrHdr() {
+        try {
+            AbstractPlayer p = mVideoView == null ? null : mVideoView.getMediaPlayer();
+            if (!(p instanceof EXOmPlayer)) return "";
+            TrackInfo ti = ((EXOmPlayer) p).getTrackInfo();
+            if (ti == null) return "";
+            for (TrackInfoBean v : ti.getVideo()) {
+                String n = v.name == null ? "" : v.name.toUpperCase();
+                if (n.contains("DV") || n.contains("DOLBY") || n.contains("杜比")) {
+                    return "该片源疑似杜比视界(Dolby Vision)";
+                }
+                if (n.contains("HDR") || n.contains("HLG") || n.contains("PQ")) {
+                    return "该片源是 HDR/HLG 高动态范围";
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
+    }
+
+    /** 小贾影视仓 v23.3: 投屏入口 —— 跳系统无线显示设置(Miracast)。 */
+    public void gotoScreenCast() {
+        try {
+            Intent i = new Intent("android.settings.WIFI_DISPLAY_SETTINGS");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            Toast.makeText(mContext, "在系统页面选择要投屏的设备", Toast.LENGTH_LONG).show();
+        } catch (Throwable th) {
+            Toast.makeText(mContext, "本机不支持无线投屏", Toast.LENGTH_SHORT).show();
+        }
     }
 
     void openMyVideo() {
@@ -1382,6 +1779,21 @@ public class PlayActivity extends BaseActivity {
     private String sourceKey;
     private SourceBean sourceBean;
 
+    // 小贾影视仓 v23.3: 竖屏卡片式播放信息区(标题/简介/线路/选集)
+    private TextView mPlayTitle;
+    private TextView mPlayDes;
+    private TextView mPlayDesToggle;
+    private LinearLayout mPlayMetaRow;
+    private LinearLayout mPlayLineCard;
+    private LinearLayout mPlayEpisodeCard;
+    private TvRecyclerView mPlayLineList;
+    private TvRecyclerView mPlayEpisodeList;
+    private TextView mBtnEpisodeSort;
+    private PlayChipAdapter mLineAdapter;
+    private PlayChipAdapter mEpisodeAdapter;
+    private boolean mDesExpanded = false;
+    private final java.util.List<String> mLineFlags = new ArrayList<>();
+
     public void playNext(boolean inProgress) {
         boolean hasNext = true;
         if (mVodInfo == null || mVodInfo.seriesMap.get(mVodInfo.playFlag) == null) {
@@ -1479,6 +1891,8 @@ public class PlayActivity extends BaseActivity {
 
     public void play(boolean reset) {
         VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.getplayIndex());
+        // 小贾影视仓 v23.3: 每次起播/换集后刷新下方卡片信息区(标题/线路/选集高亮)
+        bindPlayInfo();
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodInfo.getplayIndex()));
         EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH_NOTIFY, mVodInfo.name + "&&" + vs.name));
         String playTitleInfo = mVodInfo.name + " : " + vs.name;
