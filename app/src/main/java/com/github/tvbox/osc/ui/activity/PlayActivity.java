@@ -394,8 +394,9 @@ public class PlayActivity extends BaseActivity {
         // 线路点击: 切线路
         mLineAdapter.setOnItemClickListener((adapter, view, position) -> {
             if (mVodInfo == null || mLineFlags.isEmpty()) return;
-            // 注: BaseRecyclerViewAdapterHelper 2.9.49 无 getBindingAdapterPosition(), 用 getAdapterPosition()
-            int p = adapter.getAdapterPosition();
+            // 注: BRVAH 2.9.49 的 BaseQuickAdapter 既无 getBindingAdapterPosition()(3.x 才有)
+            //     也无 getAdapterPosition()(那是 BaseViewHolder 的方法), 直接用监听器回调的 position。
+            int p = position;
             if (p < 0 || p >= mLineFlags.size()) return;
             String flag = mLineFlags.get(p);
             if (flag.equals(mVodInfo.playFlag)) return;
@@ -410,7 +411,7 @@ public class PlayActivity extends BaseActivity {
 
         // 选集点击: 切集
         mEpisodeAdapter.setOnItemClickListener((adapter, view, position) -> {
-            int p = adapter.getAdapterPosition();
+            int p = position;
             if (p < 0 || mVodInfo == null) return;
             if (p == mVodInfo.getplayIndex()) return;
             mVodInfo.playIndex = p;
