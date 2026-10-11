@@ -19,6 +19,8 @@ import xyz.doikki.videoplayer.exo.ExoMediaPlayer;
 public class EXOmPlayer extends ExoMediaPlayer {
     private String audioId = "";
     private String subtitleId = "";
+    // 小贾影视仓 v23.3: 当前选中的画质标识(按 Format.id 记, 换流后重置)
+    private String videoId = "";
 
     public EXOmPlayer(Context context) {
         super(context);
@@ -57,9 +59,34 @@ public class EXOmPlayer extends ExoMediaPlayer {
                             t.trackGroupId = groupIndex;
                             t.renderId = groupArrayIndex;
                             data.addSubtitle(t);
+                        } else if (MimeTypes.isVideo(format.sampleMimeType)) {
+                            // 小贾影视仓 v23.3: 收集 video 轨供「画质切换(4K/1080P/720P)」使用。
+                            // trackNameProvider 已能生成「3840x2160 · 12.5Mbps」这类文案, 直接复用。
+                            String trackName = trackNameProvider.getTrackName(format);
+                            if (StringUtils.isEmpty(trackName)) {
+                                trackName = (format.width > 0 && format.height > 0)
+                                        ? (format.width + "x" + format.height)
+                                        : ("轨道" + (data.getVideo().size() + 1));
+                            }
+                            TrackInfoBean t = new TrackInfoBean();
+                            t.name = trackName;
+                            t.language = "";
+                            t.trackId = formatIndex;
+                            t.selected = !StringUtils.isEmpty(videoId) && videoId.equals(format.id);
+                            t.trackGroupId = groupIndex;
+                            t.renderId = groupArrayIndex;
+                            t.bitrate = format.bitrate;
+                            t.width = format.width;
+                            t.height = format.height;
+                            data.addVideo(t);
                         }
                     }
                 }
+            }
+            // 部分流 Format.id 为 null, 取不到 videoId 时用第一档兜底标记为选中,
+            // 否则画质对话框会一个都没勾选。
+            if (StringUtils.isEmpty(videoId) && !data.getVideo().isEmpty()) {
+                data.getVideo().get(0).selected = true;
             }
         }
         return data;
@@ -68,7 +95,8 @@ public class EXOmPlayer extends ExoMediaPlayer {
     @SuppressLint("UnsafeOptInUsageError")
     private void getExoSelectedTrack() {
         audioId = "";
-        subtitleId = "";        
+        subtitleId = "";
+        videoId = "";
         for (Tracks.Group group : mMediaPlayer.getCurrentTracks().getGroups()) {
             if (!group.isSelected()) continue;
             for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
@@ -79,7 +107,10 @@ public class EXOmPlayer extends ExoMediaPlayer {
                 }
                 if (MimeTypes.isText(format.sampleMimeType)) {
                     subtitleId = format.id;
-                }                
+                }
+                if (MimeTypes.isVideo(format.sampleMimeType)) {
+                    videoId = format.id;
+                }
             }
         }
     }
