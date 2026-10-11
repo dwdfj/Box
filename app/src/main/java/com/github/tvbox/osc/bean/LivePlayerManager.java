@@ -25,7 +25,8 @@ public class LivePlayerManager {
             int playerType = Hawk.get(HawkConfig.LIVE_PLAYER_TYPE, -1);
             if (playerType == -1) playerType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
             defaultPlayerConfig.put("pl", playerType);
-            defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
+            // 小贾影视仓 v23.3: 与 PlayerHelper/App.java 统一为"硬解码"(原来此处写"软解码", 三处默认值互相矛盾)
+            defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "硬解码"));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
             defaultPlayerConfig.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, 0));
         } catch (JSONException e) {
