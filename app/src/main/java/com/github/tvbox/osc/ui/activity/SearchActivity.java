@@ -126,6 +126,7 @@ public class SearchActivity extends BaseActivity {
     private TvRecyclerView mSearchSourceList = null;
     private SearchSourceAdapter sourceAdapter = null;
     private LinearLayout llSearchPanel = null;
+    private LinearLayout llSourceBar = null;
     private final java.util.LinkedHashMap<String, java.util.ArrayList<Movie.Video>> searchResultMap = new java.util.LinkedHashMap<>();
     private final java.util.LinkedHashMap<String, String> sourceKeyByName = new java.util.LinkedHashMap<>();
     private String currentFilterKey = null;
@@ -259,12 +260,9 @@ public class SearchActivity extends BaseActivity {
             }
         });
         mGridView.setHasFixedSize(true);
-        // lite
-        if (Hawk.get(HawkConfig.SEARCH_VIEW, 0) == 0)
-            mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
-            // with preview
-        else
-            mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, 2));
+        // 小贾影视仓 v23.3: 竖屏三列竖版海报(对齐 AVBox 首页观感)。
+        // v23.2 这里是 2 列 + 左侧竖排来源列, 竖屏下结果被挤成细面条, 已去掉来源列。
+        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
         searchAdapter = new SearchAdapter();
         mGridView.setAdapter(searchAdapter);
         searchAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
@@ -289,11 +287,12 @@ public class SearchActivity extends BaseActivity {
                 }
             }
         });
-        // 小贾影视仓: 搜索结果来源渠道列表(左侧)
+        // 小贾影视仓 v23.3: 来源渠道从左侧竖排改为顶部横排胶囊(可横滑), 点选即筛选该来源
         mSearchSourceList = findViewById(R.id.mSearchSourceList);
+        llSourceBar = findViewById(R.id.llSourceBar);
         llSearchPanel = findViewById(R.id.llSearchPanel);
         sourceAdapter = new SearchSourceAdapter();
-        mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
+        mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, true));
         mSearchSourceList.setAdapter(sourceAdapter);
         sourceAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
@@ -301,7 +300,8 @@ public class SearchActivity extends BaseActivity {
                 FastClickCheckUtil.check(view);
                 String name = sourceAdapter.getData().get(position);
                 String key = sourceKeyByName.get(name);
-                currentFilterKey = (key != null && key.equals(currentFilterKey)) ? null : key;
+                // 点"全部"或重复点当前来源 => 回到全部结果
+                currentFilterKey = (key == null || key.equals(currentFilterKey)) ? null : key;
                 showFilteredResults();
             }
         });
@@ -741,7 +741,7 @@ public class SearchActivity extends BaseActivity {
         sourceKeyByName.clear();
         currentFilterKey = null;
         if (mSearchSourceList != null) {
-            mSearchSourceList.setVisibility(View.GONE);
+            llSourceBar.setVisibility(View.GONE);
             if (sourceAdapter != null) sourceAdapter.setNewData(new ArrayList<>());
         }
         // 小贾影视仓: 重新搜索时恢复搜索面板
@@ -832,8 +832,9 @@ public class SearchActivity extends BaseActivity {
             if (llSearchPanel != null) llSearchPanel.setVisibility(View.GONE);
             mGridView.setVisibility(View.VISIBLE);
             updateSourceList();
+            // 小贾影视仓 v23.3: 来源胶囊整行显隐(横排, 位于结果网格上方)
             if (mSearchSourceList != null && !sourceAdapter.getData().isEmpty()) {
-                mSearchSourceList.setVisibility(View.VISIBLE);
+                llSourceBar.setVisibility(View.VISIBLE);
             }
             // v15.13: 全部视图下增量追加, 杜绝"每站全量重绘整墙闪烁/跳动";
             // 单渠道过滤视图仍走 showFilteredResults(该组数据本来就小, 重绘无感)
@@ -862,10 +863,14 @@ public class SearchActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓: 更新左侧来源渠道列表
+    // 小贾影视仓: 更新来源渠道胶囊(顶部横排, 第一个是"全部")
+    private static final String SRC_ALL = "全部结果";
+
     private void updateSourceList() {
         java.util.ArrayList<String> names = new java.util.ArrayList<>();
         sourceKeyByName.clear();
+        names.add(SRC_ALL);
+        sourceKeyByName.put(SRC_ALL, null);
         for (String sk : searchResultMap.keySet()) {
             int n = searchResultMap.get(sk).size();
             // 小贾影视仓: 渠道显示中文源名
