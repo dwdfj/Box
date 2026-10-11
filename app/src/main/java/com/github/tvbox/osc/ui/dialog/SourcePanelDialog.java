@@ -153,7 +153,14 @@ public class SourcePanelDialog extends BaseDialog {
         // ---------- 底部操作: 样式 / 配置 / 返回 ----------
         if (styleText != null) {
             android.widget.TextView tvStyle = findViewById(R.id.panelStyleBtn);
-            tvStyle.setText("首页样式: " + styleText);
+            // 小贾影视仓 v23.3: 底部四按钮改为等宽均分(weight=1), 每个只有约 5 个汉字宽。
+            // 原文案「首页样式: 宫格」(7 字) 会被 ellipsize 截成「首页样…」。
+            // 现只保留前缀, 当前样式值放到 contentDescription 里(无障碍/长按提示仍可读到)。
+            tvStyle.setText("首页样式");
+            tvStyle.setContentDescription("首页样式: " + styleText);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                tvStyle.setTooltipText("首页样式: " + styleText);
+            }
         }
         findViewById(R.id.panelStyleBtn).setOnClickListener(new View.OnClickListener() {
             @Override
