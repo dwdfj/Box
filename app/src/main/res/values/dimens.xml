@@ -38,6 +38,14 @@
     <dimen name="vs_20">20mm</dimen>
     <dimen name="vs_24">24mm</dimen>
     <dimen name="vs_25">25mm</dimen>
+    <!-- 小贾影视仓 v23.3: 竖屏卡片式播放信息区(卡片内边距 / 图标钮 / 标题与简介字号) -->
+    <dimen name="vs_28">28mm</dimen>
+    <dimen name="vs_32">32mm</dimen>
+    <dimen name="vs_72">72mm</dimen>
+    <!-- v23.3: 信号源面板加宽(底部四按钮均分后不再溢出), 1240 = 原 1180 + 60 -->
+    <dimen name="vs_1240">1240mm</dimen>
+    <dimen name="ts_28">46mm</dimen>
+    <dimen name="ts_38">62mm</dimen>
     <dimen name="vs_30">30mm</dimen>
     <dimen name="vs_36">36mm</dimen>
     <dimen name="vs_33">33mm</dimen>
