@@ -133,7 +133,12 @@ public class HawkUtils {
                 return new NextRenderersFactory(context);
             case 0:
             default:
-                return new DefaultRenderersFactory(context);
+                // 小贾影视仓 v23.3: 开 MediaCodec 解码器回退。
+                // 杜比视界 / HDR10 / 某些 4K HEVC 在部分手机 SoC 上没有硬解, 默认行为是直接失败(黑屏/报错);
+                // 打开 fallback 后会依次尝试其它可用解码器, 至少能出声或出画面, 是 DV 片源的保底手段。
+                // ⚠️ 真正的 Dolby Vision 色调映射(DV->HDR10/SDR)手机端做不到, 这里只解决"能不能解出来"。
+                return new DefaultRenderersFactory(context)
+                        .setEnableDecoderFallback(true);
         }
     }
 
