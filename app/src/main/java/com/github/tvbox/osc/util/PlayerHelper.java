@@ -29,7 +29,11 @@ public class PlayerHelper {
     public static void updateCfg(VideoView videoView, JSONObject playerCfg, int forcePlayerType) {
         int playerType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
         int renderType = Hawk.get(HawkConfig.PLAY_RENDER, 0);
-        String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "软解码");
+        // 小贾影视仓 v23.3: 兜底值由"软解码"统一为"硬解码"。
+        // 原来这里写"软解码"、而 App.java 的 putDefault 写"硬解码", 两处不一致,
+        // 导致用户看到的控制条按钮显示与实际生效的解码模式对不上。
+        // 4K 走软解会卡顿甚至解不出来, 默认给硬解, 不够时用户可在控制条一键切软解。
+        String ijkCode = Hawk.get(HawkConfig.IJK_CODEC, "硬解码");
         int scale = Hawk.get(HawkConfig.PLAY_SCALE, 0);
         try {
             playerType = playerCfg.getInt("pl");
