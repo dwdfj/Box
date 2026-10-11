@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v23.3: 播放页卡片内的可点元素底(线路/选集胶囊、图标钮、倒序/全部按钮)。
+     比卡片本身略亮的半透明灰, 聚焦时靠 shape_user_focus 的 selector 换色。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/vs_16" />
+    <solid android:color="#26FFFFFF" />
+    <stroke android:width="1mm" android:color="#1FFFFFFF" />
+</shape>
