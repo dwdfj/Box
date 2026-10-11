@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v23.3: 播放页「来源 / 类型 / 年份 / 地区」信息胶囊(比线路胶囊更小更淡)。
+     由 PlayActivity.bindPlayInfo() 直接 inflate 填进 play_meta_row, 不走 adapter。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_meta"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/vs_12"
+    android:layout_marginRight="@dimen/vs_12"
+    android:background="@drawable/shape_play_card_icon"
+    android:ellipsize="end"
+    android:gravity="center"
+    android:maxLines="1"
+    android:maxWidth="200mm"
+    android:paddingLeft="@dimen/vs_20"
+    android:paddingRight="@dimen/vs_20"
+    android:paddingTop="@dimen/vs_8"
+    android:paddingBottom="@dimen/vs_8"
+    android:singleLine="true"
+    android:textColor="@color/color_FFFFFF_80"
+    android:textSize="@dimen/ts_24" />
