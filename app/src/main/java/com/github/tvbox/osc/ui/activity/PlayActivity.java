@@ -135,6 +135,7 @@ import java.io.File;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -393,7 +394,8 @@ public class PlayActivity extends BaseActivity {
         // 线路点击: 切线路
         mLineAdapter.setOnItemClickListener((adapter, view, position) -> {
             if (mVodInfo == null || mLineFlags.isEmpty()) return;
-            int p = adapter.getBindingAdapterPosition();
+            // 注: BaseRecyclerViewAdapterHelper 2.9.49 无 getBindingAdapterPosition(), 用 getAdapterPosition()
+            int p = adapter.getAdapterPosition();
             if (p < 0 || p >= mLineFlags.size()) return;
             String flag = mLineFlags.get(p);
             if (flag.equals(mVodInfo.playFlag)) return;
@@ -408,7 +410,7 @@ public class PlayActivity extends BaseActivity {
 
         // 选集点击: 切集
         mEpisodeAdapter.setOnItemClickListener((adapter, view, position) -> {
-            int p = adapter.getBindingAdapterPosition();
+            int p = adapter.getAdapterPosition();
             if (p < 0 || mVodInfo == null) return;
             if (p == mVodInfo.getplayIndex()) return;
             mVodInfo.playIndex = p;
