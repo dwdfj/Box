@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v23.3: 竖屏播放页信息卡片底(对齐 AVBox 竖屏播放器的深色圆角卡片)。
+     比 Banner 更实(卡片要托住文字), 用 #B3181B22 半透明深灰蓝 + 细白描边, 圆角 24。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/vs_24" />
+    <solid android:color="#B3181B22" />
+    <stroke android:width="1mm" android:color="#1FFFFFFF" />
+</shape>
