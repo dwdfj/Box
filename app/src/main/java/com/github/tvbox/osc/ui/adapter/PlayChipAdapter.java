@@ -31,7 +31,9 @@ public class PlayChipAdapter extends BaseQuickAdapter<String, BaseViewHolder> {
     protected void convert(@NonNull BaseViewHolder helper, String item) {
         helper.setText(R.id.tv_chip, item);
         // 选中项高亮: 胶囊描边加粗 + 文字全白
-        int pos = helper.getBindingAdapterPosition();
+        // 注: 本工程用的是 BaseRecyclerViewAdapterHelper 2.9.49, 该版本没有
+        // getBindingAdapterPosition()（3.x 才引入), 用 getAdapterPosition()。
+        int pos = helper.getAdapterPosition();
         boolean sel = pos >= 0 && pos == selectedIndex;
         helper.setTextColor(R.id.tv_chip, sel ? 0xFFFFFFFF : 0xB3FFFFFF);
     }
