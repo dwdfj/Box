@@ -1,84 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 搜索页面 -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+<!-- 小贾影视仓 v23.3 搜索结果卡片: 竖版海报 + 标题在下方。
+     v23.2 用的是"标题压在海报底部 + tvNote/tvSite 角标"的横屏遗留做法, 在竖屏三列下
+     海报被压得又窄又高、标题挤成两行还截断(用户实机截图)。改为标准竖版海报比例,
+     标题独立一行居中放在海报下方, 最多两行。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/shape_thumb_radius"
     android:focusable="true"
-    android:padding="@dimen/vs_1">
+    android:orientation="vertical"
+    android:padding="@dimen/vs_6">
 
     <FrameLayout
-        android:layout_width="@dimen/vs_480"
-        android:layout_height="@dimen/vs_660">
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <ImageView
             android:id="@+id/ivThumb"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="@dimen/vs_1"
-            android:scaleType="fitXY" />
+            android:scaleType="centerCrop"
+            android:src="@drawable/img_loading_placeholder" />
 
-        <LinearLayout
+        <!-- 左上角: 来源名(竖排来源列取消后, 来源信息移到卡片角标) -->
+        <TextView
+            android:id="@+id/tvSite"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/vs_5"
-            android:layout_marginTop="@dimen/vs_5"
-            android:layout_marginRight="@dimen/vs_5"
-            android:orientation="horizontal">
+            android:layout_gravity="top|start"
+            android:layout_margin="@dimen/vs_8"
+            android:background="@drawable/shape_thumb_year"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxWidth="60%"
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12"
+            android:paddingTop="@dimen/vs_4"
+            android:paddingBottom="@dimen/vs_4"
+            android:singleLine="true"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_22" />
 
-            <TextView
-                android:id="@+id/tvSite"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/vs_5"
-                android:layout_marginRight="@dimen/vs_5"
-                android:background="@drawable/shape_thumb_year"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:paddingLeft="@dimen/vs_8"
-                android:paddingRight="@dimen/vs_8"
-                android:singleLine="true"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_24" />
-
-        </LinearLayout>
-
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <!-- 右下角: 备注(更新至第X集 / 4K / HD) -->
+        <TextView
+            android:id="@+id/tvNote"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:orientation="vertical"
-            android:padding="@dimen/vs_1">
-
-            <TextView
-                android:id="@+id/tvNote"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:layout_marginLeft="@dimen/vs_5"
-                android:layout_marginRight="@dimen/vs_5"
-                android:layout_marginBottom="@dimen/vs_5"
-                android:background="@drawable/shape_thumb_note"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:paddingLeft="@dimen/vs_8"
-                android:paddingRight="@dimen/vs_8"
-                android:singleLine="true"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_24" />
-
-            <TextView
-                android:id="@+id/tvName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/shape_thumb_bottom_name"
-                android:ellipsize="marquee"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:padding="@dimen/vs_8"
-                android:singleLine="true"
-                android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_26" />
-        </LinearLayout>
+            android:layout_gravity="bottom|end"
+            android:layout_margin="@dimen/vs_8"
+            android:background="@drawable/shape_thumb_note"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxWidth="70%"
+            android:paddingLeft="@dimen/vs_12"
+            android:paddingRight="@dimen/vs_12"
+            android:paddingTop="@dimen/vs_4"
+            android:paddingBottom="@dimen/vs_4"
+            android:singleLine="true"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/ts_22" />
     </FrameLayout>
-</FrameLayout>
+
+    <!-- 标题: 海报下方独立一行, 最多两行 -->
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/vs_10"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:lineSpacingExtra="@dimen/vs_2"
+        android:maxLines="2"
+        android:text="Title"
+        android:textColor="@android:color/white"
+        android:textSize="@dimen/ts_24" />
+</LinearLayout>
