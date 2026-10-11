@@ -209,7 +209,8 @@
 
     <string-array name="media_content_ExoPlayer">
         <item>渲染器</item>
-<!--        <item>渲染器模式</item>-->
+        <!-- 小贾影视仓 v23.3: 与 values/strings.xml 保持条目数一致(按 index 对齐, 少一个会错位) -->
+        <item>渲染器模式</item>
     </string-array>
 
     <string-array name="media_content_ExoPlayer_renderer">
