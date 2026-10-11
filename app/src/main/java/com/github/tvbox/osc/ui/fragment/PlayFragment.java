@@ -380,6 +380,38 @@ public class PlayFragment extends BaseLazyFragment {
                 selectMyAudioTrack();
             }
 
+            // 小贾影视仓 v23.3: 画质/投屏暂不在 Fragment 播放页提供(该入口目前只有 PlayActivity 用),
+            // 但接口是 VodController 强制的, 必须实现, 否则编译不过。
+            @Override
+            public void selectVideoQuality() {
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "该播放入口暂不支持画质切换", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public boolean hasMultipleQuality() {
+                return false;
+            }
+
+            @Override
+            public String detectDolbyOrHdr() {
+                return "";
+            }
+
+            @Override
+            public void gotoScreenCast() {
+                try {
+                    Intent i = new Intent("android.settings.WIFI_DISPLAY_SETTINGS");
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Throwable th) {
+                    if (getContext() != null) {
+                        Toast.makeText(getContext(), "本机不支持无线投屏", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+
             @Override
             public void openVideo() {
                 openMyVideo();
