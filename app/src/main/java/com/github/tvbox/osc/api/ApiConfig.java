@@ -1302,6 +1302,15 @@ public class ApiConfig {
         if (sourceBean.getApi().endsWith(".js") || sourceBean.getApi().contains(".js?")){
             return jsLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt(), sourceBean.getJar());
         }else if (sourceBean.getApi().contains(".py")) {
+            // 小贾影视仓 v23.3: 记住最近取数的 py 源。
+            // 背景: pyLoader.proxyInvoke() 靠 recentPyApi 找回 spider 实例再调 proxyLocal,
+            // 而 setRecentPyKey 此前全工程无人调用 -> recentPyApi 恒为 null ->
+            // proxyInvoke() 第一行就 return null。表现为「本地 .py 能看列表/详情, 一播放就空」。
+            // qimao.py 的「🛡中转线路」以及任何用本机中转(localProxy)的 py 都会因此播不了。
+            try {
+                pyLoader.setRecentPyKey(sourceBean.getApi());
+            } catch (Throwable ignored) {
+            }
             return pyLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt());
         } else {
             return jarLoader.getSpider(sourceBean.getKey(), sourceBean.getApi(), sourceBean.getExt(), sourceBean.getJar());
@@ -1316,9 +1325,14 @@ public class ApiConfig {
         if ("js".equals(param.get("do"))) {
             return jsLoader.proxyInvoke(param);
         }
-        SourceBean sourceBean = ApiConfig.get().getHomeSourceBean(); 
-        String apiString = sourceBean.getApi();
-        return apiString.contains(".py") ? pyLoader.proxyInvoke(param) : jarLoader.proxyInvoke(param);
+        // 小贾影视仓 v23.3: 原来靠「当前首页站的 api 是否含 .py」来猜该走哪个 loader,
+        // 但用户正在播的 py 源未必是首页站(短剧/小说 py 源常挂在别的线路下),
+        // 一猜错就路由到 jarLoader 返回 null, 表现为「py 源一播放就没地址」。
+        // 现先问 pyLoader —— 它内部用 recentPyApi(= 最近一次 getCSP 取到的 py 源) 定位,
+        // 没有 py 源在用时它会返回 null, 再兜底走 jarLoader。
+        Object[] byPy = pyLoader.proxyInvoke(param);
+        if (byPy != null) return byPy;
+        return jarLoader.proxyInvoke(param);
     }
 
     public JSONObject jsonExt(String key, LinkedHashMap<String, String> jxs, String url) {
