@@ -59,7 +59,7 @@
         </activity>
         <activity
             android:name=".ui.activity.PlayActivity"
-            android:screenOrientation="sensorPortrait"
+            android:screenOrientation="fullUser"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
         <activity
