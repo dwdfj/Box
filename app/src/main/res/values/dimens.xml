@@ -75,6 +75,8 @@
     <dimen name="vs_150">150mm</dimen>
     <dimen name="vs_160">160mm</dimen>
     <dimen name="vs_180">180mm</dimen>
+    <!-- 小贾影视仓 v23.3: 搜索卡片备注角标最大宽(原写 70%, 但 AAPT 的 maxWidth 只收 dimension) -->
+    <dimen name="vs_210">210mm</dimen>
     <dimen name="vs_185">185mm</dimen>
     <dimen name="vs_190">190mm</dimen>
     <dimen name="vs_200">200mm</dimen>
