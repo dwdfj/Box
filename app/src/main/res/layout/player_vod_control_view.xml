@@ -1040,6 +1040,44 @@
 	                android:text="硬解码"
 	                android:textColor="@android:color/white"
 	                android:textSize="@dimen/ts_14" />
+
+	            <!-- 小贾影视仓 v23.3: 画质切换(4K/1080P/720P 多清晰度)。
+	                 默认 gone: 只有 Exo + DASH/HLS 多轨流才有得选, 由 VodController 动态显示。 -->
+	            <TextView
+	                android:id="@+id/play_quality"
+	                android:layout_width="@dimen/vs_60"
+	                android:layout_height="@dimen/vs_60"
+	                android:layout_gravity="center"
+	                android:layout_marginStart="@dimen/vs_6"
+	                android:layout_marginLeft="@dimen/vs_6"
+	                android:layout_marginEnd="@dimen/vs_6"
+	                android:layout_marginRight="@dimen/vs_6"
+	                android:background="@drawable/button_dialog_vod"
+	                android:focusable="true"
+	                android:gravity="center"
+	                android:padding="@dimen/vs_4"
+	                android:text="画质"
+	                android:textColor="@android:color/white"
+	                android:textSize="@dimen/ts_14"
+	                android:visibility="gone" />
+
+	            <!-- 小贾影视仓 v23.3: 投屏入口(跳系统无线显示设置 Miracast) -->
+	            <TextView
+	                android:id="@+id/play_cast"
+	                android:layout_width="@dimen/vs_60"
+	                android:layout_height="@dimen/vs_60"
+	                android:layout_gravity="center"
+	                android:layout_marginStart="@dimen/vs_6"
+	                android:layout_marginLeft="@dimen/vs_6"
+	                android:layout_marginEnd="@dimen/vs_6"
+	                android:layout_marginRight="@dimen/vs_6"
+	                android:background="@drawable/button_dialog_vod"
+	                android:focusable="true"
+	                android:gravity="center"
+	                android:padding="@dimen/vs_4"
+	                android:text="投屏"
+	                android:textColor="@android:color/white"
+	                android:textSize="@dimen/ts_14" />
 	
 	            <LinearLayout
 	                android:id="@+id/play_subtitle"
@@ -1225,7 +1263,7 @@
 	                android:focusable="true"
 	                android:gravity="center"
 	                android:orientation="horizontal"
-	                android:visibility="gone">
+	                android:visibility="visible">
 	
 	                <ImageView
 	                    android:id="@+id/lv_portrait"
