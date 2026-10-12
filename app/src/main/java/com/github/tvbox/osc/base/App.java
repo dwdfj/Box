@@ -190,6 +190,14 @@ public class App extends MultiDexApplication {
         } catch (Throwable ignored) {
         }
 
+        // 小贾影视仓 v24.1: Python 运行时提前预热 —— 原来挂在首次 ApiConfig.get()(首个 Activity 创建)才启动,
+        // 冷启动白白浪费几百毫秒; 提前到 Application.onCreate 后台线程启动, 首次进 py 源/切 py 线路更快。
+        // startBoot 幂等(bootStarted/pyReady 双检), 与 pyLoader 构造器里的 setApplication 重复调用无副作用。
+        try {
+            com.undcover.freedom.pyramid.PythonLoader.getInstance().setApplication(this);
+        } catch (Throwable ignored) {
+        }
+
         // add font support, my tv embed font not include emoji
         String extStorageDir = Environment.getExternalStorageDirectory().getAbsolutePath();
         File fontFile = new File(extStorageDir + "/tvbox.ttf");
