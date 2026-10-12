@@ -48,7 +48,10 @@ public class PythonLoader {
     // v23.8: Python 运行时后台预热 —— 原实现 setApplication() 在构造器(ApiConfig 字段初始化,
     // 主线程)里同步 Python.start() + getModule("app"), 冷启动直接卡死主线程一两秒,
     // 且首次 py 调用必然慢。现在启动动作丢到后台线程, getSpider 时再等它就绪。
-    private final ExecutorService bootExecutor = Executors.newSingleThreadExecutor(r -> {
+    // v24.1: 单线程 -> 3 线程池 —— 原来所有 py 源的 init(下载插件+依赖+启动)全挤一根线程排队,
+    // 一个慢源会把其它 py 源全部堵死; Chaquopy 线程安全(GIL), app.py 各函数无共享可变状态(参数显式传入),
+    // 3 线程并发初始化可让多 py 源线路的首页出数据时间大幅提前。
+    private final ExecutorService bootExecutor = Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "py-boot");
         t.setDaemon(true);
         return t;
