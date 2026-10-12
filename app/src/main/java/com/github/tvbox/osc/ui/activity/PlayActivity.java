@@ -62,6 +62,7 @@ import com.github.tvbox.osc.bean.ParseBean;
 import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.bean.SubtitleBean;
 import com.github.tvbox.osc.bean.VodInfo;
+import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.cache.CacheManager;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.player.EXOmPlayer;
@@ -418,6 +419,69 @@ public class PlayActivity extends BaseActivity {
             mEpisodeAdapter.setSelectedIndex(p);
             play(false);
         });
+
+        // 小贾影视仓 v23.8: 点封面直达播放页后详情页不再经过, 标题行三个图标钮必须在这里接上逻辑
+        // (此前 btn_play_music/btn_play_cast/btn_play_collect 只写在 XML 里, Java 无任何绑定, 是死按钮)。
+        // 1) 横屏全屏: 竖屏点一下转横向全屏, 横屏再点回竖屏半屏
+        android.view.View btnFullscreen = findViewById(R.id.btn_play_fullscreen);
+        if (btnFullscreen != null) {
+            btnFullscreen.setOnClickListener(v -> {
+                if (mController != null) mController.toggleLandscapePortrait();
+            });
+        }
+        // 2) 投屏: 打开 DLNA 设备选择弹窗
+        android.view.View btnCast = findViewById(R.id.btn_play_cast);
+        if (btnCast != null) {
+            btnCast.setOnClickListener(v -> gotoScreenCast());
+        }
+        // 3) 收藏: 直接读写本地收藏库(与原详情页 tvCollect 同一套 RoomDataManger)
+        android.view.View btnCollect = findViewById(R.id.btn_play_collect);
+        if (btnCollect != null) {
+            btnCollect.setOnClickListener(v -> toggleCollect());
+        }
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 播放页收藏开关。跳过详情页后收藏不再失效;
+     * 已收藏状态用金色染色(hm_fav 本体白色)区分。
+     */
+    private void toggleCollect() {
+        if (mVodInfo == null) return;
+        String key = mVodInfo.sourceKey == null || mVodInfo.sourceKey.isEmpty()
+                ? sourceKey : mVodInfo.sourceKey;
+        android.view.View btn = findViewById(R.id.btn_play_collect);
+        try {
+            if (RoomDataManger.isVodCollect(key, mVodInfo.id)) {
+                RoomDataManger.deleteVodCollect(key, mVodInfo);
+                if (btn instanceof ImageView) ((ImageView) btn).clearColorFilter();
+                Toast.makeText(this, "已取消收藏", Toast.LENGTH_SHORT).show();
+            } else {
+                RoomDataManger.insertVodCollect(key, mVodInfo);
+                if (btn instanceof ImageView) ((ImageView) btn).setColorFilter(0xFFFFC107);
+                Toast.makeText(this, "已加入收藏", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 按本地收藏库回显收藏态(进页/换源后调用)。
+     */
+    private void refreshCollectState() {
+        if (mVodInfo == null) return;
+        android.view.View btn = findViewById(R.id.btn_play_collect);
+        if (!(btn instanceof ImageView)) return;
+        try {
+            String key = mVodInfo.sourceKey == null || mVodInfo.sourceKey.isEmpty()
+                    ? sourceKey : mVodInfo.sourceKey;
+            if (RoomDataManger.isVodCollect(key, mVodInfo.id)) {
+                ((ImageView) btn).setColorFilter(0xFFFFC107);
+            } else {
+                ((ImageView) btn).clearColorFilter();
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -470,6 +534,8 @@ public class PlayActivity extends BaseActivity {
 
         bindLineList();
         bindEpisodeList();
+        // 小贾影视仓 v23.8: 按本地收藏库回显收藏态
+        refreshCollectState();
     }
 
     private void bindLineList() {
@@ -504,6 +570,12 @@ public class PlayActivity extends BaseActivity {
         // "已反转"换算选中位, 两者自相矛盾会点错集; 用户要求"顺向排列即可", 故这里直接锁死正向。
         mVodInfo.reverseSort = false;
         if (mBtnEpisodeSort != null) mBtnEpisodeSort.setVisibility(View.GONE);
+        // 小贾影视仓 v23.8: 按集数**物理自然排序**(1,2,…,10), 修复"剧集又变的杂乱, 不是按顺序"。
+        // 根因: ①历史记录里 reverseSort=true 时列表曾被 DetailActivity 物理反转过, 这里以前只改
+        // 标志位不还原顺序; ②部分源本身就乱序返回(10集排在2集前面), VodInfo 里那个
+        // "相邻两对都是降序才翻转"的启发式根本兜不住。排序后把当前播放集重映射到新位置,
+        // 保证 play() 取地址、选中态高亮仍然对得上。
+        naturalSortSeries(list);
         java.util.ArrayList<String> names = new ArrayList<>();
         for (VodInfo.VodSeries v : list) {
             names.add(v.name == null ? "" : v.name);
@@ -521,6 +593,53 @@ public class PlayActivity extends BaseActivity {
         if (list == null || list.isEmpty()) return -1;
         if (!mVodInfo.reverseSort) return mVodInfo.getplayIndex();
         return list.size() - 1 - mVodInfo.getplayIndex();
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 把剧集列表按集数**物理自然排序**(升序), 并把当前播放集重映射到新位置。
+     * 排的是 seriesMap 里的原列表对象, play() 按 playIndex 从同一列表取地址, 排完仍一一对应。
+     */
+    private void naturalSortSeries(java.util.List<VodInfo.VodSeries> list) {
+        try {
+            int cur = mVodInfo.getplayIndex();
+            VodInfo.VodSeries playing = (cur >= 0 && cur < list.size()) ? list.get(cur) : null;
+            Collections.sort(list, (a, b) -> {
+                long na = extractEpisodeNum(a == null ? null : a.name);
+                long nb = extractEpisodeNum(b == null ? null : b.name);
+                if (na >= 0 && nb >= 0 && na != nb) return Long.compare(na, nb);
+                if (na >= 0 && nb < 0) return -1;
+                if (nb >= 0 && na < 0) return 1;
+                String sa = a == null || a.name == null ? "" : a.name;
+                String sbn = b == null || b.name == null ? "" : b.name;
+                return sa.compareToIgnoreCase(sbn);
+            });
+            if (playing != null) {
+                int idx = list.indexOf(playing);
+                if (idx >= 0) {
+                    mVodInfo.playGroup = 0;
+                    mVodInfo.playGroupCount = 0;
+                    mVodInfo.playIndex = idx;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** v23.8: 取集数 —— 取名称里**最后一段**数字(通常是集数, 如 "第12集"/"EP12"/"12"); 无数字返回 -1 */
+    private static long extractEpisodeNum(String name) {
+        if (name == null) return -1;
+        try {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d+").matcher(name);
+            long first = -1, last = -1;
+            while (m.find()) {
+                long v = Long.parseLong(m.group());
+                if (first < 0) first = v;
+                last = v;
+            }
+            return last >= 0 ? last : first;
+        } catch (Throwable ignored) {
+            return -1;
+        }
     }
 
     private void initView() {
