@@ -1036,11 +1036,12 @@ public class VodController extends BaseController {
     public void initLandscapePortraitBtnInfo() {
         // 小贾影视仓 v23.3: 恢复横竖屏切换按钮(用户要求能全屏横屏播放)。
         // 竖屏 = 卡片式信息页, 横屏 = 视频铺满全屏。按钮在两个方向都要能用, 故保持 VISIBLE。
+        // v23.8: 图标换为标准全屏/退出全屏(原 htov/vtoh 箭头用户看不懂"这是放大键")。
         if (mLandscapePortraitBtn != null) {
             mLandscapePortraitBtn.setVisibility(View.VISIBLE);
             if (mLvPortraitBtn != null) {
                 mLvPortraitBtn.setImageResource(
-                        isPortrait() ? R.drawable.htov : R.drawable.vtoh);
+                        isPortrait() ? R.drawable.v_fullscreen : R.drawable.v_fullscreen_exit);
             }
         }
     }
@@ -1065,12 +1066,20 @@ public class VodController extends BaseController {
                 : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
         if (mLvPortraitBtn != null) {
             mLvPortraitBtn.setImageResource(
-                    portrait ? R.drawable.vtoh : R.drawable.htov);
+                    portrait ? R.drawable.v_fullscreen_exit : R.drawable.v_fullscreen);
         }
         // 通知 Activity 布局切换(横屏要隐藏卡片区, 视频铺满)
         if (mActivity instanceof PlayActivity) {
             ((PlayActivity) mActivity).applyOrientationLayout(portrait);
         }
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 供播放页标题行的全屏按钮调用(setLandscapePortrait 是包私有, 跨包够不到)。
+     * 竖屏点一下 → 横向全屏; 横屏再点 → 回竖屏半屏。
+     */
+    public void toggleLandscapePortrait() {
+        setLandscapePortrait();
     }
 
     void initSubtitleInfo() {
