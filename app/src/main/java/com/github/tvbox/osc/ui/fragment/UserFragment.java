@@ -238,6 +238,13 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
      * Banner 随右侧网格第 position 项联动: 剧照 / 片名 / 元信息 / 收藏态
      */
     private void showFeatured(int position) {
+        // v23.9.1 闪退修复: 切线路重建 Fragment 时, 旧 Fragment 残留的 posted Runnable 仍会回调到这里 ——
+        // 它读的静态 homeHotVodAdapter 已被新 Fragment 重新赋值(非空), 但本 Fragment 的 ivBanner 已被
+        // onDestroyView 置 null, Glide into(null) 直接抛 NPE("Argument must not be null") 闪退。
+        // 视图已销毁就静默返回(新 Fragment 会自己刷新 Banner)。
+        if (ivBanner == null || tvBannerTitle == null) {
+            return;
+        }
         if (homeHotVodAdapter == null || homeHotVodAdapter.getData().isEmpty()) {
             resetFeatured();
             return;
