@@ -397,6 +397,35 @@ public class HomeActivity extends BaseActivity {
                 // 原代码直接 .getKey() 会 NPE 闪退(启动期最常见的一处裸奔点)。
                 SourceBean homeSortBean = ApiConfig.get().getHomeSourceBean();
                 String homeSortKey = homeSortBean == null ? "" : homeSortBean.getKey();
+                // 小贾影视仓 v23.8: 本地 py 源打不开(分类/推荐全空)时自动换站点,
+                // 不让首页一直空转 —— 用户反馈"加载有的py不能用时, 自动更换线路"。
+                // 只兜启动/常规加载路径(fromHomeSwitch=false); 手动切站失败已有看门狗回滚。
+                if (!fromHomeSwitch && !pyAutoFallbackFired && homeSortBean != null
+                        && homeSortBean.getKey() != null && homeSortBean.getKey().startsWith("py_local_")
+                        && (absXml == null || absXml.classes == null || absXml.classes.sortList == null
+                            || absXml.classes.sortList.isEmpty())) {
+                    pyAutoFallbackFired = true;
+                    SourceBean next = findFallbackSource(homeSortBean.getKey());
+                    if (next != null) {
+                        Toast.makeText(HomeActivity.this,
+                                "「" + homeSortBean.getName() + "」源不可用，已自动切换到「" + next.getName() + "」",
+                                Toast.LENGTH_LONG).show();
+                        homeSortGuard = next.getKey();
+                        homeSwitchPrevKey = homeSortBean.getKey();
+                        inPlaceSwitching = true;
+                        currentSelected = 0;
+                        sortFocused = 0;
+                        ApiConfig.get().setSourceBean(next);
+                        showLoading();
+                        try {
+                            OkGo.getInstance().cancelTag(homeSortKey + "_sort");
+                        } catch (Throwable ignored) {
+                        }
+                        sourceViewModel.getSort(next.getKey());
+                        armSwitchWatchdog();
+                        return;
+                    }
+                }
                 if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
                     sortAdapter.setNewData(appendLocalPyParallelSorts(
                             DefaultConfig.adjustSort(homeSortKey, absXml.classes.sortList, true)));
@@ -430,7 +459,7 @@ public class HomeActivity extends BaseActivity {
                     }, 1500);
                 }
                 // 小贾影视仓: 标题显示当前线路名(红底白字)
-                tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+                tvName.setText(capsuleTitle());
                 tvName.clearAnimation();
                 if (fromHomeSwitch) {
                     // 复位后, ViewPager 视口回到第 0 页
@@ -453,6 +482,29 @@ public class HomeActivity extends BaseActivity {
     private volatile String homeSortGuard = null;
     // 小贾影视仓 v15.14: 首页推荐空数据自愈 guard(单 Activity 生命周期内至多重拉一次)
     private boolean homeRecSelfHealFired = false;
+
+    // 小贾影视仓 v23.8: 本地 py 源打不开自动换站 —— 单次 Activity 生命周期只兜一次, 防来回横跳
+    private boolean pyAutoFallbackFired = false;
+
+    /**
+     * 小贾影视仓 v23.8: 找一个"可回退"的首页站点。
+     * 规则: 跳过所有本地 py 源(py_local_*, 刚刚证实不可用)和 type=3 单源站(同样可能是单文件 py/js),
+     * 从常规配置站点里取第一个; 一个都找不到返回 null(维持现状)。
+     */
+    private SourceBean findFallbackSource(String deadKey) {
+        try {
+            for (SourceBean sb : ApiConfig.get().getSourceBeanList()) {
+                if (sb == null || sb.getKey() == null) continue;
+                if (sb.getKey().equals(deadKey)) continue;
+                if (sb.getKey().startsWith("py_local_")) continue;
+                if (sb.getType() == 3) continue;
+                return sb;
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        return null;
+    }
 
     // 小贾影视仓 v18: getSort "结果永远不到场"的兜底。
     // spThreadPool(4 线程)若被多个长任务(详情/推荐兜底)占满, sortResult.postValue 会长时间不执行,
@@ -502,6 +554,12 @@ public class HomeActivity extends BaseActivity {
     private Runnable switchWatchdog;
 
     private void armSwitchWatchdog() {
+        armSwitchWatchdog(12000);
+    }
+
+    // v23.8: py 源切站用长看门狗 —— 首次要冷启动 Python 运行时+下载插件, getSort 给了 40s,
+    // 12s 的默认看门狗会把还没加载完的好源误判成坏源回滚。
+    private void armSwitchWatchdog(long delayMs) {
         cancelSwitchWatchdog();
         switchWatchdog = new Runnable() {
             @Override
@@ -525,12 +583,11 @@ public class HomeActivity extends BaseActivity {
                 homeRecSelfHealFired = false;
                 showSuccess();
                 tvName.clearAnimation();
-                tvName.setText(getString(R.string.app_name) + " · "
-                        + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+                tvName.setText(capsuleTitle());
             }
         };
         try {
-            mHandler.postDelayed(switchWatchdog, 12000);
+            mHandler.postDelayed(switchWatchdog, delayMs);
         } catch (Throwable ignored) {
         }
     }
@@ -936,6 +993,10 @@ public class HomeActivity extends BaseActivity {
         tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
         tvName.clearAnimation();
 
+        // 小贾影视仓 v23.8: 从播放页/详情页返回时, 顶部红色标题胶囊强制自愈回满尺寸。
+        // (changeTop(true) 会把胶囊缩到 1mm 且 alpha=0, 而以前没有任何路径恢复它)
+        restoreTopBar();
+
         // takagen99: Icon Placement
         if (Hawk.get(HawkConfig.HOME_SEARCH_POSITION, true)) {
             tvFind.setVisibility(View.VISIBLE);
@@ -1196,13 +1257,21 @@ public class HomeActivity extends BaseActivity {
 
             }
         });
+        // 小贾影视仓 v23.8: 顶部标题胶囊「缩小」根因修复。
+        // 布局 activity_home.xml 里 topLayout 是 height=vs_140(140mm) / marginTop=vs_30(30mm),
+        // 而这里历史上动画的是 50mm/20mm —— ObjectAnimator 首帧直接 snap 到起始值,
+        // 于是第一次 changeTop 之后胶囊就被永久缩成 140 的 36%, 且再没有任何路径恢复
+        // (用户: "点击影视界面以后, 再返回的话, 首页胶囊又变小了")。
+        // 现在起止尺寸与布局完全一致: 显示态 = 140mm/30mm, 隐藏态 = 1mm/0。
+        final float TOP_SHOW_H = 140.0f;
+        final float TOP_SHOW_MT = 30.0f;
         // Hide Top =======================================================
         if (hide && topHide == 0) {
             animatorSet.playTogether(ObjectAnimator.ofObject(viewObj, "marginTop", new IntEvaluator(),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 20.0f)),
+                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_MT)),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 0.0f))),
                     ObjectAnimator.ofObject(viewObj, "height", new IntEvaluator(),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 50.0f)),
+                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_H)),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 1.0f))),
                     ObjectAnimator.ofFloat(this.topLayout, "alpha", 1.0f, 0.0f));
             animatorSet.setDuration(250);
@@ -1217,10 +1286,10 @@ public class HomeActivity extends BaseActivity {
         if (!hide && topHide == 1) {
             animatorSet.playTogether(ObjectAnimator.ofObject(viewObj, "marginTop", new IntEvaluator(),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 0.0f)),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 20.0f))),
+                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_MT))),
                     ObjectAnimator.ofObject(viewObj, "height", new IntEvaluator(),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 1.0f)),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 50.0f))),
+                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_H))),
                     ObjectAnimator.ofFloat(this.topLayout, "alpha", 0.0f, 1.0f));
             animatorSet.setDuration(250);
             animatorSet.start();
@@ -1229,6 +1298,48 @@ public class HomeActivity extends BaseActivity {
             tvMenu.setFocusable(true);
             tvLive.setFocusable(true);
         }
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 把顶部胶囊「强制复位」到布局设计尺寸。
+     * 从播放页/详情页返回 onResume 时调用 —— 保证不管之前被 changeTop 缩成什么样, 回来一定是满尺寸。
+     * 注意: 不走动画、直接 setLayoutParams, 避免返回首页时看到胶囊"弹一下"。
+     */
+    private void restoreTopBar() {
+        if (topLayout == null) return;
+        topHide = 0;
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) topLayout.getLayoutParams();
+        lp.height = AutoSizeUtils.mm2px(this.mContext, 140.0f);
+        lp.topMargin = AutoSizeUtils.mm2px(this.mContext, 30.0f);
+        topLayout.setLayoutParams(lp);
+        topLayout.setAlpha(1.0f);
+        topLayout.clearAnimation();
+        tvName.setFocusable(true);
+        tvFind.setFocusable(true);
+        tvMenu.setFocusable(true);
+        tvLive.setFocusable(true);
+    }
+
+    /**
+     * 小贾影视仓 v23.8: 顶部红胶囊文案。
+     * 当前首页站是本地 py 源(py_local_*)时直接显示该 py 的名字(去掉"(本地py)"尾巴),
+     * 其余情况维持原样显示线路名 —— 用户要求"胶囊那里也显示对应py的名字"。
+     */
+    private String capsuleTitle() {
+        SourceBean hs = null;
+        try {
+            hs = ApiConfig.get().getHomeSourceBean();
+        } catch (Throwable ignored) {
+        }
+        if (hs != null && hs.getKey() != null && hs.getKey().startsWith("py_local_")) {
+            String n = hs.getName() == null ? "" : hs.getName();
+            if (n.endsWith("(本地py)")) n = n.substring(0, n.length() - "(本地py)".length());
+            if (!n.trim().isEmpty()) {
+                return getString(R.string.app_name) + " · " + n.trim();
+            }
+        }
+        return getString(R.string.app_name) + " · "
+                + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source)));
     }
 
     @Override
@@ -1450,8 +1561,9 @@ public class HomeActivity extends BaseActivity {
         // 小贾影视仓 v17: 切线路时先预热目标站的 extend, 首页分类不必在主线程等它
         sourceViewModel.prefetchExt(target);
         sourceViewModel.getSort(target.getKey());
-        // 小贾影视仓 v23.5: 起切站看门狗 —— 坏源不回调时 12s 回滚原站, 避免卡死无法返回
-        armSwitchWatchdog();
+        // 小贾影视仓 v23.5: 起切站看门狗 —— 坏源不回调时回滚原站, 避免卡死无法返回。
+        // v23.8: py 源(含本地 py)给 35s 长看门狗(冷启动 Python+下载插件耗时, 12s 会误杀好源)
+        armSwitchWatchdog(target.getKey() != null && target.getKey().startsWith("py_local_") ? 35000 : 12000);
     }
 
     // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
@@ -1574,6 +1686,7 @@ public class HomeActivity extends BaseActivity {
 
             int ok = 0;
             StringBuilder loaded = new StringBuilder();
+            String firstRel = null;   // v23.8: 记录本次加载的第一个 py(加载完自动切过去)
             for (int i = 0; i < uris.size(); i++) {
                 try {
                     android.net.Uri uri = uris.get(i);
@@ -1601,6 +1714,7 @@ public class HomeActivity extends BaseActivity {
                     }
                     list.add(0, showName + "|" + rel);
                     ok++;
+                    if (firstRel == null) firstRel = rel;
                     if (loaded.length() > 0) loaded.append("、");
                     loaded.append(showName);
                 } catch (Throwable th) {
@@ -1613,14 +1727,25 @@ public class HomeActivity extends BaseActivity {
             }
             Hawk.put(HawkConfig.LOCAL_PY_LIST, list);
 
-            // 4) 立即注入并重载首页(配置重解析时会再注入一次, 幂等)
+            // 4) 立即注入站点(配置重解析时会再注入一次, 幂等)
             try {
                 ApiConfig.get().injectLocalPySites();
             } catch (Throwable ignored) {
             }
-            // 小贾影视仓 v22.1: 说清"加载到哪去了" —— 本地 py 不是一条独立"线路",
-            // 而是当前线路下的一个**站点(单源)**; 面板左侧永远是线路, 站点在右侧宫格最前面。
             String head = (ok == 1) ? ("已加载「" + loaded + "」") : ("已加载 " + ok + " 个源: " + loaded);
+
+            // 5) 小贾影视仓 v23.8: 自动切到刚加载的 py 源 —— 不再要求用户去信号源面板手动点一次。
+            //    用的是与面板点站点完全相同的 switchHomeSourceInPlace 原地切站链路:
+            //    胶囊即时显示 py 名、首页数据加载、12s 看门狗(坏源自动回滚原站)全都复用。
+            if (firstRel != null && !firstRel.isEmpty()) {
+                SourceBean pySite = ApiConfig.get().getSource("py_local_" + MD5.string2MD5(firstRel));
+                if (pySite != null) {
+                    Toast.makeText(this, head + "(本地py)，正在打开…", Toast.LENGTH_LONG).show();
+                    switchHomeSourceInPlace(pySite);
+                    return;
+                }
+            }
+            // 注入失败等兜底: 退回旧行为(整页重载, 站点在面板里可手动点)
             Toast.makeText(this, head + "(本地py)：在信号源面板右侧「站点」最前面，或直接用搜索框搜片", Toast.LENGTH_LONG).show();
             reloadHome();
         } catch (Throwable th) {
