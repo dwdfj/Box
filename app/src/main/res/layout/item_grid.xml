@@ -1,15 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 分类略缩图 -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+<!-- 分类略缩图 / 收藏 / 历史 共用的海报卡。
+     小贾影视仓 v23.7: 改为 3:4 比例驱动, 不再写死 300x400。
+     为什么必须改: 之前内层 FrameLayout 写死 layout_width=vs_300、layout_height=vs_400,
+     卡片根却是 wrap_content; 而它被放进 GridLayoutManager(isBaseOnWidth()?5:3 列) 的格子里,
+     每个格子的宽度 = 屏宽/列数(竖屏 5 列 ≈ 屏宽 20.3%), 远小于 vs_300(23.4%)。
+     ViewGroup 测量时会把子项宽度按 AT_MOST(格子宽) 夹住, 于是宽度被压到格子宽、
+     高度却仍是写死的 vs_400 —— 卡片被拉成 216x337 这样的"细长条"(实际比例 ≈0.64, 不是 3:4)。
+     改为 ConstraintLayout + layout_constraintDimensionRatio="3:4": 宽=格子宽, 高=宽×4/3,
+     与首页 item_user_home_grid / 搜索 item_search 完全同一比例, 换列数也不会再变形。 -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/shape_thumb_radius"
     android:focusable="true"
     android:padding="@dimen/vs_1">
 
     <FrameLayout
-        android:layout_width="@dimen/vs_300"
-        android:layout_height="@dimen/vs_400">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintDimensionRatio="3:4"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/ivThumb"
@@ -144,4 +158,4 @@
         </FrameLayout>
 
     </FrameLayout>
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
