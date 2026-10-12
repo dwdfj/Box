@@ -374,6 +374,7 @@ public class HomeActivity extends BaseActivity {
                 if (fromHomeSwitch) {
                     // 原地切站结果到场: 先复位分类选中位, initViewPager 将按新站数据重建页面
                     inPlaceSwitching = false;
+                    cancelSwitchWatchdog();
                     if (absXml == null) {
                         // 切站失败(网络/超时/解析空) -> 回滚原站点并走重启兜底, 避免白屏丢首页
                         String prevKey = homeSwitchPrevKey;
@@ -492,6 +493,57 @@ public class HomeActivity extends BaseActivity {
     }
     // 原地切站前记录的上一站点 key(切站失败回滚时用)
     private String homeSwitchPrevKey = null;
+
+    // 小贾影视仓 v23.5: 原地切站看门狗。
+    // 修复「选到坏信号源后卡死、无法返回」: switchHomeSourceInPlace 置 inPlaceSwitching=true 后
+    // 调 getSort(key), 若目标站是坏源(不回调/超时/线程池饥饿), sortResult 观察者永不触发 =>
+    // inPlaceSwitching 永远为 true => 之后每次点站点都被"正在切换站点, 请稍候…"挡掉, 首页也一直转圈。
+    // 这里补一个超时兜底: 到点仍在切站就回滚到上一站并重启首页, 保证用户一定能退回来。
+    private Runnable switchWatchdog;
+
+    private void armSwitchWatchdog() {
+        cancelSwitchWatchdog();
+        switchWatchdog = new Runnable() {
+            @Override
+            public void run() {
+                switchWatchdog = null;
+                if (!alive() || !inPlaceSwitching) return;
+                // 目标站结果始终不到场 -> 判定坏源, 回滚上一站
+                String prevKey = homeSwitchPrevKey;
+                homeSwitchPrevKey = null;
+                inPlaceSwitching = false;
+                homeSortGuard = null;
+                SourceBean prev = prevKey == null ? null : ApiConfig.get().getSource(prevKey);
+                if (prev != null) {
+                    ApiConfig.get().setSourceBean(prev);
+                    Toast.makeText(HomeActivity.this,
+                            "该信号源不可用, 已回退到「" + prev.getName() + "」", Toast.LENGTH_LONG).show();
+                    restartHome(true);
+                    return;
+                }
+                // 连可回滚的上一站都没有: 至少把"切换中"死锁解开, 让用户能重新点信号源面板
+                homeRecSelfHealFired = false;
+                showSuccess();
+                tvName.clearAnimation();
+                tvName.setText(getString(R.string.app_name) + " · "
+                        + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
+            }
+        };
+        try {
+            mHandler.postDelayed(switchWatchdog, 12000);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void cancelSwitchWatchdog() {
+        if (switchWatchdog != null) {
+            try {
+                mHandler.removeCallbacks(switchWatchdog);
+            } catch (Throwable ignored) {
+            }
+            switchWatchdog = null;
+        }
+    }
 
     // 小贾影视仓 v15.4: Activity 存活防护 —— 切线路重启后, 旧实例异步回调(最长10s超时窗口)不得再碰已销毁的 UI
     // (TipDialog.show 于 finishing Activity 会抛 BadTokenException, 是切换偶发闪退来源之一)
@@ -1398,6 +1450,8 @@ public class HomeActivity extends BaseActivity {
         // 小贾影视仓 v17: 切线路时先预热目标站的 extend, 首页分类不必在主线程等它
         sourceViewModel.prefetchExt(target);
         sourceViewModel.getSort(target.getKey());
+        // 小贾影视仓 v23.5: 起切站看门狗 —— 坏源不回调时 12s 回滚原站, 避免卡死无法返回
+        armSwitchWatchdog();
     }
 
     // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
