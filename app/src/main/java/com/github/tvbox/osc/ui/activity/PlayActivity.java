@@ -80,6 +80,7 @@ import com.github.tvbox.osc.server.RemoteServer;
 import com.github.tvbox.osc.subtitle.model.Subtitle;
 import com.github.tvbox.osc.ui.adapter.PlayChipAdapter;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.ui.dialog.CastDialog;
 import com.github.tvbox.osc.ui.dialog.DanmuSettingDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSubtitleDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
@@ -290,23 +291,20 @@ public class PlayActivity extends BaseActivity {
         }
     }
     /**
-     * 小贾影视仓 v23.2: 竖屏半屏播放 —— 上半区视频高度按「屏宽 × 9/16」自适应,
-     * 保证 16:9 视频正好占满上半区宽度(不留黑边也不裁切), 下半区留给播放信息与控件。
-     * 换算走 AutoSize mm 体系: 1mm = 屏宽/1280 px, 故 mm 值 = 1280 × 9/16 = 720。
-     * 直接给 mm 换算后的 px, 不依赖 px2mm 重载。
+     * 小贾影视仓 v23.5: 竖屏半屏播放 —— 上半区视频高度 = **屏幕高度的一半**。
+     * v23.2~v23.4 用的是「屏宽 × 9/16」(≈ 屏高 25%), 用户反馈太小、和 AVBox 的"一半比例"不符,
+     * 这里改为直接取屏高 50%; 16:9 画面在容器内居中留黑边(播放器自有 scale 模式适配)。
+     * 换算走 AutoSize mm 体系: 1mm = 屏宽/1280 px, 故 mm 值 = 屏高px / (屏宽px/1280)。
      */
     private void applyPortraitVideoHeight() {
         try {
             android.view.View videoContainer = findViewById(R.id.videoContainer);
             if (videoContainer == null) return;
-            int screenW = AutoSizeConfig.getInstance().getScreenWidth();
-            if (screenW <= 0) {
-                android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-                screenW = Math.min(dm.widthPixels, dm.heightPixels);
-            }
-            if (screenW <= 0) return;
-            // 视频区高度(px) = 屏宽 * 9/16, 正好一个 16:9 视频铺满上半区宽度
-            int targetPx = (int) (screenW * 9.0f / 16.0f);
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int screenH = dm.heightPixels;
+            if (screenH <= 0) return;
+            // 视频区高度 = 屏高一半
+            int targetPx = Math.round(screenH * 0.5f);
             android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
             if (lp != null) {
                 lp.height = targetPx;
@@ -501,6 +499,11 @@ public class PlayActivity extends BaseActivity {
             return;
         }
         mPlayEpisodeCard.setVisibility(View.VISIBLE);
+        // 小贾影视仓 v23.5: 剧集一律**顺向排列**(第1集在最前)。
+        // 旧版留了「↓ 倒序」开关, 但 bindEpisodeList 从未真正反转数据、currentEpisodeChipIndex 却按
+        // "已反转"换算选中位, 两者自相矛盾会点错集; 用户要求"顺向排列即可", 故这里直接锁死正向。
+        mVodInfo.reverseSort = false;
+        if (mBtnEpisodeSort != null) mBtnEpisodeSort.setVisibility(View.GONE);
         java.util.ArrayList<String> names = new ArrayList<>();
         for (VodInfo.VodSeries v : list) {
             names.add(v.name == null ? "" : v.name);
@@ -1091,16 +1094,35 @@ public class PlayActivity extends BaseActivity {
         return "";
     }
 
-    /** 小贾影视仓 v23.3: 投屏入口 —— 跳系统无线显示设置(Miracast)。 */
+    /**
+     * 小贾影视仓 v23.6: 投屏入口 —— 真·DLNA, 与 AVBox 同一条路子
+     * (搜 MediaRenderer → SetAVTransportURI → Play)。
+     * v23.3 那版只是起一个 android.settings.WIFI_DISPLAY_SETTINGS 系统意图,
+     * 手机上这个页面大多不存在 → 直接落到 catch 报"本机不支持无线投屏", 所以用户看到"无法使用"。
+     */
     public void gotoScreenCast() {
-        try {
-            Intent i = new Intent("android.settings.WIFI_DISPLAY_SETTINGS");
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(i);
-            Toast.makeText(mContext, "在系统页面选择要投屏的设备", Toast.LENGTH_LONG).show();
-        } catch (Throwable th) {
-            Toast.makeText(mContext, "本机不支持无线投屏", Toast.LENGTH_SHORT).show();
+        if (videoURL == null || videoURL.length() == 0) {
+            Toast.makeText(mContext, R.string.cast_no_url, Toast.LENGTH_SHORT).show();
+            return;
         }
+        String title = (mVodInfo == null || mVodInfo.name == null) ? "" : mVodInfo.name;
+        try {
+            if (mVodInfo != null && mVodInfo.seriesMap != null) {
+                java.util.List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                int idx = mVodInfo.getplayIndex();
+                if (list != null && idx >= 0 && idx < list.size()) {
+                    VodInfo.VodSeries vs = list.get(idx);
+                    title = mVodInfo.name + " : " + (vs == null ? "" : vs.name);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        long position = 0;
+        try {
+            if (mVideoView != null) position = mVideoView.getCurrentPosition();
+        } catch (Throwable ignored) {
+        }
+        new CastDialog(this, videoURL, title, position).show();
     }
 
     void openMyVideo() {
