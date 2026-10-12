@@ -20,14 +20,15 @@
     </style>
 
     <!-- Alternative Themes -->
+    <!-- 小贾影视仓 v23.9 赛博霓虹: 默认主题主色 红#D81F26 → 霓虹品红#FF2BD6(与壁纸粉/青光斑呼应) -->
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
-        <item name="color_theme">#D81F26</item>
-        <item name="color_theme_80">#CCD81F26</item>
-        <item name="color_theme_70">#B3D81F26</item>
-        <item name="color_theme_60">#99D81F26</item>
-        <item name="color_theme_50">#80D81F26</item>
-        <item name="color_theme_40">#66D81F26</item>
-        <item name="color_theme_dark_70">#B38C1418</item>
+        <item name="color_theme">#FF2BD6</item>
+        <item name="color_theme_80">#CCFF2BD6</item>
+        <item name="color_theme_70">#B3FF2BD6</item>
+        <item name="color_theme_60">#99FF2BD6</item>
+        <item name="color_theme_50">#80FF2BD6</item>
+        <item name="color_theme_40">#66FF2BD6</item>
+        <item name="color_theme_dark_70">#B34B1160</item>
     </style>
     <style name="DoraeTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#18A2E7</item>
