@@ -1,27 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23 竖屏: 首页 3 列网格卡 —— 宽度不再写死 vs_120, 改为 match_parent(V7GridLayoutManager
-     会按 spanCount 给出精确列宽), 海报高度 vs_160 → vs_520, 片名 ts_18 → ts_26。
-     结构对齐 item_user_home_big(角标/片名/删除遮罩)。 -->
+<!-- 小贾影视仓 v23.5 首页 3 列网格卡: 海报锁成严格 3:4(与搜索结果卡 item_search 同比例)。
+     之前海报高度写死 @dimen/vs_520, 实际宽度是 3 列网格算出来的列宽(不固定),
+     于是比例随列宽漂移(≈0.73), 和搜索卡对不上。改用 ConstraintLayout 的
+     layout_constraintDimensionRatio="3:4", 高度由列宽按 3:4 算, 两处卡片形状完全一致。
+     结构对齐 item_search(角标/片名/删除遮罩 id 不变)。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:padding="@dimen/vs_6">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:focusable="false"
-        android:orientation="vertical">
+        android:focusable="false">
 
+        <!-- 海报: 宽度铺满列宽, 高度 = 宽度 × 4/3 (3:4) -->
         <FrameLayout
             android:id="@+id/mItemFrame"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_520"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:background="@drawable/shape_home_poster"
             android:focusable="false"
-            android:padding="@dimen/vs_2">
+            android:padding="@dimen/vs_2"
+            app:layout_constraintDimensionRatio="3:4"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
                 android:id="@+id/ivThumb"
@@ -67,7 +74,7 @@
 
         <TextView
             android:id="@+id/tvName"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_10"
             android:ellipsize="end"
@@ -75,6 +82,10 @@
             android:singleLine="true"
             android:text=""
             android:textColor="@color/color_FFFFFF_90"
-            android:textSize="@dimen/ts_26" />
-    </LinearLayout>
+            android:textSize="@dimen/ts_26"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/mItemFrame" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>
