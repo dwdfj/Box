@@ -140,7 +140,31 @@ public class PythonSpider extends Spider {
 
     public Object[] proxyLocal(Map<String,String> params) {
         Log.i("PyLoader","echo-proxyLocal:param"+params.toString());
-        List<PyObject> list = app.callAttr("localProxy", pySpider, map2json(params).toString()).asList();
+        // 小贾影视仓 v23.3: 兼容 py 侧 localProxy 返回 None 的情况。
+        // qimao.py 明确写了 `def localProxy(param): return None`(它自建中转, 不用宿主代理),
+        // 原实现直接 .asList() 会 NPE, 连带整条本机中转链路失效。
+        PyObject ret;
+        try {
+            ret = app.callAttr("localProxy", pySpider, map2json(params).toString());
+        } catch (Throwable th) {
+            Log.i("PyLoader", "echo-proxyLocal: 调用 py localProxy 失败: " + th.getMessage());
+            return null;
+        }
+        if (ret == null || ret.isNone()) {
+            Log.i("PyLoader", "echo-proxyLocal: py localProxy 返回 None(该 py 自建中转或不需要中转)");
+            return null;
+        }
+        List<PyObject> list;
+        try {
+            list = ret.asList();
+        } catch (Throwable th) {
+            Log.i("PyLoader", "echo-proxyLocal: 返回值不是列表: " + th.getMessage());
+            return null;
+        }
+        if (list == null || list.isEmpty()) {
+            Log.i("PyLoader", "echo-proxyLocal: 返回空列表");
+            return null;
+        }
         boolean base64 = list.size() > 4 && list.get(4).toInt() == 1;
         boolean headerAvailable = list.size() > 3 && list.get(3) != null;
         Object[] result = new Object[4];
@@ -148,7 +172,6 @@ public class PythonSpider extends Spider {
         result[1] = list.get(1).toString();
         result[2] = getStream(list.get(2), base64);
         result[3] = headerAvailable ? getHeader(list.get(3)) : null;
-//        result[3] = null;
         return result;
     }
 
