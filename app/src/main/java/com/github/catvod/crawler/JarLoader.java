@@ -123,7 +123,10 @@ public class JarLoader {
                             }
                         });
                         initThread.start();
-                        initThread.join();
+                        // 小贾影视仓 v24.1: join() -> join(1000) —— Init.init()(加固 jar 解壳/门禁/联网预热)
+                        // 可能耗时数秒, 原实现无限等它, 切线路整条链路被卡住。改为最多等 1 秒:
+                        // 没跑完就让它在后台继续, 后续 getSpider 真正用到时基本已就绪。
+                        initThread.join(1000);
                         Log.i("JarLoader", "echo-自定义爬虫代码加载成功!");
                         success = true;
                         try {
