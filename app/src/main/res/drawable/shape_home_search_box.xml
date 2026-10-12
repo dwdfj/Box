@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 小贾影视仓 v23: 首页通栏搜索框底(竖屏版)。
      竖屏把行高提到 vs_128(≈手机 48dp 舒适点击高度), 半径同步收敛到 vs_60, 接近胶囊形。
-     v23.9 赛博霓虹: 默认态 = 深紫半透明底 + 青色霓虹描边;
-     聚焦/按压: 主题色(霓虹品红)底 + 青描边, 保持键位导航的高可见反馈。 -->
+     v24.0 冰晶蓝玻璃: 默认态 = 深海军蓝半透明玻璃底 + 冰蓝描边;
+     聚焦/按压: 主题色(冰晶蓝)底 + 冰描边, 保持键位导航的高可见反馈。 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:state_pressed="true">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
-            <stroke android:width="1.5mm" android:color="#FF00E5FF" />
+            <stroke android:width="1.5mm" android:color="#FF3EC8F5" />
         </shape>
     </item>
     <item android:state_focused="false" android:state_pressed="true">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
-            <stroke android:width="1.5mm" android:color="#FF00E5FF" />
+            <stroke android:width="1.5mm" android:color="#FF3EC8F5" />
         </shape>
     </item>
     <item android:state_focused="true">
@@ -28,8 +28,8 @@
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
-            <solid android:color="#B30A0620" />
-            <stroke android:width="1.5mm" android:color="#8C00E5FF" />
+            <solid android:color="#B30D1B33" />
+            <stroke android:width="1.5mm" android:color="#8C7DE9FF" />
         </shape>
     </item>
 </selector>
