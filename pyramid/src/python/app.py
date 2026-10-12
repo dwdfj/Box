@@ -84,7 +84,12 @@ def init(ru,extend):
         elif key in sPath.keys():
             sp = loadFromDisk(sPath[key])
         if sp != None:
-            sp.setExtendInfo(sParam[key])
+            # 小贾影视仓 v23.8: 防御式注入 —— 第三方 py 源可能没有 setExtendInfo 方法,
+            # 或 sParam 里缺这个 key, 旧版直接抛异常导致整个源 init 失败
+            try:
+                sp.setExtendInfo(sParam.get(key, ''))
+            except Exception:
+                pass
             spoList.append(sp)
     ru.init(extend)
 
@@ -117,8 +122,9 @@ def liveContent(ru,url):
     result = ru.liveContent(url)
     return result
 
-def searchContent(ru,key,quick):
-    result = ru.searchContent(key,quick)
+def searchContent(ru,key,quick,pg="1"):
+    # 小贾影视仓 v23.8: 透传 pg(默认第 1 页), 兼容三参签名的第三方 py 源
+    result = ru.searchContent(key,quick,pg)
     formatJo = json.dumps(result,ensure_ascii=False)
     return formatJo
 
