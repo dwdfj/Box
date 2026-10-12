@@ -93,7 +93,11 @@ public class JarLoader {
             File cacheDir = new File(App.getInstance().getCacheDir().getAbsolutePath() + "/catvod_csp");
             if (!cacheDir.exists())
                 cacheDir.mkdirs();
-            final DexClassLoader classLoader = new DexClassLoader(jar, cacheDir.getAbsolutePath(), null, App.getInstance().getClassLoader());
+            // 小贾影视仓 v23.9.1: 加固 jar(如 wuyiGuard)把 native 库放在 assets/*.so,
+            // 原来传 null librarySearchPath 时部分加固壳 native 绑定失败 -> 解壳挂 -> 整条线路 csp 站点全挂。
+            // 这里解出 assets/*.so 到 jar 同目录, 并把该目录作为 librarySearchPath 传给 DexClassLoader。
+            String libDir = extractNativeLibs(jar);
+            final DexClassLoader classLoader = new DexClassLoader(jar, cacheDir.getAbsolutePath(), libDir, App.getInstance().getClassLoader());
             int count = 0;
             do {
                 try {
@@ -146,6 +150,50 @@ public class JarLoader {
             th.printStackTrace();
         }
         return success;
+    }
+
+    // 小贾影视仓 v23.9.1: 解出加固 jar 内 assets/*.so 到 jar 同目录, 返回该目录路径(无 so 返回 null)。
+    // 幂等: 已存在且大小一致则跳过, 换 jar(md5 key 变化时同 key 文件会被覆盖下载)后大小不符会重写。
+    private static String extractNativeLibs(String jarPath) {
+        java.util.zip.ZipFile zip = null;
+        try {
+            File jarFile = new File(jarPath);
+            File outDir = jarFile.getParentFile();
+            if (outDir == null || !outDir.exists()) return null;
+            zip = new java.util.zip.ZipFile(jarFile);
+            boolean found = false;
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> en = zip.entries();
+            while (en.hasMoreElements()) {
+                java.util.zip.ZipEntry e = en.nextElement();
+                String name = e.getName();
+                if (e.isDirectory() || name.startsWith("../") || name.contains("/../")) continue;
+                if (!name.startsWith("assets/") || !name.endsWith(".so")) continue;
+                File so = new File(outDir, new File(name).getName());
+                if (so.exists() && so.length() == e.getSize()) {
+                    found = true;
+                    continue;
+                }
+                InputStream is = null;
+                OutputStream os = null;
+                try {
+                    is = zip.getInputStream(e);
+                    os = new FileOutputStream(so);
+                    byte[] buffer = new byte[8192];
+                    int length;
+                    while ((length = is.read(buffer)) > 0) os.write(buffer, 0, length);
+                    found = true;
+                } finally {
+                    try { if (is != null) is.close(); } catch (Throwable ignored) { }
+                    try { if (os != null) os.close(); } catch (Throwable ignored) { }
+                }
+            }
+            return found ? outDir.getAbsolutePath() : null;
+        } catch (Throwable th) {
+            Log.i("JarLoader", "echo-extractNativeLibs: " + th);
+            return null;
+        } finally {
+            try { if (zip != null) zip.close(); } catch (Throwable ignored) { }
+        }
     }
 
     private DexClassLoader loadJarInternal(String jar, String md5, String key) {
