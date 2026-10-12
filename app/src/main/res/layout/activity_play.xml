@@ -105,8 +105,11 @@
                         android:textSize="@dimen/ts_38"
                         android:textStyle="bold" />
 
+                    <!-- 小贾影视仓 v23.8: 原 btn_play_music 是个没有任何绑定的死按钮(hm_up_down 图标),
+                         现改为「横屏全屏」入口 —— 用户反馈"我没发现放大按键, 点击变成横向全屏",
+                         放在标题行比藏在底部控制条里好找得多。 -->
                     <ImageView
-                        android:id="@+id/btn_play_music"
+                        android:id="@+id/btn_play_fullscreen"
                         android:layout_width="@dimen/vs_72"
                         android:layout_height="@dimen/vs_72"
                         android:layout_marginStart="@dimen/vs_16"
@@ -115,7 +118,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="@dimen/vs_16"
-                        android:src="@drawable/hm_up_down" />
+                        android:src="@drawable/v_fullscreen" />
 
                     <ImageView
                         android:id="@+id/btn_play_cast"
