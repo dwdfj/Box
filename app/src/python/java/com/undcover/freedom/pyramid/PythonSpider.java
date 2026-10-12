@@ -57,19 +57,45 @@ public class PythonSpider extends Spider {
             pySpider = app.callAttr("loadFromDisk", path);
 
             List<PyObject> poList = app.callAttr("getDependence", pySpider).asList();
-            for (PyObject po : poList) {
-                String api = po.toString();
-                Log.i("PyLoader", "echo-init api: " +api);
-                String depUrl = PythonLoader.getInstance().getUrlByApi(api);
-                if (!depUrl.isEmpty()) {
-                    Log.i("PyLoader", "echo-init depUrl: " +depUrl);
-                    String tmpPath = app.callAttr("downloadPlugin", cachePath, depUrl).toString();
-                    if (!new File(tmpPath).exists()) {
-                        PyToast.showCancelableToast(api + "加载失败!");
-                        return;
-                    } else {
-                        PyLog.d(api + ": 加载插件依赖成功！");
+            // 小贾影视仓 v24.1: 依赖插件并行下载 —— 原实现逐个串行, 每个依赖一次网络往返,
+            // 依赖多的 py 源首载要串着等好几轮。requests 在 IO 时释放 GIL, 并行安全。
+            if (poList != null && !poList.isEmpty()) {
+                java.util.concurrent.ExecutorService depPool = java.util.concurrent.Executors.newFixedThreadPool(
+                        Math.min(4, poList.size()), r -> {
+                            Thread t = new Thread(r, "py-dep");
+                            t.setDaemon(true);
+                            return t;
+                        });
+                try {
+                    java.util.List<java.util.concurrent.Future<String[]>> depFutures = new java.util.ArrayList<>();
+                    for (PyObject po : poList) {
+                        final String api = po.toString();
+                        depFutures.add(depPool.submit(() -> {
+                            Log.i("PyLoader", "echo-init api: " + api);
+                            String depUrl = PythonLoader.getInstance().getUrlByApi(api);
+                            if (depUrl.isEmpty()) return null;
+                            Log.i("PyLoader", "echo-init depUrl: " + depUrl);
+                            String tmpPath = app.callAttr("downloadPlugin", cachePath, depUrl).toString();
+                            return new String[]{api, tmpPath};
+                        }));
                     }
+                    for (java.util.concurrent.Future<String[]> f : depFutures) {
+                        String[] r = null;
+                        try {
+                            r = f.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                        } catch (Throwable te) {
+                            te.printStackTrace();
+                        }
+                        if (r == null) continue;
+                        if (!new File(r[1]).exists()) {
+                            PyToast.showCancelableToast(r[0] + "加载失败!");
+                            return;
+                        } else {
+                            PyLog.d(r[0] + ": 加载插件依赖成功！");
+                        }
+                    }
+                } finally {
+                    depPool.shutdown();
                 }
             }
             app.callAttr("init", pySpider, extInfo);
