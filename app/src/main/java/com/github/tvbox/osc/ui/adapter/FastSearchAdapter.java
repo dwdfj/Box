@@ -25,7 +25,17 @@ public class FastSearchAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
 
         // with preview
         helper.setText(R.id.tvName, item.name);
-        helper.setText(R.id.tvSite, ApiConfig.get().getSource(item.sourceKey).getName());
+        // 小贾影视仓 v23.4: 对齐 SearchAdapter —— 来源取不到时不再直接 NPE(原 getSource(...).getName())
+        if (item.sourceKey == null) {
+            helper.setText(R.id.tvSite, "");
+            helper.setVisible(R.id.tvSite, false);
+        } else {
+            com.github.tvbox.osc.bean.SourceBean sb = ApiConfig.get().getSource(item.sourceKey);
+            helper.setVisible(R.id.tvSite, sb != null);
+            if (sb != null) {
+                helper.setText(R.id.tvSite, sb.getName());
+            }
+        }
         helper.setVisible(R.id.tvNote, item.note != null && !item.note.isEmpty());
         if (item.note != null && !item.note.isEmpty()) {
             helper.setText(R.id.tvNote, item.note);
