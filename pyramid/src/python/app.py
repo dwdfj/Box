@@ -13,7 +13,8 @@ def createFile(file_path):
         os.makedirs(file_path)
 
 def redirectResponse(tUrl):
-  rsp = requests.get(tUrl, allow_redirects=False,verify = False)
+  # 小贾影视仓 v24.1: 补 timeout —— 原实现无超时, 慢服务器会把 py 源 init 卡到天荒地老
+  rsp = requests.get(tUrl, allow_redirects=False,verify = False, timeout=15)
   if 'Location' in rsp.headers:
     return redirectResponse(rsp.headers['Location'])
   else:
@@ -22,12 +23,20 @@ def redirectResponse(tUrl):
 def downloadFile(name,url):
     try:
         rsp = redirectResponse(url)
-        with open(name,'wb') as f:
+        if rsp.status_code >= 400:
+            return False
+        # 小贾影视仓 v24.1: 先写 .tmp 再原子替换 —— 原实现直接 open('wb') 会先截断旧文件,
+        # 回源一旦失败连本地缓存一起丢; 现在失败时旧文件原封不动, py 源仍可用。
+        tmp = name + '.tmp'
+        with open(tmp,'wb') as f:
             f.write(rsp.content)
+        os.replace(tmp, name)
         print(url)
+        return True
     except:
         print(name + ' =======================================> error')
         print(url)
+        return False
 
 def downloadPlugin(basePath,url):
     createFile(basePath)
@@ -37,7 +46,19 @@ def downloadPlugin(basePath,url):
         pyName = url.replace('file://','')
     else:
         pyName = basePath + name+'.py'
-        downloadFile(pyName,url)
+        # 小贾影视仓 v24.1: 插件本地缓存 12 小时 —— 原实现每次 init 都重新联网下载,
+        # 切线路/重启/加载依赖时 py 源都要白等一次网络(慢网数秒~十几秒), 这是「py 源加载慢」的最大根因。
+        # 缓存 12h 内直接用本地; 过期才回源; 回源失败且本地有旧文件时沿用旧文件(不再让 init 直接失败)。
+        import time as _time
+        fresh = False
+        try:
+            if os.path.exists(pyName) and os.path.getsize(pyName) > 0 \
+                    and (_time.time() - os.path.getmtime(pyName)) < 12 * 3600:
+                fresh = True
+        except Exception:
+            pass
+        if not fresh:
+            downloadFile(pyName, url)
     sPath = gParam['SpiderPath']
     sPath[name] = pyName
     sParam = gParam['SpiderParam']
