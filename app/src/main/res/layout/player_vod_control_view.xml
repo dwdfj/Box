@@ -823,7 +823,33 @@
 	            android:orientation="horizontal"
 	            android:paddingLeft="@dimen/vs_64"
 	            android:paddingRight="@dimen/vs_64">
-	
+
+	            <!-- 小贾影视仓 v23.8: 「横屏全屏」按钮提到控制条第一位并放大(vs_72 -> vs_96)。
+	                 用户反馈"我没发现放大按键, 点击变成横向全屏" —— 原来排在控制条最末,
+	                 手机竖屏下要横滑一长条才能看到, 且 htov/vtoh 箭头图标不直观。
+	                 现在用标准全屏图标(进入 v_fullscreen / 退出 v_fullscreen_exit),
+	                 竖屏点一下即转横向全屏, 再点一下(退出图标)回竖屏半屏。 -->
+	            <LinearLayout
+	                android:id="@+id/landscape_portrait"
+	                android:layout_width="@dimen/vs_96"
+	                android:layout_height="@dimen/vs_96"
+	                android:layout_gravity="center"
+	                android:layout_marginEnd="@dimen/vs_6"
+	                android:layout_marginRight="@dimen/vs_6"
+	                android:background="@drawable/button_dialog_vod"
+	                android:focusable="true"
+	                android:gravity="center"
+	                android:orientation="horizontal"
+	                android:visibility="visible">
+
+	                <ImageView
+	                    android:id="@+id/lv_portrait"
+	                    android:layout_width="@dimen/vs_88"
+	                    android:layout_height="@dimen/vs_88"
+	                    android:layout_gravity="center"
+	                    android:src="@drawable/v_fullscreen" />
+	            </LinearLayout>
+
 	            <LinearLayout
 	                android:id="@+id/play_prev"
 	                android:layout_width="@dimen/vs_96"
@@ -1249,29 +1275,6 @@
 	                android:textSize="@dimen/ts_16"
 	                android:visibility="gone"
 	                tools:visibility="gone" />
-	                
-	            <LinearLayout
-	                android:id="@+id/landscape_portrait"
-	                android:layout_width="@dimen/vs_72"
-	                android:layout_height="@dimen/vs_72"
-	                android:layout_gravity="center"
-	                android:layout_marginStart="@dimen/vs_6"
-	                android:layout_marginLeft="@dimen/vs_6"
-	                android:layout_marginEnd="@dimen/vs_6"
-	                android:layout_marginRight="@dimen/vs_6"
-	                android:background="@drawable/button_dialog_vod"
-	                android:focusable="true"
-	                android:gravity="center"
-	                android:orientation="horizontal"
-	                android:visibility="visible">
-	
-	                <ImageView
-	                    android:id="@+id/lv_portrait"
-	                    android:layout_width="@dimen/vs_64"
-	                    android:layout_height="@dimen/vs_64"
-	                    android:layout_gravity="center"                    
-	                    android:src="@drawable/htov" />
-	            </LinearLayout>                
 	        </LinearLayout>
         </HorizontalScrollView>
         
