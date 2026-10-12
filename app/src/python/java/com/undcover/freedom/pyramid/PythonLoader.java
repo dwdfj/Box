@@ -8,7 +8,6 @@ import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 import com.github.catvod.crawler.Spider;
-import com.github.catvod.crawler.SpiderNull;
 
 import com.github.tvbox.osc.util.OkGoHelper;
 import com.github.tvbox.osc.util.urlhttp.OKCallBack;
@@ -37,12 +36,26 @@ import okhttp3.Response;
 
 public class PythonLoader {
     private final ConcurrentHashMap<String, Spider> spiders = new ConcurrentHashMap<>();
+    // 小贾影视仓 v23.8: 正在初始化中的 spider 去重表 —— 同一个 py 源并发取 Spider 时只初始化一次,
+    // 后续调用都等同一个 Future(旧实现每次都新建线程池重新 init, 超时还不缓存 => 反复白跑 10 秒)。
+    private final ConcurrentHashMap<String, Future<PythonSpider>> spiderInits = new ConcurrentHashMap<>();
     private static PythonLoader sInstance;
     private Application app;
     private final HashMap<String, JSONObject> siteMap;
     Python pyInstance;
     PyObject pyApp;
     Python.Platform androidPlatform;
+    // v23.8: Python 运行时后台预热 —— 原实现 setApplication() 在构造器(ApiConfig 字段初始化,
+    // 主线程)里同步 Python.start() + getModule("app"), 冷启动直接卡死主线程一两秒,
+    // 且首次 py 调用必然慢。现在启动动作丢到后台线程, getSpider 时再等它就绪。
+    private final ExecutorService bootExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "py-boot");
+        t.setDaemon(true);
+        return t;
+    });
+    private volatile boolean bootStarted = false;
+    private volatile boolean pyReady = false;
+    private volatile Throwable bootError = null;
 
     public PythonLoader() {
         siteMap = new HashMap<>();
@@ -71,6 +84,8 @@ public class PythonLoader {
         try {
             JSONObject configJo = new JSONObject(config);
             JSONArray siteList = configJo.getJSONArray("sites");
+            // 小贾影视仓 v23.8: 每次解析新线路先清空旧表, 防止多条线路的同名 api/ext 互相串台
+            siteMap.clear();
             for (int i = 0; i < siteList.length(); i++) {
                 JSONObject jo = siteList.getJSONObject(i);
                 String key = jo.optString("api");
@@ -84,15 +99,51 @@ public class PythonLoader {
     public PythonLoader setApplication(Application app) {
         this.app = app;
         setSdk(this.app);
-        if (pyInstance == null) {
-            if (!Python.isStarted()) {
-                androidPlatform = new AndroidPlatform(app);
-                Python.start(androidPlatform);
-            }
-            pyInstance = Python.getInstance();
-            pyApp = pyInstance.getModule("app");
-        }
+        startBoot();
         return this;
+    }
+
+    /**
+     * 小贾影视仓 v23.8: Python 运行时后台预热(不卡主线程)。
+     * Chaquopy 的 Python.start 首次要走 dex 提取/so 加载, 旧实现放在构造器链路(主线程)里同步做,
+     * 首页/线路切换都会被拖慢。这里改成后台单线程执行, getSpider 时用 awaitBoot 等它就绪。
+     */
+    private void startBoot() {
+        if (pyReady || bootStarted) return;
+        synchronized (this) {
+            if (pyReady || bootStarted) return;
+            bootStarted = true;
+        }
+        bootExecutor.execute(() -> {
+            try {
+                if (!Python.isStarted()) {
+                    androidPlatform = new AndroidPlatform(app);
+                    Python.start(androidPlatform);
+                }
+                pyInstance = Python.getInstance();
+                pyApp = pyInstance.getModule("app");
+                pyReady = true;
+                PyLog.d("Python 运行时后台预热完成");
+            } catch (Throwable th) {
+                bootError = th;
+                PyLog.e("Python 运行时启动失败: " + th.getMessage());
+            }
+        });
+    }
+
+    /** 等 Python 运行时就绪, 最多 timeoutSec 秒。失败/超时返回 false。 */
+    private boolean awaitBoot(long timeoutSec) {
+        if (pyReady) return true;
+        long deadline = System.currentTimeMillis() + timeoutSec * 1000L;
+        while (!pyReady && System.currentTimeMillis() < deadline) {
+            if (bootError != null) return false;
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                return false;
+            }
+        }
+        return pyReady;
     }
 
     String cache = "/storage/emulated/0/plugin/";
@@ -143,57 +194,66 @@ public class PythonLoader {
 
     public Spider getSpider(String key, String url) throws Exception {
         if (app == null) throw new Exception("set application first");
-        if (spiders.containsKey(key)) {
+        Spider cached = spiders.get(key);
+        if (cached != null) {
             PyLog.d(key + " :缓存加载成功！");
-            return spiders.get(key);
+            return cached;
         }
-
-        // 使用ExecutorService来管理线程
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<?> future = null;
+        // 小贾影视仓 v23.8: 先等 Python 运行时后台预热完成(最多 30s),
+        // 再等 spider 初始化(下载插件+加载依赖+init, 网络慢时 10s 根本不够 => 提到 25s)。
+        if (!awaitBoot(30)) {
+            throw new Exception(bootError == null ? "python runtime boot timeout" : bootError);
+        }
+        Future<PythonSpider> f = spiderInits.get(key);
+        if (f == null) {
+            java.util.concurrent.FutureTask<PythonSpider> task =
+                    new java.util.concurrent.FutureTask<>(() -> {
+                        PythonSpider sp = new PythonSpider(key, pluginDir());
+                        sp.init(app, url);
+                        return sp;
+                    });
+            f = spiderInits.putIfAbsent(key, task);
+            if (f == null) {
+                f = task;
+                bootExecutor.execute(task); // 复用同一个单线程执行器: Python 调用串行化, 避免资源挤兑
+            }
+        }
         try {
-            PythonSpider sp = new PythonSpider(key, pluginDir());
-
-            // 提交初始化任务
-            future = executor.submit(() -> {
-                try {
-                    sp.init(app, url);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-
-            // 等待线程完成，最多10秒
-            future.get(10, TimeUnit.SECONDS);
-
-            // 任务成功，缓存并返回
+            PythonSpider sp = f.get(25, TimeUnit.SECONDS);
             spiders.put(key, sp);
+            spiderInits.remove(key, f);
+            PyLog.d(key + " :初始化成功");
             return sp;
         } catch (TimeoutException e) {
-            PyLog.e("echo-init方法执行超时");
-            // 超时了，不做中断，返回空的Spider
-        } catch (ExecutionException | InterruptedException e) {
-            PyLog.e("echo-init:ExecutionException|InterruptedException");
-        } finally {
-            // 关闭线程池
-            if (future != null && !future.isDone()) {
-                future.cancel(true);  // 取消任务
-            }
-            executor.shutdown();  // 关闭线程池
+            PyLog.e(key + " :init 超时(25s), 后台继续加载, 下次调用可直接等结果");
+            // 不缓存失败结果 —— 上层抛异常走"源不可用"处理, 用户重试时无需推倒重来
+            throw new Exception("py init timeout: " + key);
+        } catch (ExecutionException e) {
+            spiderInits.remove(key, f);
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            PyLog.e(key + " :init 失败 " + cause.getMessage());
+            throw new Exception(cause);
         }
-        return new SpiderNull();
     }
 
     int port = -1;
 
     public void getPort() {
-        if (port <= 0) {
-            for (int i = 9978; i < 10000; i++) {
+        if (port > 0) return;
+        for (int i = 9978; i < 10000; i++) {
+            try {
                 if (OkHttpUtil.string("http://127.0.0.1:" + i + "/proxy?do=ck&api=python", null).equals("ok")) {
                     port = i;
                     return;
                 }
+            } catch (Throwable ignored) {
             }
+        }
+        // 小贾影视仓 v23.3: 原实现在全部探测失败时 port 仍是 -1 且不重试,
+        // localProxyUrl() 会返回 "http://127.0.0.1:-1/proxy" 这种废地址,
+        // py 源换算出来的播放地址直接失效。这里兜底用默认端口, 并允许下次重试。
+        if (port <= 0) {
+            port = 9978;
         }
     }
 
