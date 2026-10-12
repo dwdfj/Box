@@ -238,7 +238,8 @@ public class SourceViewModel extends ViewModel {
                     try {
                         // 小贾影视仓 v17: 20s -> 10s。首页主内容等待过久是"打开首页慢"的主因;
                         // 超时后已有 v15.14 的按天落盘缓存回填兜底, 不会再空屏, 所以没必要死等 20 秒。
-                        sortJson = future.get(10, TimeUnit.SECONDS);
+                        // v23.4: py 源(type==3)首次要冷启动 Python + 下载 .py 插件, 放宽到 40s, 否则首页直接空。
+                        sortJson = future.get(sourceBean.getType() == 3 ? 40 : 10, TimeUnit.SECONDS);
                     } catch (TimeoutException e) {
                         e.printStackTrace();
                         future.cancel(true);
@@ -516,7 +517,8 @@ public class SourceViewModel extends ViewModel {
                     String sortJson = null;
                     try {
                         // 小贾影视仓 v17: 15s -> 8s。推荐兜底失败已有按天缓存回填, 死等只会拖慢首页。
-                        sortJson = future.get(8, TimeUnit.SECONDS);
+                        // v23.4: py 源放宽到 30s(冷启动 + 插件下载)。
+                        sortJson = future.get(sourceBean.getType() == 3 ? 30 : 8, TimeUnit.SECONDS);
                     } catch (TimeoutException e) {
                         e.printStackTrace();
                         future.cancel(true);
@@ -635,7 +637,10 @@ public class SourceViewModel extends ViewModel {
                     String json = null;
                     try {
                         // 小贾影视仓 v17: 15s -> 10s。慢源快速失败, 避免"点了影片干等 15 秒"。
-                        json = future.get(10, TimeUnit.SECONDS);
+                        // v23.4: py 源(type==3)放宽到 40s —— 详情页要冷启动 Python + 探测集数
+                        // (qimao.py 会二分探测 SEO 副本覆盖到第几集), 10s 常常不够,
+                        // 表现为「py 源点进去没内容 / 选不了集」。
+                        json = future.get(sourceBean.getType() == 3 ? 40 : 10, TimeUnit.SECONDS);
                         LOG.i("echo--getDetail--result:" + json);
                     } catch (TimeoutException e) {
                         LOG.i("echo--getDetail--timeout");
@@ -933,7 +938,12 @@ public class SourceViewModel extends ViewModel {
         threadPoolGetPlay.execute(() -> {
             Future<JSONObject> future = threadPoolGetPlay.submit(callable);
             try {
-                JSONObject jsonObject = future.get(15, TimeUnit.SECONDS);
+                // 小贾影视仓 v23.4: 15s -> 60s。
+                // py 源(type==3)的 playerContent 要在 Chaquopy 里冷启动 Python、下载/加载 .py 插件,
+                // 再跑网络探测(qimao.py 还要发匿名 token、探测 SEO 副本、起本机中转), 首帧很容易超过 15s;
+                // 一超时 future.get 抛异常 -> playResult.postValue(null) -> 播放页报"获取播放信息错误",
+                // 表现为「部分 py 播不了(其实是超时)」, 而快的 jar 源不受影响。放宽到 60s。
+                JSONObject jsonObject = future.get(60, TimeUnit.SECONDS);
                 playResult.postValue(jsonObject);
             } catch (Throwable e) {
                 e.printStackTrace();
