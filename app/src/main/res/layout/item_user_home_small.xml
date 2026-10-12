@@ -13,7 +13,7 @@
     <FrameLayout
         android:id="@+id/mItemFrame"
         android:layout_width="@dimen/vs_95"
-        android:layout_height="@dimen/vs_128">
+        android:layout_height="@dimen/vs_127">
 
         <ImageView
             android:id="@+id/ivThumb"
