@@ -67,7 +67,8 @@ public class CollectActivity extends BaseActivity {
         tvClear = findViewById(R.id.tvClear);
         mGridView = findViewById(R.id.mGridView);
         mGridView.setHasFixedSize(true);
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
+        // 小贾影视仓 v23.8: 竖屏由 5 列改 3 列, 与首页/分类页/搜索页统一(v23.8 封面放大)
+        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 3 : 6));
         collectAdapter = new CollectAdapter();
         mGridView.setAdapter(collectAdapter);
         tvDelete.setOnClickListener(new View.OnClickListener() {
