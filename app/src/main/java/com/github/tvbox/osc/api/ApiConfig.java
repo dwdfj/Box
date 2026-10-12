@@ -549,8 +549,11 @@ public class ApiConfig {
             return;
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/"+MD5.string2MD5(jarUrl)+".jar");
+        // 小贾影视仓 v24.1: md5 缓存键提前定格(final) —— jarUrl 随后会被 img+ 前缀剥离重赋值,
+        // 匿名内部类(onError 回调)引用非 final 局部变量直接编译失败。
+        final String jarKey = MD5.string2MD5(jarUrl);
         if (!md5.isEmpty() || useCache) {
-            if (cache.exists() && (useCache || fileMd5Cached(cache, MD5.string2MD5(jarUrl)).equalsIgnoreCase(md5))) {
+            if (cache.exists() && (useCache || fileMd5Cached(cache, jarKey).equalsIgnoreCase(md5))) {
                 if (jarLoader.load(cache.getAbsolutePath())) {
                     callback.success();
                 } else {
@@ -645,7 +648,7 @@ public class ApiConfig {
                         if (cache.exists()) {
                             boolean usable;
                             if (md5.isEmpty()) usable = true;
-                            else usable = fileMd5Cached(cache, MD5.string2MD5(jarUrl)).equalsIgnoreCase(md5);
+                            else usable = fileMd5Cached(cache, jarKey).equalsIgnoreCase(md5);
                             if (usable) {
                                 try {
                                     if (jarLoader.load(cache.getAbsolutePath())) {
