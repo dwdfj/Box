@@ -223,7 +223,10 @@ public class GridFragment extends BaseLazyFragment {
         if (isFolederMode()) {
             mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         } else {
-            int spanCount = isBaseOnWidth() ? 5 : 3;
+            // 小贾影视仓 v23.8: 竖屏(手机)一行 5 个封面太小(207px/张), 改成 3 个(357px/张),
+            // 与首页海报墙 / 搜索结果保持一致; 大屏(屏比>=4 的 TV 横屏)维持 3 列不变。
+            // 注意 isBaseOnWidth()==true 即"竖屏按宽度适配"(手机), 不是字面上的"宽屏"。
+            int spanCount = 3;
             if (style != null) {
                 spanCount = ImgUtil.spanCountByStyle(style, spanCount);
             }
