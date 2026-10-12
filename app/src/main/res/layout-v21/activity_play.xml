@@ -11,11 +11,11 @@
     android:background="@color/color_32364E_40"
     android:orientation="vertical">
 
-    <!-- 上半: 视频画面(高度由 Java 按屏宽换算, 兜底 vs_700) -->
+    <!-- 上半: 视频画面(高度由 Java 按「屏高一半」换算, 兜底 vs_1400) -->
     <FrameLayout
         android:id="@+id/videoContainer"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_700"
+        android:layout_height="@dimen/vs_1400"
         android:background="@android:color/black">
 
         <com.github.tvbox.osc.player.MyVideoView
