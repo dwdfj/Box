@@ -35,14 +35,17 @@
             android:layout_marginBottom="@dimen/vs_34"
             android:background="?attr/color_theme" />
 
-        <!-- 标题胶囊: 跟着文字自适应宽度, 右侧 spacer 把图标组顶到最右 -->
+        <!-- 小贾影视仓 v23.6: 标题胶囊「定宽」——
+             之前 wrap_content 会随「线路名」长短伸缩, 来回切信号源时胶囊忽大忽小;
+             v23.5 那版用 min/max 夹, 但 620~760 之间仍随文本漂移, 而且 vs_620 根本没定义(编译不过)。
+             现在直接写死宽度: 无论线路名多长多短, 胶囊尺寸恒定, 超长尾部省略。 -->
         <TextView
             android:id="@+id/tvName"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/vs_700"
             android:layout_height="match_parent"
             android:background="@drawable/shape_home_title"
             android:clickable="true"
-            android:ellipsize="marquee"
+            android:ellipsize="end"
             android:focusable="true"
             android:focusableInTouchMode="false"
             android:gravity="left|center_vertical"
