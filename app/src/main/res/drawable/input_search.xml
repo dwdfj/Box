@@ -15,7 +15,7 @@
             <corners android:radius="10mm" />
             <stroke
                 android:width="@dimen/vs_2"
-                android:color="#8C00E5FF" />
+                android:color="#8C3EC8F5" />
         </shape>
     </item>
 </selector>
