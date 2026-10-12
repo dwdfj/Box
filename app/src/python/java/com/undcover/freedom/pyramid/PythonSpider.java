@@ -150,7 +150,7 @@ public class PythonSpider extends Spider {
             Log.i("PyLoader", "echo-proxyLocal: 调用 py localProxy 失败: " + th.getMessage());
             return null;
         }
-        if (ret == null || ret.isNone()) {
+        if (ret == null || "None".equals(ret.toString())) {
             Log.i("PyLoader", "echo-proxyLocal: py localProxy 返回 None(该 py 自建中转或不需要中转)");
             return null;
         }
