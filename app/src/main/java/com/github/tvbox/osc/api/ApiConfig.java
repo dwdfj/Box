@@ -673,9 +673,17 @@ public class ApiConfig {
     private void parseJson(String apiUrl, String jsonStr) {
         // 小贾影视仓: 切换线路时清空旧站点, 防止多个线路的站点累积混在一起
         sourceBeanList.clear();
-//        pyLoader.setConfig(jsonStr);
         // 小贾影视仓: 去掉配置里的 // 与 /* */ 注释(不少源如 hgyx 带注释), 否则 Gson 解析直接失败
         jsonStr = stripJsonComments(jsonStr);
+        // 小贾影视仓 v23.8: 恢复 py 站点表注入(原版被注释, 导致 PythonLoader.siteMap 永远为空)。
+        // 多文件 py 源的 getDependence() 依赖解析全靠它: siteMap 为空 => getUrlByApi() 永远返回 "" =>
+        // 依赖插件永远下载不到 => "配置里的 .py 源用不了"。必须在 stripJsonComments 之后调用,
+        // 否则 org.json 解析带注释的原文直接抛异常。
+        try {
+            pyLoader.setConfig(jsonStr);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
         JsonObject infoJson = new Gson().fromJson(jsonStr, JsonObject.class);
         jarCache = DefaultConfig.safeJsonString(infoJson, "jarCache", "true");
         // spider
