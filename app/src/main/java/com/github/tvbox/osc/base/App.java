@@ -193,8 +193,12 @@ public class App extends MultiDexApplication {
         // 小贾影视仓 v24.1: Python 运行时提前预热 —— 原来挂在首次 ApiConfig.get()(首个 Activity 创建)才启动,
         // 冷启动白白浪费几百毫秒; 提前到 Application.onCreate 后台线程启动, 首次进 py 源/切 py 线路更快。
         // startBoot 幂等(bootStarted/pyReady 双检), 与 pyLoader 构造器里的 setApplication 重复调用无副作用。
+        // 注意: PythonLoader 只在 python 变体的 sourceSet 里(java 版没有), main 源集必须走反射, 不能直接 import。
         try {
-            com.undcover.freedom.pyramid.PythonLoader.getInstance().setApplication(this);
+            Object pyLoader = Class.forName("com.undcover.freedom.pyramid.PythonLoader")
+                    .getMethod("getInstance").invoke(null);
+            pyLoader.getClass().getMethod("setApplication", android.app.Application.class)
+                    .invoke(pyLoader, this);
         } catch (Throwable ignored) {
         }
 
