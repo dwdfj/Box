@@ -115,6 +115,55 @@ public class ApiConfig {
         return instance;
     }
 
+    // 小贾影视仓 v23.9.1: php 线路通用打包解码兜底。
+    // 部分线路(如 yc.wya6.cn/wykj.php)返回「hexdump(jar) + 水印标记(=WUYIwuyi**) + base64(配置JSON)」;
+    // 标准 [A-Za-z0]{8}** 标记 FindResult 已支持, 但标记含数字/其它变体会漏 —— 这里按
+    // ①最后一个 ** 标记之后 ②全文最长 base64 段起始 两个候选尝试, 解出「{ 开头且含
+    // sites/spider/lives」的 JSON 才采纳, 否则返回 null 走原逻辑。
+    private static String tryDecodePackedConfig(String text) {
+        try {
+            if (text == null) return null;
+            String t = text.trim();
+            if (t.length() < 16 || t.startsWith("{") || t.startsWith("[")) return null;
+            // 候选1: 最后一个 ** 之后
+            String cand = null;
+            int idx = t.lastIndexOf("**");
+            if (idx >= 0 && idx + 2 < t.length()) cand = tryBase64ToJson(t.substring(idx + 2));
+            // 候选2: 全文中最长 base64 连续段的起点(取其后全部内容, 兼容分行 base64)
+            if (cand == null) {
+                Matcher m = getPattern("[A-Za-z0-9+/=]{48,}").matcher(t);
+                int bestStart = -1, bestLen = 0;
+                while (m.find()) {
+                    if (m.group().length() > bestLen) {
+                        bestLen = m.group().length();
+                        bestStart = m.start();
+                    }
+                }
+                if (bestStart >= 0) cand = tryBase64ToJson(t.substring(bestStart));
+            }
+            return cand;
+        } catch (Throwable th) {
+            th.printStackTrace();
+            return null;
+        }
+    }
+
+    private static String tryBase64ToJson(String s) {
+        try {
+            if (s == null) return null;
+            String clean = s.replaceAll("\\s", "");
+            if (clean.length() < 16) return null;
+            byte[] data = Base64.decode(clean, Base64.DEFAULT);
+            if (data == null || data.length < 8) return null;
+            String out = new String(data, "UTF-8").trim();
+            if (!out.startsWith("{")) return null;
+            if (!out.contains("sites") && !out.contains("spider") && !out.contains("lives")) return null;
+            return out;
+        } catch (Throwable th) {
+            return null;
+        }
+    }
+
     public static String FindResult(String json, String configKey) {
         String content = json;
         try {
@@ -348,6 +397,11 @@ public class ApiConfig {
                                 }
                             }
                             String text = new String(raw, "UTF-8");
+                            // 小贾影视仓 v23.9.1: php 线路打包格式兼容(实测 yc.wya6.cn/wykj.php 这类):
+                            // 返回「hexdump(jar) + 水印标记 + base64(配置JSON)」或整段 base64。
+                            // 标准 8 字母** 标记 FindResult 已支持; 这里补通用解码做兜底(标记带数字/无标记)。
+                            String packed = tryDecodePackedConfig(text);
+                            if (packed != null) text = packed;
                             result = FindResult(text, configKey);
                         }
                         if (apiUrl.startsWith("clan")) {
