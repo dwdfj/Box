@@ -664,15 +664,16 @@ public class HomeActivity extends BaseActivity {
                     @Override
                     public void success() {
                         jarInitOk = true;
-                        postDelayedIfAlive(new Runnable() {
+                        postIfAlive(new Runnable() {
                             @Override
                             public void run() {
                                 if (!useCacheConfig) {
                                     Toast.makeText(HomeActivity.this, getString(R.string.hm_ok), Toast.LENGTH_SHORT).show();
                                 }
+                                // 小贾影视仓 v24.1: 去掉 50ms 人为延迟, config/jar/spider 流水线直接续跑
                                 initData();
                             }
-                        }, 50);
+                        });
                     }
 
                     @Override
@@ -702,7 +703,7 @@ public class HomeActivity extends BaseActivity {
                                     Toast.makeText(HomeActivity.this, msg, Toast.LENGTH_SHORT).show();
                                 initData();
                             }
-                        },50);
+                        });
                     }
                 });
             }
@@ -730,12 +731,13 @@ public class HomeActivity extends BaseActivity {
                 // 小贾影视仓 v23.9.1: 记录"最近一次成功加载的线路"。
                 // 之后拉取其它线路失败时自动切回这条, 用户不再被困死在"重试/取消"循环里。
                 Hawk.put(HawkConfig.LAST_GOOD_API, Hawk.get(HawkConfig.API_URL, ""));
-                postDelayedIfAlive(new Runnable() {
+                postIfAlive(new Runnable() {
                     @Override
                     public void run() {
+                        // 小贾影视仓 v24.1: 去掉 50ms 人为延迟, config 成功后直接接 jar 加载
                         initData();
                     }
-                }, 50);
+                });
             }
 
             @Override
