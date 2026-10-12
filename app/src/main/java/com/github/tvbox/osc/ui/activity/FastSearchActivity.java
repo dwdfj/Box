@@ -137,7 +137,9 @@ public class FastSearchActivity extends BaseActivity {
         mGridViewFilter = findViewById(R.id.mGridViewFilter);
 
         mGridViewWord.setHasFixedSize(true);
-        mGridViewWord.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
+        // 小贾影视仓 v23.4: 来源列由「左侧竖排」改为「顶部横排」—— V7LinearLayoutManager 里
+        // HORIZONTAL=0 / VERTICAL=1(与 LinearLayoutManager 一致), 原为 1 即竖排, 是细面条根因之一。
+        mGridViewWord.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
         spListAdapter = new FastListAdapter();
         mGridViewWord.setAdapter(spListAdapter);
 
@@ -194,7 +196,8 @@ public class FastSearchActivity extends BaseActivity {
         // v15.13: 打开 setHasFixedSize —— 每站结果 addData 时不再整墙重测高度/重排,
         // 消除搜索结果"卡片跳动"感(此前被注释导致 addData → notifyDataSetChanged 全量重排闪烁)
         mGridView.setHasFixedSize(true);
-        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 4 : 5));
+        // 小贾影视仓 v23.4: 竖屏三列(原 4/5 列 + 左侧来源列, 竖屏下被挤成细面条)
+        mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
 
         searchAdapter = new FastSearchAdapter();
         mGridView.setAdapter(searchAdapter);
@@ -223,7 +226,7 @@ public class FastSearchActivity extends BaseActivity {
         });
 
         mGridViewFilter.setHasFixedSize(true); // v15.13: 同 mGridView, 过滤结果集切换不重排跳动
-        mGridViewFilter.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 4 : 5));
+        mGridViewFilter.setLayoutManager(new V7GridLayoutManager(this.mContext, 3));
         searchAdapterFilter = new FastSearchAdapter();
         mGridViewFilter.setAdapter(searchAdapterFilter);
         searchAdapterFilter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
