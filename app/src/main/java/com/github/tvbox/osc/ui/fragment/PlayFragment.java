@@ -69,6 +69,7 @@ import com.github.tvbox.osc.server.RemoteServer;
 import com.github.tvbox.osc.subtitle.model.Subtitle;
 import com.github.tvbox.osc.ui.activity.DetailActivity;
 import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
+import com.github.tvbox.osc.ui.dialog.CastDialog;
 import com.github.tvbox.osc.ui.dialog.DanmuSettingDialog;
 import com.github.tvbox.osc.ui.dialog.SearchSubtitleDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
@@ -414,17 +415,34 @@ public class PlayFragment extends BaseLazyFragment {
                 return "";
             }
 
+            // 小贾影视仓 v23.6: 投屏 = 真·DLNA(与 PlayActivity 同一实现)。
+            // 之前的系统 WIFI_DISPLAY_SETTINGS 意图在手机上不存在, 只会报"本机不支持无线投屏"。
             @Override
             public void gotoScreenCast() {
-                try {
-                    Intent i = new Intent("android.settings.WIFI_DISPLAY_SETTINGS");
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                } catch (Throwable th) {
-                    if (getContext() != null) {
-                        Toast.makeText(getContext(), "本机不支持无线投屏", Toast.LENGTH_SHORT).show();
-                    }
+                Context ctx = getContext();
+                if (ctx == null) return;
+                if (videoURL == null || videoURL.length() == 0) {
+                    Toast.makeText(ctx, R.string.cast_no_url, Toast.LENGTH_SHORT).show();
+                    return;
                 }
+                String title = (mVodInfo == null || mVodInfo.name == null) ? "" : mVodInfo.name;
+                try {
+                    if (mVodInfo != null && mVodInfo.seriesMap != null) {
+                        java.util.List<VodInfo.VodSeries> list = mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                        int idx = mVodInfo.getplayIndex();
+                        if (list != null && idx >= 0 && idx < list.size()) {
+                            VodInfo.VodSeries vs = list.get(idx);
+                            title = mVodInfo.name + " : " + (vs == null ? "" : vs.name);
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                long position = 0;
+                try {
+                    if (mVideoView != null) position = mVideoView.getCurrentPosition();
+                } catch (Throwable ignored) {
+                }
+                new CastDialog(ctx, videoURL, title, position).show();
             }
 
             @Override
@@ -1433,6 +1451,9 @@ public class PlayFragment extends BaseLazyFragment {
             return;
         }
         mPlayEpisodeCard.setVisibility(android.view.View.VISIBLE);
+        // 小贾影视仓 v23.5: 剧集一律顺向排列(第1集在最前)
+        mVodInfo.reverseSort = false;
+        if (mBtnEpisodeSort != null) mBtnEpisodeSort.setVisibility(android.view.View.GONE);
         ArrayList<String> names = new ArrayList<>();
         for (VodInfo.VodSeries v : list) {
             names.add(v.name == null ? "" : v.name);
@@ -1455,13 +1476,11 @@ public class PlayFragment extends BaseLazyFragment {
         try {
             android.view.View videoContainer = findViewById(R.id.videoContainer);
             if (videoContainer == null) return;
-            int screenW = AutoSizeConfig.getInstance().getScreenWidth();
-            if (screenW <= 0) {
-                android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-                screenW = Math.min(dm.widthPixels, dm.heightPixels);
-            }
-            if (screenW <= 0) return;
-            int targetPx = (int) (screenW * 9.0f / 16.0f);
+            // 小贾影视仓 v23.5: 竖屏视频区 = 屏高一半(旧版按屏宽 9/16 ≈ 屏高 25%, 用户反馈太小)
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int screenH = dm.heightPixels;
+            if (screenH <= 0) return;
+            int targetPx = Math.round(screenH * 0.5f);
             android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
             if (lp != null) {
                 lp.height = targetPx;
