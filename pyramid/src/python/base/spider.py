@@ -49,6 +49,15 @@ class Spider(metaclass=ABCMeta):
     def localProxy(self, param):
         pass
 
+    def setExtendInfo(self, extend):
+        # 小贾影视仓 v23.8: 兼容宿主 app.py 的 init(ru, extend) —— 它会遍历 extend 参数
+        # 调用 sp.setExtendInfo(...)。不少第三方 py 源只覆写了 init() 而没有这个方法,
+        # 旧版直接 AttributeError 导致整个源加载失败。这里给一个安全的默认实现。
+        try:
+            self.extend = extend
+        except Exception:
+            pass
+
     def isVideoFormat(self, url):
         pass
 
