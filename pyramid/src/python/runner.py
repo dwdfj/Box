@@ -17,8 +17,13 @@ class Runner():  # 元类 默认的元类 type
         return self.spider.categoryContent(tid,pg,filter,extend)
     def detailContent(self,ids):
         return self.spider.detailContent(ids)
-    def searchContent(self,key,quick):
-        return self.spider.searchContent(key,quick)
+    def searchContent(self,key,quick,pg="1"):
+        # 小贾影视仓 v23.8: 透传 pg —— 不少第三方 py 源的 searchContent(self, key, quick, pg)
+        # 是三参签名, 旧版只传两参会 TypeError 导致"这个 py 源搜不出来"。
+        try:
+            return self.spider.searchContent(key,quick,pg)
+        except TypeError:
+            return self.spider.searchContent(key,quick)
     def playerContent(self,flag,id,vipFlags):
         return self.spider.playerContent(flag,id,vipFlags)
     def liveContent(self,url):
