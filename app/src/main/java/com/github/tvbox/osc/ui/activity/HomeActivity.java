@@ -685,7 +685,7 @@ public class HomeActivity extends BaseActivity {
                     public void error(String msg) {
                         jarInitOk = true;
                         dataInitOk = true;
-                        postDelayedIfAlive(new Runnable() {
+                        postIfAlive(new Runnable() {
                             @Override
                             public void run() {
                                 // 小贾影视仓 v15.15: 内置包(去加固 jar)加载失败 -> 自动降级到默认在线线路并重启首页,
