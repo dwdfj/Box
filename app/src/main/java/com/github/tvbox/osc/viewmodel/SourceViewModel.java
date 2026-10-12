@@ -89,7 +89,13 @@ public class SourceViewModel extends ViewModel {
             searchExecutorService = null;
             JsLoader.stopAll();
         }
-        searchExecutorService = Executors.newFixedThreadPool(5);
+        // 小贾影视仓 v23.7: 5 -> 12。
+        // 全局搜索把这个池当"每站一个任务"用(SearchActivity.search 里 for(站点) execute),
+        // 5 线程意味着 40 个站点要跑 8 轮, 每轮都被最慢的那个源(OkGo 10s 超时)拖住 —— 这是
+        // "全局搜索很久才出结果"的主因。参照 FongMi(Task.largeExecutor = 20 线程跑搜索),
+        // 这里取 12: 网络型站点收益明显, 又不至于像 20 那样在低端盒子上把内存/CPU 打满
+        // (我们比 FongMi 多一类 py 源, 每个 py 搜索都要走 Chaquopy, 不能无脑开满)。
+        searchExecutorService = Executors.newFixedThreadPool(12);
     }
 
     public void execute(Runnable runnable) {
@@ -194,6 +200,69 @@ public class SourceViewModel extends ViewModel {
         }
         return loadHomeRecVideos(sourceKey);
     }
+
+    // ---------------- 小贾影视仓 v23.7: 首页分类(getSort)结果落盘, 冷启动先回显 ----------------
+    // 只在本次会话内、每个源首次命中时回显一次, 避免来回切站时多一帧重绘抖动。
+    private static final java.util.Set<String> sortDiskShown =
+            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<String, Boolean>());
+
+    private static java.io.File sortCacheFile(String sourceKey) {
+        try {
+            String name = "sortcache_" + MD5.string2MD5(sourceKey == null ? "" : sourceKey) + ".txt";
+            return new java.io.File(App.getInstance().getFilesDir(), name);
+        } catch (Throwable th) {
+            return null;
+        }
+    }
+
+    // 首行 = 站点类型(0=XML, 其余按 JSON 解析), 其余 = 原始响应体。只在后台线程调用。
+    private static void saveSortDisk(String sourceKey, int type, String raw) {
+        try {
+            if (sourceKey == null || raw == null || raw.isEmpty()) return;
+            if (raw.length() > 2 * 1024 * 1024) return;   // 超过 2MB 不落盘, 防止文件无上限增长
+            java.io.File f = sortCacheFile(sourceKey);
+            if (f == null) return;
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(f, false);
+            fos.write((type + "\n").getBytes("UTF-8"));
+            fos.write(raw.getBytes("UTF-8"));
+            fos.flush();
+            fos.close();
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    private AbsSortXml loadSortDisk(String sourceKey) {
+        try {
+            java.io.File f = sortCacheFile(sourceKey);
+            if (f == null || !f.exists() || f.length() <= 0) return null;
+            byte[] buf = new byte[(int) f.length()];
+            java.io.FileInputStream fis = new java.io.FileInputStream(f);
+            int off = 0;
+            while (off < buf.length) {
+                int n = fis.read(buf, off, buf.length - off);
+                if (n <= 0) break;
+                off += n;
+            }
+            fis.close();
+            String all = new String(buf, 0, off, "UTF-8");
+            int nl = all.indexOf('\n');
+            if (nl <= 0) return null;
+            int type;
+            try {
+                type = Integer.parseInt(all.substring(0, nl).trim());
+            } catch (Throwable th) {
+                return null;
+            }
+            String raw = all.substring(nl + 1);
+            if (raw.isEmpty()) return null;
+            return type == 0 ? sortXml(sortResult, raw) : sortJson(sortResult, raw);
+        } catch (Throwable th) {
+            th.printStackTrace();
+            return null;
+        }
+    }
+
     // homeContent
     public void getSort(final String sourceKey) {
         LOG.i("echo--getSort-start");
@@ -222,6 +291,35 @@ public class SourceViewModel extends ViewModel {
             return;
         }
         final int type = sourceBean.getType();
+        // 小贾影视仓 v23.7: 首页分类(getSort)结果落盘 + 冷启动先回显(对标 FongMi 的落盘 Cache)。
+        // 之前 sortCache 只在内存(5 条 LRU), 杀进程/重启后必然重新拉 config、再拉 homeContent,
+        // 首页要空转数秒才出内容。这里在发起网络请求之前, 先把"上次成功的结果"post 一次,
+        // 首页立即可见; 网络结果回来后照常覆盖刷新。
+        // 只在本次会话内、每个源首次命中时 post, 避免来回切站时多出一帧重绘抖动。
+        // 注意: getSort 是从首页 initData() 的主线程进来的, 读盘+反序列化绝不能放主线程(ANR),
+        // 所以这里丢到 spThreadPool 后台做, 结果用 sortResult.postValue 回主线程。
+        try {
+            if (sortDiskShown.add(sourceKey)) {
+                spThreadPool.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            AbsSortXml disk = loadSortDisk(sourceKey);
+                            if (disk != null) {
+                                int homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
+                                if (homeRec != 1 || (disk.videoList != null && !disk.videoList.isEmpty())) {
+                                    sortResult.postValue(disk);
+                                }
+                            }
+                        } catch (Throwable th) {
+                            th.printStackTrace();
+                        }
+                    }
+                });
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
         if (type == 3) {
             Runnable waitResponse = new Runnable() {
                 @Override
@@ -248,6 +346,7 @@ public class SourceViewModel extends ViewModel {
                     } finally {
                         if (sortJson != null) {
                             final AbsSortXml sortXml = sortJson(sortResult, sortJson);
+                            if (sortXml != null) saveSortDisk(sourceBean.getKey(), type, sortJson);
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                             AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                             if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
@@ -297,13 +396,13 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public void onSuccess(Response<String> response) {
                             AbsSortXml sortXml = null;
+                            String raw = response.body();
                             if (type == 0) {
-                                String xml = response.body();
-                                sortXml = sortXml(sortResult, xml);
+                                sortXml = sortXml(sortResult, raw);
                             } else if (type == 1) {
-                                String json = response.body();
-                                sortXml = sortJson(sortResult, json);
+                                sortXml = sortJson(sortResult, raw);
                             }
+                            if (sortXml != null) saveSortDisk(sourceBean.getKey(), type, raw);
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1 && sortXml.list != null && sortXml.list.videoList != null && sortXml.list.videoList.size() > 0) {
                                 ArrayList<String> ids = new ArrayList<>();
                                 for (Movie.Video vod : sortXml.list.videoList) {
@@ -352,6 +451,7 @@ public class SourceViewModel extends ViewModel {
                             String sortJson = response.body();
                             if (sortJson != null) {
                                 final AbsSortXml sortXml = sortJson(sortResult, sortJson);
+                                if (sortXml != null) saveSortDisk(sourceBean.getKey(), type, sortJson);
                                 if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                                     AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                                     if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
@@ -711,19 +811,35 @@ public class SourceViewModel extends ViewModel {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
         int type = sourceBean.getType();
         if (type == 3) {
+            // 小贾影视仓 v23.7: py/jar 源搜索原本是"裸调" —— sp.searchContent() 没有任何超时,
+            // 插件一旦挂住(网络卡死/Chaquo 阻塞), 这个搜索池线程就永久回不来。池只有 12 个槽,
+            // 累计挂几个 py/jar 源整个全局搜索就瘫掉(而且看不出报错, 只是"某些源永远搜不出来")。
+            // 这里套一层 30s 超时(参照 FongMi: 每个搜索都 withTimeout(TIMEOUT_SEARCH=30s)),
+            // 到点放弃并释放搜索池线程。
+            ExecutorService one = Executors.newSingleThreadExecutor();
+            String search = null;
             try {
-                Spider sp = ApiConfig.get().getCSP(sourceBean);
-                String search = sp.searchContent(wd, false);
-                if (!TextUtils.isEmpty(search)) {
-                    logSearch(sourceBean.getKey(), "search-ok", search.length() > 160 ? search.substring(0, 160) : search);
-                    json(searchResult, search, sourceBean.getKey());
-                } else {
-                    logSearch(sourceBean.getKey(), "search-empty", "");
-                    json(searchResult, "", sourceBean.getKey());
-                }
+                Future<String> f = one.submit(new Callable<String>() {
+                    @Override
+                    public String call() throws Exception {
+                        Spider sp = ApiConfig.get().getCSP(sourceBean);
+                        return sp.searchContent(wd, false);
+                    }
+                });
+                search = f.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException te) {
+                logSearch(sourceBean.getKey(), "search-timeout", "30s");
             } catch (Throwable th) {
                 th.printStackTrace();
                 logSearch(sourceBean.getKey(), "search-catch", th.getClass().getSimpleName() + ": " + th.getMessage());
+            } finally {
+                one.shutdown();
+            }
+            if (!TextUtils.isEmpty(search)) {
+                logSearch(sourceBean.getKey(), "search-ok", search.length() > 160 ? search.substring(0, 160) : search);
+                json(searchResult, search, sourceBean.getKey());
+            } else {
+                logSearch(sourceBean.getKey(), "search-empty", "");
                 json(searchResult, "", sourceBean.getKey());
             }
         } else if (type == 0 || type == 1) {
@@ -938,12 +1054,20 @@ public class SourceViewModel extends ViewModel {
         threadPoolGetPlay.execute(() -> {
             Future<JSONObject> future = threadPoolGetPlay.submit(callable);
             try {
-                // 小贾影视仓 v23.4: 15s -> 60s。
-                // py 源(type==3)的 playerContent 要在 Chaquopy 里冷启动 Python、下载/加载 .py 插件,
-                // 再跑网络探测(qimao.py 还要发匿名 token、探测 SEO 副本、起本机中转), 首帧很容易超过 15s;
-                // 一超时 future.get 抛异常 -> playResult.postValue(null) -> 播放页报"获取播放信息错误",
-                // 表现为「部分 py 播不了(其实是超时)」, 而快的 jar 源不受影响。放宽到 60s。
-                JSONObject jsonObject = future.get(60, TimeUnit.SECONDS);
+                // 小贾影视仓 v23.4: py 源(type==3)的 playerContent 要在 Chaquopy 里冷启动 Python、
+                // 下载/加载 .py 插件, 再跑网络探测(qimao.py 还要发匿名 token、探测 SEO 副本、起本机中转),
+                // 首帧很容易超过 15s; 一超时 future.get 抛异常 -> playResult.postValue(null) ->
+                // 播放页报"获取播放信息错误", 表现为「部分 py 播不了(其实是超时)」。故 py 源放宽到 60s。
+                // v23.7: 但 v23.4 把 60s 写成了"无差别"上限 —— 普通 jar/网站在线源(type 0/1/4)本身秒回,
+                // 一旦该站抽风, 用户要干等 60 秒才报错(对比 FongMi: TIMEOUT_PLAY=15s)。
+                // 这里按源类型区分: py 源 60s, 其余保持 15s 快速失败。
+                int playType = 0;
+                try {
+                    SourceBean playBean = ApiConfig.get().getSource(sourceKey);
+                    if (playBean != null) playType = playBean.getType();
+                } catch (Throwable ignored) {
+                }
+                JSONObject jsonObject = future.get(playType == 3 ? 60 : 15, TimeUnit.SECONDS);
                 playResult.postValue(jsonObject);
             } catch (Throwable e) {
                 e.printStackTrace();
