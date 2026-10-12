@@ -202,7 +202,7 @@ public class PythonLoader {
         // 小贾影视仓 v23.8: 先等 Python 运行时后台预热完成(最多 30s),
         // 再等 spider 初始化(下载插件+加载依赖+init, 网络慢时 10s 根本不够 => 提到 25s)。
         if (!awaitBoot(30)) {
-            throw new Exception(bootError == null ? "python runtime boot timeout" : bootError);
+            throw new Exception(bootError == null ? "python runtime boot timeout" : bootError.toString());
         }
         Future<PythonSpider> f = spiderInits.get(key);
         if (f == null) {
