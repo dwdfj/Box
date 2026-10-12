@@ -361,9 +361,9 @@ public class PlayActivity extends BaseActivity {
         mPlayEpisodeList = findViewById(R.id.play_episode_list);
         mBtnEpisodeSort = findViewById(R.id.btn_episode_sort);
 
-        // 线路: 横排胶囊
+        // 线路: 横排胶囊(V7LinearLayoutManager 的 HORIZONTAL=0 / VERTICAL=1, 原误传 1 会竖着堆)
         mLineAdapter = new PlayChipAdapter();
-        mPlayLineList.setLayoutManager(new V7LinearLayoutManager(this, 1, true));
+        mPlayLineList.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
         mPlayLineList.setAdapter(mLineAdapter);
 
         // 选集: 横排胶囊(可换行的网格, 每行 3 个)
@@ -547,6 +547,10 @@ public class PlayActivity extends BaseActivity {
         mPlayLoadErr = findViewById(R.id.play_load_error);
         applyPortraitVideoHeight();
         initPlayInfoArea();
+        // 小贾影视仓 v23.4: 启动时也按当前方向应用一次(此前只在 onConfigurationChanged 里做,
+        // 若进入该页时设备已是横屏, 卡片区不会隐藏、视频不会铺满)。
+        applyOrientationLayout(getResources().getConfiguration().orientation
+                == android.content.res.Configuration.ORIENTATION_PORTRAIT);
         mController = new VodController(this);
         mController.setCanChangePosition(true);
         mController.setEnableInNormal(true);
