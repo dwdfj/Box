@@ -4,6 +4,16 @@
     <string name="app_home">首页</string>
     <string name="app_source">http://itv666.cc/aowu/config.webp</string>
 
+    // 小贾影视仓 v23.6: 投屏(DLNA) //
+    <string name="cast_title">投屏到设备</string>
+    <string name="cast_searching">正在搜索同一 Wi-Fi 下的电视 / 盒子…</string>
+    <string name="cast_found">已发现 %1$d 台设备，点击即可投屏</string>
+    <string name="cast_refresh">重新搜索</string>
+    <string name="cast_connecting">正在连接 %1$s …</string>
+    <string name="cast_ok">已投屏，请在电视上观看</string>
+    <string name="cast_fail">投屏失败：%1$s</string>
+    <string name="cast_no_url">当前没有可投屏的播放地址</string>
+
     // Home Page //
     <string name="hm_ok">加载成功</string>
     <string name="hm_notok">加载失败</string>
