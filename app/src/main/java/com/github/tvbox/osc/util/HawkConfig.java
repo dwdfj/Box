@@ -13,6 +13,8 @@ public class HawkConfig {
     // URL Configurations
     public static final String API_URL = "api_url";
     public static final String API_HISTORY = "api_history";
+    // 小贾影视仓 v23.9.1: 最近一次成功加载的线路。拉取新线路失败时自动切回这条, 主页永不困死在重试弹窗。
+    public static final String LAST_GOOD_API = "last_good_api";
     // 小贾影视仓 v21: 用户加载的本地 .py 单源列表(每项 "显示名|绝对路径"),
     // 每次线路配置解析完成后由 ApiConfig.injectLocalPySites() 自动重新注入, 保证重启/切线路后仍在。
     public static final String LOCAL_PY_LIST = "local_py_list";
