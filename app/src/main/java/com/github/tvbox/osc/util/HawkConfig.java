@@ -15,6 +15,9 @@ public class HawkConfig {
     public static final String API_HISTORY = "api_history";
     // 小贾影视仓 v23.9.1: 最近一次成功加载的线路。拉取新线路失败时自动切回这条, 主页永不困死在重试弹窗。
     public static final String LAST_GOOD_API = "last_good_api";
+    // 小贾影视仓 v24.1: jar 缓存文件的 md5 结果缓存(键后缀拼 文件名+lastModified+length),
+    // 免得每次切线路都对 3MB 的 csp jar 重新算一遍哈希。
+    public static final String JAR_FILE_MD5 = "jar_file_md5";
     // 小贾影视仓 v21: 用户加载的本地 .py 单源列表(每项 "显示名|绝对路径"),
     // 每次线路配置解析完成后由 ApiConfig.injectLocalPySites() 自动重新注入, 保证重启/切线路后仍在。
     public static final String LOCAL_PY_LIST = "local_py_list";
