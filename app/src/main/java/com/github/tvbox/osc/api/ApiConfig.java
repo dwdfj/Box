@@ -248,6 +248,13 @@ public class ApiConfig {
             }
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/" + MD5.encode(apiUrl));
+        // 小贾影视仓 v24.1: 同一线路本进程已解析过且配置仍在内存 => 直接成功返回,
+        // 跳过磁盘读 + 整份 JSON 重解析(Gson 155 站 + pyLoader 二次解析), 切回/重载同线路近乎秒过。
+        // clan 线路除外(本地回环端口可能变, 必须重走解析); 长按标题"刷新"走 useCache=false 不受影响。
+        if (useCache && !apiUrl.startsWith("clan") && apiUrl.equals(lastApiUrl) && !sourceBeanList.isEmpty()) {
+            callback.success();
+            return;
+        }
         // 小贾影视仓 v15.2: clan 线路(clan:// 本地包/内置包)不走磁盘缓存 —— 本地回环几乎零延迟,
         // 且缓存里固化的是当时 serverPort 的绝对地址, 下次端口变化会读成死链接
         if (useCache && cache.exists() && !apiUrl.startsWith("clan")) {
@@ -470,6 +477,25 @@ public class ApiConfig {
         }, activity, true, taskId);
     }
 
+    // 小贾影视仓 v24.1: jar 缓存文件 md5 结果缓存 —— 原来每次切线路都对 csp jar(3MB+)重算哈希(50~150ms)。
+    // 键拼上 文件名+lastModified+length: 文件被重新下载/覆盖后键自然变化, 不会拿到旧哈希。
+    private String fileMd5Cached(File f, String urlKey) {
+        try {
+            String key = HawkConfig.JAR_FILE_MD5 + "_" + urlKey + "_" + f.lastModified() + "_" + f.length();
+            String v = Hawk.get(key, "");
+            if (!v.isEmpty()) return v;
+            String real = MD5.getFileMd5(f);
+            if (real != null && !real.isEmpty()) Hawk.put(key, real);
+            return real;
+        } catch (Throwable t) {
+            try {
+                return MD5.getFileMd5(f);
+            } catch (Throwable th) {
+                return "";
+            }
+        }
+    }
+
     public void loadJar(boolean useCache, String spider, LoadConfigCallback callback) {
         // 小贾影视仓 v15.4: 与 loadConfig 共用同一任务代号流水线 —— 切线路后旧 jar 下载/回调直接作废
         int taskId = mLoadTask.incrementAndGet();
@@ -524,7 +550,7 @@ public class ApiConfig {
         }
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/"+MD5.string2MD5(jarUrl)+".jar");
         if (!md5.isEmpty() || useCache) {
-            if (cache.exists() && (useCache || MD5.getFileMd5(cache).equalsIgnoreCase(md5))) {
+            if (cache.exists() && (useCache || fileMd5Cached(cache, MD5.string2MD5(jarUrl)).equalsIgnoreCase(md5))) {
                 if (jarLoader.load(cache.getAbsolutePath())) {
                     callback.success();
                 } else {
@@ -619,7 +645,7 @@ public class ApiConfig {
                         if (cache.exists()) {
                             boolean usable;
                             if (md5.isEmpty()) usable = true;
-                            else usable = MD5.getFileMd5(cache).equalsIgnoreCase(md5);
+                            else usable = fileMd5Cached(cache, MD5.string2MD5(jarUrl)).equalsIgnoreCase(md5);
                             if (usable) {
                                 try {
                                     if (jarLoader.load(cache.getAbsolutePath())) {
