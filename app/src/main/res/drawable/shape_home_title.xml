@@ -2,14 +2,14 @@
 <!-- 小贾影视仓 v23: 首页标题胶囊(点=信号源面板)。
      竖屏顶栏行高提到 vs_140, 半径同步提到 vs_70(= 行高一半) 才是标准胶囊形;
      若被用在更矮的行上, corner radius 会被自动钳到"半高", 仍是胶囊, 不会画错。
-     v23.9 赛博霓虹: 红底 → 粉→紫 霓虹渐变(左粉右紫, 与壁纸光斑呼应)。 -->
+     v24.0 冰晶蓝玻璃: 霓虹粉紫 → 冰蓝渐变(浅冰→深冰, 与壁纸玻璃呼应)。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="@dimen/vs_70" />
     <gradient
         android:angle="0"
-        android:startColor="#FF2BD6"
-        android:centerColor="#E14BD8"
-        android:endColor="#7B2FF7"
+        android:startColor="#7DE9FF"
+        android:centerColor="#3EC8F5"
+        android:endColor="#1E7FD8"
         android:type="linear" />
     <stroke android:width="1mm" android:color="#59FFFFFF" />
 </shape>
