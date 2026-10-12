@@ -1,0 +1,8 @@
+<!-- 小贾影视仓 v23.8: 播放器「退出全屏」按钮图标(Material fullscreen_exit: 四角向内收拢)。
+     横屏全屏状态下点击它回到竖屏半屏卡片页。 -->
+<vector android:height="24dp" android:tint="#FFFFFF"
+    android:viewportHeight="24" android:viewportWidth="24"
+    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M5,16h3v3h2v-5H5V16zM8,8H5v2h5V5H8V8zM14,19h2v-3h3v-2h-5V19zM16,8V5h-2v5h5V8H16z" />
+</vector>
