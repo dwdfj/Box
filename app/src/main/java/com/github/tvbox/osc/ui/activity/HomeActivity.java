@@ -727,6 +727,9 @@ public class HomeActivity extends BaseActivity {
                 if (ApiConfig.get().getSpider().isEmpty()) {
                     jarInitOk = true;
                 }
+                // 小贾影视仓 v23.9.1: 记录"最近一次成功加载的线路"。
+                // 之后拉取其它线路失败时自动切回这条, 用户不再被困死在"重试/取消"循环里。
+                Hawk.put(HawkConfig.LAST_GOOD_API, Hawk.get(HawkConfig.API_URL, ""));
                 postDelayedIfAlive(new Runnable() {
                     @Override
                     public void run() {
@@ -744,6 +747,24 @@ public class HomeActivity extends BaseActivity {
                             dataInitOk = true;
                             jarInitOk = true;
                             initData();
+                        }
+                    });
+                    return;
+                }
+                // 小贾影视仓 v23.9.1: 拉取线路失败(或不支持)时, 若此前成功加载过其它线路,
+                // 自动切回 —— 用户反馈"拉取线路失败时主页卡死, 无法切换其他线路"。
+                // 原逻辑: 失败弹「重试/取消」框, 取消又 initData() 再失败再弹, 永远到不了线路面板。
+                String curApi = Hawk.get(HawkConfig.API_URL, "");
+                String lastGood = Hawk.get(HawkConfig.LAST_GOOD_API, "");
+                if (curApi != null && !curApi.isEmpty()
+                        && lastGood != null && !lastGood.isEmpty()
+                        && !curApi.equals(lastGood)) {
+                    Hawk.put(HawkConfig.API_URL, lastGood);
+                    postIfAlive(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(HomeActivity.this, "该线路拉取失败，已自动切回上次可用线路", Toast.LENGTH_LONG).show();
+                            restartHome(true);
                         }
                     });
                     return;
