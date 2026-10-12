@@ -65,6 +65,8 @@
     <dimen name="vs_70">70mm</dimen>
     <dimen name="vs_80">80mm</dimen>
     <dimen name="vs_90">90mm</dimen>
+    <!-- 小贾影视仓 v23.7 补定义: 这两个被引用但从未定义, 直接导致 aapt "resource dimen/... not found" 构建失败 -->
+    <dimen name="vs_88">88mm</dimen>
     <dimen name="vs_95">95mm</dimen>
     <dimen name="vs_100">100mm</dimen>
     <dimen name="vs_110">110mm</dimen>
@@ -85,6 +87,10 @@
     <dimen name="vs_240">240mm</dimen>
     <dimen name="vs_260">260mm</dimen>
     <dimen name="vs_280">280mm</dimen>
+    <!-- 小贾影视仓 v23.7: 3:4 卡片高度(高 = 宽 × 4/3) ——
+         vs_214(首页热门推荐卡宽) -> 285; vs_95(迷你卡宽) -> 127。 -->
+    <dimen name="vs_285">285mm</dimen>
+    <dimen name="vs_127">127mm</dimen>
     <dimen name="vs_300">300mm</dimen>
     <dimen name="vs_340">340mm</dimen>
     <dimen name="vs_400">400mm</dimen>
@@ -108,9 +114,16 @@
     <dimen name="vs_1180">1180mm</dimen>
     <dimen name="vs_900">900mm</dimen>
     <dimen name="vs_1100">1100mm</dimen>
+    <!-- v23.7 补定义: activity_play.xml 的 videoContainer 兜底高度(≈高屏一半), Java 会按屏高重算覆盖 -->
+    <dimen name="vs_1400">1400mm</dimen>
 
     <!-- v23.2 竖屏放大: 详情封面/预览窗 / 搜索结果卡 / 播放视频区 -->
     <dimen name="vs_380">380mm</dimen>
+    <!-- 小贾影视仓 v23.7 详情页比例校正:
+         vs_394 = 700 × 9/16 → 预览播放器占位/容器的 16:9 高;
+         vs_507 = 380 × 4/3 → 详情页封面(与信息栏同高)的 3:4 高。 -->
+    <dimen name="vs_394">394mm</dimen>
+    <dimen name="vs_507">507mm</dimen>
     <dimen name="vs_660">660mm</dimen>
     <dimen name="vs_700">700mm</dimen>
 </resources>
