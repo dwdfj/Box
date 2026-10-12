@@ -147,6 +147,10 @@ public class DetailActivity extends BaseActivity {
     // preview : true 开启 false 关闭
     VodInfo previewVodInfo = null;
     boolean showPreview = Hawk.get(HawkConfig.SHOW_PREVIEW, true);
+    // 小贾影视仓 v23.8: 点封面直达播放页 —— true 时详情数据一到就跳 PlayActivity 并关闭本页,
+    // 不再先起内嵌小窗预览(用户: "点击影视封面进入播放界面就直接是...不要再中间过渡一遍那种小窗")。
+    // 默认 true, 所有封面入口(首页/分类/搜索/收藏/历史/快搜)都直达; 本页仅作为"详情中转+空详情提示"。
+    boolean autoPlay = true;
     public boolean fullWindows = false;
     ViewGroup.LayoutParams windowsPreview = null;
     ViewGroup.LayoutParams windowsFull = null;
@@ -222,7 +226,8 @@ public class DetailActivity extends BaseActivity {
                 public void onReceive(Context context, Intent intent) {
                     String action = intent.getAction();
                     if (action != null && action.equals(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)) {
-                        openBackgroundPlay = Hawk.get(HawkConfig.BACKGROUND_PLAY_TYPE, 0) == 1 && playFragment.getPlayer() != null && playFragment.getPlayer().isPlaying();
+                        // v23.8: autoPlay 直达模式无 playFragment, 判空防 NPE
+                        openBackgroundPlay = Hawk.get(HawkConfig.BACKGROUND_PLAY_TYPE, 0) == 1 && playFragment != null && playFragment.getPlayer() != null && playFragment.getPlayer().isPlaying();
                     }
                 }
             };
@@ -267,7 +272,7 @@ public class DetailActivity extends BaseActivity {
         mGridViewFlag.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
         seriesFlagAdapter = new SeriesFlagAdapter();
         mGridViewFlag.setAdapter(seriesFlagAdapter);
-        if (showPreview) {
+        if (showPreview && !autoPlay) {
             playFragment = new PlayFragment();
             getSupportFragmentManager().beginTransaction().add(R.id.previewPlayer, playFragment).commit();
             getSupportFragmentManager().beginTransaction().show(playFragment).commitAllowingStateLoss();
@@ -814,7 +819,14 @@ public class DetailActivity extends BaseActivity {
                         mGridViewFlag.scrollToPosition(flagScrollTo);
 
                         refreshList();
-                        if (showPreview) {
+                        if (autoPlay) {
+                            // 小贾影视仓 v23.8: 详情数据一到 → 直达 PlayActivity 并关闭本页。
+                            // showPreview 置 false 让 jumpToPlay() 走 jumpActivity(PlayActivity) 分支,
+                            // 不再往内嵌 PlayFragment 塞数据(消灭"中间过渡一遍的小窗")。
+                            showPreview = false;
+                            jumpToPlay();
+                            finish();
+                        } else if (showPreview) {
                             jumpToPlay();
                             llPlayerFragmentContainer.setVisibility(View.VISIBLE);
                             llPlayerFragmentContainerBlock.setVisibility(View.VISIBLE);
@@ -857,6 +869,8 @@ public class DetailActivity extends BaseActivity {
         Intent intent = getIntent();
         if (intent != null && intent.getExtras() != null) {
             Bundle bundle = intent.getExtras();
+            // v23.8: 默认 true —— 所有封面入口都直达播放页; 个别入口想停留详情页可显式传 false
+            autoPlay = bundle.getBoolean("autoPlay", true);
             loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
         }
     }
@@ -1125,7 +1139,8 @@ public class DetailActivity extends BaseActivity {
     @Override
     public void onUserLeaveHint() {
         // takagen99 : Additional check for external player
-        if (supportsPiPMode() && showPreview && !playFragment.extPlay && Hawk.get(HawkConfig.BACKGROUND_PLAY_TYPE, 0) == 2) {
+        // v23.8: autoPlay 直达模式下不再创建 playFragment, 必须加判空(否则按 Home 键 NPE)
+        if (supportsPiPMode() && showPreview && playFragment != null && !playFragment.extPlay && Hawk.get(HawkConfig.BACKGROUND_PLAY_TYPE, 0) == 2) {
             // 创建一个Intent对象，模拟按下Home键
             try { //部分电视使用该方法启动首页闪退比如小米的澎湃OS
                 Intent intent = new Intent(Intent.ACTION_MAIN);
