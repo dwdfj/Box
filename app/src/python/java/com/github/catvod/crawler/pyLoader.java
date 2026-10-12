@@ -74,11 +74,22 @@ public class pyLoader implements IPyLoader {
 
     @Override
     public Object[] proxyInvoke(Map<String, String> params){
-        if(recentPyApi==null)return null;
+        // 小贾影视仓 v23.3: 本机中转(localProxy)是 py 源播放的必要环节 ——
+        // qimao.py 的「🛡中转线路」靠它把 m3u8 分片绝对化后吐给播放器。
+        // 原实现第一行 `if(recentPyApi==null) return null;` 且 setRecentPyKey 全工程无人调用,
+        // 导致 recentPyApi 恒为 null → 中转永远拿不到 spider → 返回 null → 播放地址为空。
+        // 现由 ApiConfig.getCSP() 在取 py 源时写入 recentPyApi。
+        if (recentPyApi == null || recentPyApi.isEmpty()) {
+            LOG.i("echo-proxyInvoke: recentPyApi 为空, 无法定位 py spider(本机中转不可用)");
+            return null;
+        }
         LOG.i("echo-recentPyApi" + recentPyApi);
         try {
-            PythonSpider originalSpider = (PythonSpider) getSpider(MD5.string2MD5(recentPyApi), recentPyApi,"");
-            return originalSpider.proxyLocal(params);
+            Spider sp = getSpider(MD5.string2MD5(recentPyApi), recentPyApi, "");
+            if (sp instanceof PythonSpider) {
+                return ((PythonSpider) sp).proxyLocal(params);
+            }
+            LOG.i("echo-proxyInvoke: spider 不是 PythonSpider, 无法中转");
         } catch (Throwable th) {
             LOG.i("echo-proxyInvoke_Throwable:---" + th.getMessage());
             th.printStackTrace();
