@@ -24,7 +24,7 @@
             <ImageView
                 android:id="@+id/ivThumb"
                 android:layout_width="@dimen/vs_380"
-                android:layout_height="@dimen/vs_520"
+                android:layout_height="@dimen/vs_507"
                 android:clickable="true"
                 android:focusable="false"
                 android:scaleType="fitXY" />
@@ -32,12 +32,12 @@
             <View
                 android:id="@+id/previewPlayerPlace"
                 android:layout_width="@dimen/vs_700"
-                android:layout_height="@dimen/vs_520"
+                android:layout_height="@dimen/vs_394"
                 android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_520"
+                android:layout_height="@dimen/vs_507"
                 android:layout_marginStart="@dimen/vs_20"
                 android:layout_marginLeft="@dimen/vs_20"
                 android:orientation="vertical">
@@ -321,7 +321,7 @@
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/previewPlayer"
         android:layout_width="@dimen/vs_700"
-        android:layout_height="@dimen/vs_520"
+        android:layout_height="@dimen/vs_394"
         android:layout_marginStart="@dimen/vs_50"
         android:layout_marginLeft="@dimen/vs_50"
         android:layout_marginTop="@dimen/vs_20"
@@ -330,7 +330,7 @@
     <View
         android:id="@+id/previewPlayerBlock"
         android:layout_width="@dimen/vs_700"
-        android:layout_height="@dimen/vs_520"
+        android:layout_height="@dimen/vs_394"
         android:layout_marginStart="@dimen/vs_50"
         android:layout_marginLeft="@dimen/vs_50"
         android:layout_marginTop="@dimen/vs_20"
