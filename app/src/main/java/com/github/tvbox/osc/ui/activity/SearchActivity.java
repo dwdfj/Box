@@ -292,7 +292,9 @@ public class SearchActivity extends BaseActivity {
         llSourceBar = findViewById(R.id.llSourceBar);
         llSearchPanel = findViewById(R.id.llSearchPanel);
         sourceAdapter = new SearchSourceAdapter();
-        mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, true));
+        // 小贾影视仓 v23.4: 来源胶囊必须是「横排」。V7LinearLayoutManager 的 HORIZONTAL=0 / VERTICAL=1
+        // (与 LinearLayoutManager 一致); v23.3 这里误传 1, 导致顶部来源条其实在竖排。
+        mSearchSourceList.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
         mSearchSourceList.setAdapter(sourceAdapter);
         sourceAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
