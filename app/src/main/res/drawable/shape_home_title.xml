@@ -7,9 +7,9 @@
     <corners android:radius="@dimen/vs_70" />
     <gradient
         android:angle="0"
-        android:startColor="#7DE9FF"
-        android:centerColor="#3EC8F5"
-        android:endColor="#1E7FD8"
+        android:startColor="#FFE9A8"
+        android:centerColor="#E8B34B"
+        android:endColor="#B8860B"
         android:type="linear" />
     <stroke android:width="1mm" android:color="#59FFFFFF" />
 </shape>
