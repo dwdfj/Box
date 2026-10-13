@@ -8,7 +8,9 @@
     android:clipToPadding="false"
     android:orientation="vertical">
 
-    <com.owen.tvrecyclerview.widget.TvRecyclerView
+    <!-- 小贾影视仓 v24.7.1: 换 SafeTvRecyclerView —— 本页是 BaseLazyFragment, init() 延迟到首次可见,
+         ViewPager 预加载邻页时布局先于 setLayoutManager 执行, 原库 onLayout 直接 NPE 崩溃 -->
+    <com.github.tvbox.osc.widget.SafeTvRecyclerView
         android:id="@+id/mGridView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
