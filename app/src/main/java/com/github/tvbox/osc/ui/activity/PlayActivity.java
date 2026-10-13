@@ -189,6 +189,15 @@ public class PlayActivity extends BaseActivity {
         return R.layout.activity_play;
     }
 
+    // 小贾影视仓 v24.8: 竖屏播放页进出场动画多重保险 —— 皮肤主题的 activityOpen 缩放动画
+    // 让播放页以"小窗形态"放大进场, 正是用户反复反馈的"50% 竖屏之前闪一下旧小屏"。
+    // v24.6/v24.7.2 只杀了 DetailActivity(中转页)一侧; API 34+ 上 overridePendingTransition
+    // 已失效, ROM 又可能忽略 theme 的 windowAnimationStyle —— 这里三管齐下。
+    @Override
+    protected boolean noWindowAnim() {
+        return true;
+    }
+
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
         if (event.type == RefreshEvent.TYPE_SUBTITLE_SIZE_CHANGE) {
@@ -598,18 +607,16 @@ public class PlayActivity extends BaseActivity {
     /**
      * 小贾影视仓 v23.8: 把剧集列表按集数**物理自然排序**(升序), 并把当前播放集重映射到新位置。
      * 排的是 seriesMap 里的原列表对象, play() 按 playIndex 从同一列表取地址, 排完仍一一对应。
-     * 小贾影视仓 v24.5: 比较器统一换成 VodInfo.naturalCompare(逐段数值比较)。
-     * 旧实现按"名称里最后一段数字"做键, 遇到「第9集(2023)」vs「第10集(2023)」这类
-     * 末段数字相同的命名会退化成字典序, 9 排到 10 后面 —— 用户反馈"部分线路仍乱序"的根因。
-     * naturalCompare 从左到右逐段比数值(9 < 10), 各种命名格式都稳定顺向。
+     * 小贾影视仓 v24.8: 比较器换成 VodInfo.seriesComparator()(sortKey 装饰排序)。
+     * 旧 naturalCompare 在混合命名列表上可能违反 TimSort 传递性 contract, Collections.sort
+     * 直接抛 IllegalArgumentException 被这里 catch 吞掉 -> 列表原样 = 排序从未生效,
+     * 这正是"改了好几次剧级还是不依次排列"的根因。sortKey 方案永不抛异常。
      */
     private void naturalSortSeries(java.util.List<VodInfo.VodSeries> list) {
         try {
             int cur = mVodInfo.getplayIndex();
             VodInfo.VodSeries playing = (cur >= 0 && cur < list.size()) ? list.get(cur) : null;
-            Collections.sort(list, (a, b) -> VodInfo.naturalCompare(
-                    a == null || a.name == null ? "" : a.name,
-                    b == null || b.name == null ? "" : b.name));
+            Collections.sort(list, VodInfo.seriesComparator());
             if (playing != null) {
                 int idx = list.indexOf(playing);
                 if (idx >= 0) {
