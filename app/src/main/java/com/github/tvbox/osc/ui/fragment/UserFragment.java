@@ -455,11 +455,29 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             String requestDay = Hawk.get("home_hot_day", "");
             if (requestDay.equals(today)) {
                 String json = Hawk.get("home_hot", "");
-                if (!json.isEmpty()) {
-                    adapter.setNewData(loadHots(json));
+                // v24.3: 当日缓存可能是被豆瓣拦截的垃圾响应(解析为空) —— 空列表不能直接 return,
+                // 否则"推荐空白"会被缓存一整天。空则跌到下面的 last 兜底/重拉逻辑。
+                java.util.ArrayList<Movie.Video> cached = json.isEmpty() ? new java.util.ArrayList<>() : loadHots(json);
+                if (!cached.isEmpty()) {
+                    adapter.setNewData(cached);
                     return;
                 }
             }
+            // 小贾影视仓 v24.3: 豆瓣榜单兜底 —— 用户反馈"主页影视推荐没有"。
+            // 原实现请求失败当天就永久空白(缓存只在成功时写)。现在:
+            // ① 先用上次成功榜单(home_hot_last, 不限期)立即兜底显示;
+            // ② 再异步刷新豆瓣, 成功则同时更新当日缓存与 last 缓存;
+            // ③ 失败且没有任何缓存 → 自动切到播放历史模式, 主页永远不空。
+            String lastJson = Hawk.get("home_hot_last", "");
+            boolean showedStale = false;
+            if (!lastJson.isEmpty()) {
+                java.util.ArrayList<Movie.Video> stale = loadHots(lastJson);
+                if (!stale.isEmpty()) {
+                    adapter.setNewData(stale);
+                    showedStale = true;
+                }
+            }
+            final boolean staleShown = showedStale;
             String doubanHotURL = "https://movie.douban.com/j/new_search_subjects?sort=U&range=0,10&tags=&playable=1&start=0&year_range=" + year + "," + year;
             String userAgent = UA.random();
             OkGo.<String>get(doubanHotURL).headers("User-Agent", userAgent).execute(new AbsCallback<String>() {
@@ -468,10 +486,29 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                     String netJson = response.body();
                     Hawk.put("home_hot_day", today);
                     Hawk.put("home_hot", netJson);
+                    Hawk.put("home_hot_last", netJson);
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            adapter.setNewData(loadHots(netJson));
+                            java.util.ArrayList<Movie.Video> fresh = loadHots(netJson);
+                            if (!fresh.isEmpty()) {
+                                adapter.setNewData(fresh);
+                            } else if (!staleShown) {
+                                switchToHistoryFallback(adapter);
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(Response<String> response) {
+                    super.onError(response);
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!staleShown) {
+                                switchToHistoryFallback(adapter);
+                            }
                         }
                     });
                 }
@@ -483,6 +520,22 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             });
         } catch (Throwable th) {
             th.printStackTrace();
+            switchToHistoryFallback(adapter);
+        }
+    }
+
+    /** 小贾影视仓 v24.3: 豆瓣榜单一无所有时, 自动切"播放历史"模式并提示, 主页不再空白 */
+    private void switchToHistoryFallback(UserHomeRowAdapter adapter) {
+        try {
+            if (adapter == null || (adapter.getData() != null && !adapter.getData().isEmpty())) return;
+            Hawk.put(HawkConfig.HOME_REC, 2);
+            adapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(30)));
+            refreshModeTag();
+            if (mActivity != null) {
+                android.widget.Toast.makeText(mActivity, "豆瓣榜单获取失败，已切换到播放历史", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
