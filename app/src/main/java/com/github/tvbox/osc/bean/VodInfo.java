@@ -214,6 +214,12 @@ public class VodInfo implements Serializable {
      * 整条稳定升序重排(第2集 < 第10集, ① < ②, 倒序源自动转正向);
      * 纯文字列表(花絮/预告/上中下)保留源顺序。稳定排序保证同键条目相对位置不变。
      * 小贾影视仓 v24.8: 比较器换成 sortKey 装饰排序, 根治 TimSort contract 异常导致排序静默失效。
+     * 小贾影视仓 v24.9: **去掉 60% 门槛** —— 用户反馈"多线路的剧集仍不是顺向依次排列"。
+     * 旧门槛要求整条列表 60% 以上条目带数字才排序, 但很多源的集名是"1. 第一集""01【更新】"
+     * 这类混排, 只要有 3 条纯文字(正片/预告/花絮)就跌破门槛整条放弃排序 = 保持源顺序。
+     * 现在只要**有任意一条带数字**就整条排序; 纯文字列表(一条数字都没有)仍保留源顺序。
+     * 另外改为"排序到新 list 再回填", 不再对 seriesMap 里的原 list 做原地 Collections.sort ——
+     * 该 list 若来自 unmodifiable 包装会抛 UnsupportedOperationException 被 catch 吞掉(排序静默失效)。
      */
     private void sortSeriesNatural(List<VodSeries> list) {
         try {
@@ -223,8 +229,12 @@ public class VodInfo implements Serializable {
             for (VodSeries s : list) {
                 if (s != null && s.name != null && nameHasNumber(s.name)) numCount++;
             }
-            if (numCount * 10 < n * 6) return;
-            java.util.Collections.sort(list, seriesComparator());
+            if (numCount == 0) return; // 纯文字列表(花絮/预告/上中下)保留源顺序
+            // 装饰排序: 生成新 list 排序后回填, 避免对可能不可变的原 list 原地排序失败
+            List<VodSeries> sorted = new ArrayList<>(list);
+            java.util.Collections.sort(sorted, seriesComparator());
+            list.clear();
+            list.addAll(sorted);
         } catch (Throwable t) {
             t.printStackTrace();
         }
