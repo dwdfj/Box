@@ -13,7 +13,7 @@
             <corners android:radius="14px" />
             <solid android:color="#36ffffff"/>
             <!-- v24.0 冰晶蓝玻璃: 冰蓝细描边 -->
-            <stroke android:width="1mm" android:color="#663EC8F5" />
+            <stroke android:width="1mm" android:color="#66E8B34B" />
         </shape>
     </item>
 </selector>
