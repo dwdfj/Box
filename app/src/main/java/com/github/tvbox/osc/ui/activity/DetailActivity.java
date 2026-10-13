@@ -258,6 +258,12 @@ public class DetailActivity extends BaseActivity {
         boolean previewVisible = showPreview && !autoPlay;
         llPlayerPlace.setVisibility(previewVisible ? View.VISIBLE : View.GONE);
         ivThumb.setVisibility(!previewVisible ? View.VISIBLE : View.GONE);
+        // 小贾影视仓 v24.7.2: 直达播放模式下整页内容不绘制 —— 本页只是拉数据中转,
+        // 窗口半透明无动画, 底层列表保持可见; 此前只藏了预览占位区, 旧详情主体(tvName 等)
+        // 仍会在数据拉取期间画一帧, 这就是"闪一下旧界面"的另一半来源。失败兜底见 showEmpty 调用处。
+        if (autoPlay && llLayout != null) {
+            llLayout.setVisibility(View.GONE);
+        }
         tvName = findViewById(R.id.tvName);
         tvYear = findViewById(R.id.tvYear);
         tvSite = findViewById(R.id.tvSite);
@@ -756,6 +762,7 @@ public class DetailActivity extends BaseActivity {
                     showSuccess();
                     if (!TextUtils.isEmpty(absXml.msg) && !absXml.msg.equals("数据列表")) {
                         Toast.makeText(DetailActivity.this, absXml.msg, Toast.LENGTH_SHORT).show();
+                        if (autoPlay && llLayout != null) llLayout.setVisibility(View.VISIBLE); // v24.7.2: 失败兜底恢复内容
                         showEmpty();
                         return;
                     }
@@ -861,6 +868,7 @@ public class DetailActivity extends BaseActivity {
                         mEmptyPlayList.setVisibility(View.VISIBLE);
                     }
                 } else {
+                    if (autoPlay && llLayout != null) llLayout.setVisibility(View.VISIBLE); // v24.7.2: 失败兜底恢复内容
                     showEmpty();
                     llPlayerFragmentContainer.setVisibility(View.GONE);
                     llPlayerFragmentContainerBlock.setVisibility(View.GONE);
@@ -900,7 +908,9 @@ public class DetailActivity extends BaseActivity {
             vodId = vid;
             sourceKey = key;
             firstsourceKey = key;
-            showLoading();
+            // v24.7.2: 直达模式下整页内容已 GONE(底层列表透出), LoadSir 的加载圈也会画在透明窗上,
+            // 跳过 showLoading 保持完全无缝; 失败时会先恢复内容可见再 showEmpty。
+            if (!autoPlay) showLoading();
             sourceViewModel.getDetail(sourceKey, vodId);
 
             boolean isVodCollect = RoomDataManger.isVodCollect(sourceKey, vodId);
