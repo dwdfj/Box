@@ -82,11 +82,10 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
 
         // takagen99 : Set Theme Color
-        // 小贾影视仓 v24.5: 中转页透明化钩子 —— 子类返回 true 时改用半透明无动画主题,
-        // 不走下面的皮肤主题(内容是否绘制由子类自己决定)。
-        if (passThroughWindow()) {
-            setTheme(R.style.XiaojiaPassThroughTheme);
-        } else if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 0) {
+        // 小贾影视仓 v24.7.2: 中转页不再 setTheme 整套换主题 —— 部分 EMUI/华为机型上换主题后
+        // 框架 TextAppearance 的 ?android:attr/textColorLink 解析失败, inflate 崩溃。
+        // 改为: 先正常选皮肤主题, 再 applyStyle 仅叠加窗口透明/无动画属性。
+        if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 0) {
             setTheme(R.style.NetfxTheme);
         } else if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 1) {
             setTheme(R.style.DoraeTheme);
@@ -101,8 +100,14 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         } else {
             setTheme(R.style.SakuraTheme);
         }
+        if (passThroughWindow()) {
+            getTheme().applyStyle(R.style.XiaojiaPassThroughStyle, true);
+        }
 
         super.onCreate(savedInstanceState);
+        if (passThroughWindow()) {
+            overridePendingTransition(0, 0); // 中转页无缝进场
+        }
         setContentView(getLayoutResID());
         mContext = this;
         CutoutUtil.adaptCutoutAboveAndroidP(mContext, true);//设置刘海
@@ -112,10 +117,10 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     }
 
     /**
-     * 小贾影视仓 v24.5: 中转页透明化钩子。
-     * 返回 true 时 onCreate 用 XiaojiaPassThroughTheme(半透明+无窗口动画)替代皮肤主题,
+     * 小贾影视仓 v24.7.2: 中转页透明化钩子。
+     * 返回 true 时在皮肤主题上 applyStyle 叠加 XiaojiaPassThroughStyle(半透明+无窗口动画),
      * 用于"只拉数据、随即跳走"的中转页(如 DetailActivity 的 autoPlay 直达播放模式),
-     * 消灭进出场缩放动画造成的"闪一下旧小窗"。
+     * 消灭进出场缩放动画造成的"闪一下旧小窗"。不再 setTheme 整套换主题(EMUI 兼容)。
      */
     protected boolean passThroughWindow() {
         return false;
