@@ -49,8 +49,7 @@
                     android:layout_marginBottom="@dimen/vs_5"
                     android:ellipsize="end"
                     android:focusable="false"
-                    android:maxLines="1"
-                    android:singleLine="true"
+                    android:maxLines="2"
                     android:textColor="@android:color/white"
                     android:textSize="@dimen/ts_30"
                     android:textStyle="bold" />
