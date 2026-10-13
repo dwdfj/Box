@@ -88,14 +88,114 @@ public class VodInfo implements Serializable {
                 }
             }
             seriesMap = new LinkedHashMap<>();
+            // 小贾影视仓 v24.2: 线路自然排序 —— 用户反馈"各线路组合乱七八糟"。
+            // 源返回的 flag 顺序常常是 4K线路②③→小猪投屏①... 交错无序;
+            // 自然排序(数字按数值比、①②③按序号比)后同族线路自动相邻、编号顺向。
+            // 同名 flag 保持源顺序(稳定排序), 不破坏源本身的语义。
+            try {
+                java.util.Collections.sort(seriesFlags, (f1, f2) -> naturalCompare(f1.name, f2.name));
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
             for (VodSeriesFlag flag : seriesFlags) {
                 List<VodSeries> list = tempSeriesMap.get(flag.name);
                 assert list != null;
+                // 小贾影视仓 v24.2: 选集顺向排列 —— 用户反馈"线路的级数不是顺向排列"。
+                // 很多源把集数当字符串排: 第1集→第10集→第2集。若整条列表都是
+                // "统一前缀+数字+统一后缀"(如 第X集/第XX集/01.xxx), 按数值升序重排;
+                // 含花絮/预告等异构名的列表不动, 保持源语义。
+                sortSeriesIfNeeded(list);
                 if(seriesFlags.size()<=3){
                     if(isReverse(list))Collections.reverse(list);
                 }
                 seriesMap.put(flag.name, list);
             }
+        }
+    }
+
+    /** 小贾影视仓 v24.2: 带圈数字 ①-⑳ -> 1-20, 非 0 返回 */
+    private static int circledDigit(char c) {
+        if (c >= '\u2460' && c <= '\u2473') return c - '\u2460' + 1;   // ①-⑳ -> 1-20
+        if (c >= '\u24EB' && c <= '\u24FE') return c - '\u24EB' + 11;  // 11-20 带圈变体
+        return 0;
+    }
+
+    private static boolean isNumChar(char c) {
+        return Character.isDigit(c) || circledDigit(c) > 0;
+    }
+
+    private static long readNum(String s, int[] pos) {
+        long v = 0;
+        if (circledDigit(s.charAt(pos[0])) > 0) {
+            v = circledDigit(s.charAt(pos[0]));
+            pos[0]++;
+        } else {
+            while (pos[0] < s.length() && Character.isDigit(s.charAt(pos[0]))) {
+                v = v * 10 + (s.charAt(pos[0]) - '0');
+                pos[0]++;
+                if (v > 99999999) v = 99999999; // 防溢出
+            }
+        }
+        return v;
+    }
+
+    /** 小贾影视仓 v24.2: 自然比较 —— 数字段按数值比(第2集 < 第10集), 其余按字符比 */
+    public static int naturalCompare(String a, String b) {
+        if (a == null) a = "";
+        if (b == null) b = "";
+        int i = 0, j = 0;
+        while (i < a.length() && j < b.length()) {
+            char ca = a.charAt(i), cb = b.charAt(j);
+            boolean na = isNumChar(ca), nb = isNumChar(cb);
+            if (na && nb) {
+                int[] pa = {i}, pb = {j};
+                long va = readNum(a, pa), vb = readNum(b, pb);
+                if (va != vb) return va < vb ? -1 : 1;
+                i = pa[0];
+                j = pb[0];
+            } else {
+                if (ca != cb) return ca < cb ? -1 : 1;
+                i++;
+                j++;
+            }
+        }
+        return (a.length() - i) - (b.length() - j);
+    }
+
+    /**
+     * 小贾影视仓 v24.2: 若列表所有名字都是「统一前缀 + 数字 + 统一后缀」结构
+     * (典型: 第1集/第2集/... , 01.mp4/02.mp4/...), 按数字升序重排, 解决
+     * 字符串序导致的 1→10→2 乱序。异构列表(花絮/预告混排)原样保留。
+     */
+    private void sortSeriesIfNeeded(List<VodSeries> list) {
+        try {
+            int n = list.size();
+            if (n < 2 || n > 999) return;
+            java.util.regex.Matcher m = getPattern("^(.*?)(\\d+)([^0-9]*)$").matcher(list.get(0).name);
+            if (!m.matches()) return;
+            String prefix = m.group(1), suffix = m.group(3);
+            long[] nums = new long[n];
+            Integer[] order = new Integer[n];
+            for (int i = 0; i < n; i++) {
+                java.util.regex.Matcher mi = getPattern("^(.*?)(\\d+)([^0-9]*)$").matcher(list.get(i).name);
+                if (!mi.matches() || !mi.group(1).equals(prefix) || !mi.group(3).equals(suffix)) return;
+                nums[i] = Long.parseLong(mi.group(2));
+                order[i] = i;
+            }
+            boolean asc = true, desc = true;
+            for (int i = 1; i < n; i++) {
+                if (nums[i] < nums[i - 1]) asc = false;
+                if (nums[i] > nums[i - 1]) desc = false;
+            }
+            if (asc) return; // 本来就顺向, 不动
+            java.util.Arrays.sort(order, (x, y) -> nums[x] != nums[y]
+                    ? Long.compare(nums[x], nums[y]) : Integer.compare(x, y));
+            List<VodSeries> sorted = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) sorted.add(list.get(order[i]));
+            list.clear();
+            list.addAll(sorted);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
