@@ -103,10 +103,18 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         if (passThroughWindow()) {
             getTheme().applyStyle(R.style.XiaojiaPassThroughStyle, true);
         }
+        if (noWindowAnim()) {
+            // 小贾影视仓 v24.8: 播放页等页面 —— 只杀窗口进出场缩放动画(窗口保持不透明),
+            // 消灭"播放页以小窗形态放大进场"的最后一环(皮肤主题自带的 activityOpen 动画)。
+            getTheme().applyStyle(R.style.XiaojiaNoAnimStyle, true);
+        }
 
         super.onCreate(savedInstanceState);
         if (passThroughWindow()) {
             overridePendingTransition(0, 0); // 中转页无缝进场
+        }
+        if (noWindowAnim()) {
+            killOwnTransitions(); // v24.8: 自身进出场动画多重保险(见方法注释)
         }
         setContentView(getLayoutResID());
         mContext = this;
@@ -124,6 +132,32 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
      */
     protected boolean passThroughWindow() {
         return false;
+    }
+
+    /**
+     * 小贾影视仓 v24.8: 杀自身窗口进出场动画钩子(窗口不透明)。
+     * 返回 true 时叠加 XiaojiaNoAnimStyle + overridePendingTransition/overrideActivityTransition 双保险。
+     * 背景: Android 14(API 34)起 overridePendingTransition 已失效, 必须用 overrideActivityTransition;
+     * 而"竖屏播放页进场时闪一下旧小窗"正是皮肤主题的 activityOpen 缩放动画 —— v24.6/v24.7.2 只处理了
+     * DetailActivity(中转页)一侧, 播放页自身的进场动画在部分 ROM 上仍然生效。
+     */
+    protected boolean noWindowAnim() {
+        return false;
+    }
+
+    /** 小贾影视仓 v24.8: 兼容 API 21~34+ 的进出场动画关闭。 */
+    private void killOwnTransitions() {
+        try {
+            overridePendingTransition(0, 0);
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0);
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     @Override
