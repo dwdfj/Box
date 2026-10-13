@@ -121,17 +121,27 @@ public class VodInfo implements Serializable {
         return Character.isDigit(c) || circledDigit(c) > 0;
     }
 
+    /** 小贾影视仓 v24.7.3: 全角数字 ０-９ / 带圈数字 ①-⑳ -> 0-9; 其余返回 -1 */
+    private static int digitValue(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= '\uFF10' && c <= '\uFF19') return c - '\uFF10'; // 全角 ０-９
+        int cd = circledDigit(c);
+        return cd > 0 ? cd : -1;
+    }
+
     private static long readNum(String s, int[] pos) {
         long v = 0;
-        if (circledDigit(s.charAt(pos[0])) > 0) {
-            v = circledDigit(s.charAt(pos[0]));
+        int d = digitValue(s.charAt(pos[0]));
+        if (d >= 0) {
+            v = d;
             pos[0]++;
-        } else {
-            while (pos[0] < s.length() && Character.isDigit(s.charAt(pos[0]))) {
-                v = v * 10 + (s.charAt(pos[0]) - '0');
-                pos[0]++;
-                if (v > 99999999) v = 99999999; // 防溢出
-            }
+        }
+        while (pos[0] < s.length()) {
+            d = digitValue(s.charAt(pos[0]));
+            if (d < 0) break;
+            v = v * 10 + d;
+            pos[0]++;
+            if (v > 99999999) v = 99999999; // 防溢出
         }
         return v;
     }
@@ -182,9 +192,13 @@ public class VodInfo implements Serializable {
     }
 
     private boolean nameHasNumber(String name) {
-        if (getPattern("\\d+").matcher(name).find()) return true;
+        // 小贾影视仓 v24.7.3: 正则 \d 只认 ASCII 数字, 中文源常见的全角数字(第０１集)会漏判,
+        // 导致整条列表被判成"纯文字"跳过排序。改为逐字符检测(ASCII/全角/带圈)。
         for (int i = 0; i < name.length(); i++) {
-            if (circledDigit(name.charAt(i)) > 0) return true;
+            char c = name.charAt(i);
+            if ((c >= '0' && c <= '9') || (c >= '\uFF10' && c <= '\uFF19') || circledDigit(c) > 0) {
+                return true;
+            }
         }
         return false;
     }
