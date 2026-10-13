@@ -6,7 +6,10 @@ from importlib.machinery import SourceFileLoader  ### 导入这个模块
 from urllib import parse
 import json
 import sys
-sys.dont_write_bytecode = True
+# 小贾影视仓 v24.7.3: 允许写 .pyc 字节码缓存 —— 旧值 True 让每个进程启动都要完整重新编译
+# 全部 py 插件(SourceFileLoader.load_module 每次都走编译), 两个 py 源时启动固定多花编译时间。
+# SourceFileLoader.get_code 会自动按 mtime 校验 __pycache__ 的新鲜度, 不存在脏缓存风险。
+sys.dont_write_bytecode = False
 
 def createFile(file_path):
     if os.path.exists(file_path) is False:
