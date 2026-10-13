@@ -37,6 +37,13 @@
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- 小贾影视仓 v24.8: 仅杀窗口进出场动画(不透明窗口)。给 PlayActivity 用 —— 播放页不能用
+         translucent(会透出下层页面且视频渲染异常), 但皮肤主题自带的 activityOpen 缩放动画正是
+         "竖屏播放页以小窗形态放大进场"的元凶; 部分系统上 overridePendingTransition 会被忽略。 -->
+    <style name="XiaojiaNoAnimStyle">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#E8B34B</item>
         <item name="color_theme_80">#CCE8B34B</item>
