@@ -438,10 +438,15 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     private void initHomeHotVod(UserHomeRowAdapter adapter) {
         if (Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
-            if (homeSourceRec != null) {
+            if (homeSourceRec != null && !homeSourceRec.isEmpty()) {
                 adapter.setNewData(homeSourceRec);
+                return;
             }
-            return;
+            // 小贾影视仓 v24.4: 首次打开推荐空白的根因 —— 默认模式是"站点推荐"(HOME_REC=1),
+            // 冷启动时 HomeActivity 还没拿到站点的首页数据, homeSourceRec=null, 这里原来
+            // 直接 return 且之后没有任何回填, 首屏推荐永远空白, 必须重进才有。
+            // 现在站点数据未就绪时落到下面的豆瓣/历史兜底链, 首开即有内容;
+            // 站点数据到位后(重进/切线路重建页面)自然恢复站点推荐。
         } else if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
             adapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(30)));
             return;
@@ -483,15 +488,17 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             OkGo.<String>get(doubanHotURL).headers("User-Agent", userAgent).execute(new AbsCallback<String>() {
                 @Override
                 public void onSuccess(Response<String> response) {
-                    String netJson = response.body();
-                    Hawk.put("home_hot_day", today);
-                    Hawk.put("home_hot", netJson);
-                    Hawk.put("home_hot_last", netJson);
+                    final String netJson = response.body();
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             java.util.ArrayList<Movie.Video> fresh = loadHots(netJson);
                             if (!fresh.isEmpty()) {
+                                // 小贾影视仓 v24.4: 只缓存解析非空的榜单 —— 被拦截的垃圾响应
+                                // 不再写进当日/last 缓存(否则空榜单会被缓存一整天)。
+                                Hawk.put("home_hot_day", today);
+                                Hawk.put("home_hot", netJson);
+                                Hawk.put("home_hot_last", netJson);
                                 adapter.setNewData(fresh);
                             } else if (!staleShown) {
                                 switchToHistoryFallback(adapter);
