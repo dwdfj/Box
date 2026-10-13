@@ -25,25 +25,26 @@
             <TextView
                 android:id="@+id/filterBtn"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_90"
+                android:layout_height="@dimen/vs_110"
                 android:layout_weight="1"
                 android:background="@drawable/shape_user_focus"
+                android:ellipsize="end"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="@string/global_search"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="@dimen/ts_30" />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_90"
+                android:layout_height="@dimen/vs_110"
                 android:layout_marginTop="@dimen/vs_10"
                 android:orientation="horizontal">
                 	
                 <com.github.tvbox.osc.ui.tv.widget.CustomEditText
                     android:id="@+id/etSearch"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_90"
+                    android:layout_height="@dimen/vs_110"
                     android:layout_marginEnd="@dimen/vs_10"
                     android:layout_marginRight="@dimen/vs_10"
                     android:layout_weight="1"
@@ -57,12 +58,12 @@
                     android:paddingRight="@dimen/vs_10"
                     android:textColor="@android:color/white"
                     android:textColorHint="#70FFFFFF"
-                    android:textSize="@dimen/ts_20" />
+                    android:textSize="@dimen/ts_30" />
 
                 <ImageView
                     android:id="@+id/tvSearchCheckbox"
-                    android:layout_width="@dimen/vs_90"
-                    android:layout_height="@dimen/vs_90"
+                    android:layout_width="@dimen/vs_110"
+                    android:layout_height="@dimen/vs_110"
                     android:layout_gravity="center"
                     android:layout_margin="@dimen/vs_2"
                     android:background="@drawable/shape_user_focus"
@@ -74,21 +75,21 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_90"
+                android:layout_height="@dimen/vs_110"
                 android:layout_marginTop="@dimen/vs_10"
                 android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/tvSearch"
                     android:layout_width="0mm"
-                    android:layout_height="@dimen/vs_90"
+                    android:layout_height="@dimen/vs_110"
                     android:layout_weight="1"
                     android:background="@drawable/shape_user_focus"
                     android:focusable="true"
                     android:gravity="center"
                     android:text="@string/act_search"
                     android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_20" />
+                    android:textSize="@dimen/ts_30" />
 
                 <Space
                     android:layout_width="@dimen/vs_10"
@@ -97,14 +98,14 @@
                 <TextView
                     android:id="@+id/tvClear"
                     android:layout_width="0mm"
-                    android:layout_height="@dimen/vs_90"
+                    android:layout_height="@dimen/vs_110"
                     android:layout_weight="1"
                     android:background="@drawable/shape_user_focus"
                     android:focusable="true"
                     android:gravity="center"
                     android:text="@string/act_search_clr"
                     android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_20" />
+                    android:textSize="@dimen/ts_30" />
             </LinearLayout>
         </LinearLayout>
 
@@ -158,7 +159,7 @@
             android:text="@string/act_search_trend"
             android:textAlignment="viewStart"
             android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_22" />
+            android:textSize="@dimen/ts_26" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridViewWord"
@@ -194,7 +195,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="@dimen/vs_20"
-                android:textSize="@dimen/ts_22"
+                android:textSize="@dimen/ts_26"
                 android:text="搜索历史" />
 
             <ImageView                
@@ -221,7 +222,7 @@
             app:backgroundResource="@drawable/shape_user_focus"
             app:horizontalSpacing="@dimen/vs_20"
             app:itemColor="@android:color/white"
-            app:itemSize="@dimen/vs_20"
+            app:itemSize="@dimen/vs_30"
             app:textPaddingH="@dimen/vs_20"
             app:textPaddingV="@dimen/vs_10"
             app:verticalSpacing="@dimen/vs_20" />        
