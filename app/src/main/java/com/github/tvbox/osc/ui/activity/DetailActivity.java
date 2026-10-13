@@ -241,8 +241,13 @@ public class DetailActivity extends BaseActivity {
         llPlayerFragmentContainer = findViewById(R.id.previewPlayer);
         llPlayerFragmentContainerBlock = findViewById(R.id.previewPlayerBlock);
         ivThumb = findViewById(R.id.ivThumb);
-        llPlayerPlace.setVisibility(showPreview ? View.VISIBLE : View.GONE);
-        ivThumb.setVisibility(!showPreview ? View.VISIBLE : View.GONE);
+        // 小贾影视仓 v24.5: 直达播放模式(autoPlay=true)下首帧就不渲染预览小窗占位区 ——
+        // 此前这里只看 showPreview(Hawk 默认 true), 详情数据还没回来时旧小屏区域先画了一帧,
+        // 数据到达跳 PlayActivity 的瞬间就是用户看到的"闪一下以前的小屏播放界面"。
+        // 判定式与下方 L275 创建 playFragment 的条件保持一致(showPreview && !autoPlay)。
+        boolean previewVisible = showPreview && !autoPlay;
+        llPlayerPlace.setVisibility(previewVisible ? View.VISIBLE : View.GONE);
+        ivThumb.setVisibility(!previewVisible ? View.VISIBLE : View.GONE);
         tvName = findViewById(R.id.tvName);
         tvYear = findViewById(R.id.tvYear);
         tvSite = findViewById(R.id.tvSite);
