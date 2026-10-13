@@ -404,6 +404,18 @@ public class ApiConfig {
                                 }
                             }
                             String text = new String(raw, "UTF-8");
+                            // 小贾影视仓 v24.7.3: GBK 配置兼容 —— 老式 php 线路的配置接口本身就是 GBK 编码,
+                            // 按 UTF-8 解码会产生 U+FFFD 替换符导致 JSON 解析失败(整份配置挂掉)。
+                            // 检测到替换符就回退 GBK 重解码(GBK 字节流按 GBK 解是无损的)。
+                            if (text.indexOf('\uFFFD') >= 0) {
+                                try {
+                                    String gbk = new String(raw, "GBK");
+                                    if (gbk.indexOf('\uFFFD') < 0 || countChar(gbk, '\uFFFD') < countChar(text, '\uFFFD')) {
+                                        text = gbk;
+                                    }
+                                } catch (Throwable ignored) {
+                                }
+                            }
                             // 小贾影视仓 v23.9.1: php 线路打包格式兼容(实测 yc.wya6.cn/wykj.php 这类):
                             // 返回「hexdump(jar) + 水印标记 + base64(配置JSON)」或整段 base64。
                             // 标准 8 字母** 标记 FindResult 已支持; 这里补通用解码做兜底(标记带数字/无标记)。
@@ -418,6 +430,13 @@ public class ApiConfig {
                         return result;
                     }
                 });
+    }
+
+    /** 小贾影视仓 v24.7.3: 统计字符出现次数(GBK 回退判定用) */
+    private static int countChar(String s, char c) {
+        int n = 0, i = -1;
+        while ((i = s.indexOf(c, i + 1)) >= 0) n++;
+        return n;
     }
 
     // 小贾影视仓 v15.1: 线路镜像映射表(域名级防封/容灾)。网络拉取失败时自动换镜像重拉一次。
@@ -1561,8 +1580,40 @@ public class ApiConfig {
                 sb.setCategories(new ArrayList<String>());
                 sourceBeanList.put(key, sb);
             }
+            // 小贾影视仓 v24.7.3: 本地 py 源后台预热 —— 用户保存了多个 py 源时, 第二个 py 的分类 tab
+            // 是懒加载(首次可见才 init), 点过去要等"Python 就绪+插件编译+依赖下载+init"全链条。
+            // 现在配置加载完成后就在后台把所有本地 py 源的 spider 预初始化(getSpider 有 25s 超时且
+            // init 结果有缓存, 超时任务后台继续跑), 用户点进 py tab 时基本秒开。
+            warmLocalPySpiders();
         } catch (Throwable th) {
             th.printStackTrace();
+        }
+    }
+
+    /** 小贾影视仓 v24.7.3: 后台预初始化全部本地 py 源 spider(去重由 PythonLoader.spiderInits 保证) */
+    private void warmLocalPySpiders() {
+        try {
+            final ArrayList<SourceBean> warmList = new ArrayList<>();
+            for (SourceBean sb : sourceBeanList.values()) {
+                if (sb != null && sb.getKey() != null && sb.getKey().startsWith("py_local_")) {
+                    warmList.add(sb);
+                }
+            }
+            if (warmList.isEmpty()) return;
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    for (SourceBean sb : warmList) {
+                        try {
+                            getCSP(sb);   // 仅触发 getSpider+init, 不发网络分类请求
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }, "py_warmup");
+            t.setDaemon(true);
+            t.start();
+        } catch (Throwable ignored) {
         }
     }
 
