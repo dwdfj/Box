@@ -819,6 +819,36 @@ public class ApiConfig {
             sb.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
             sb.setClickSelector(DefaultConfig.safeJsonString(obj, "click", ""));
             sb.setStyle(DefaultConfig.safeJsonString(obj, "style", ""));
+            // 小贾影视仓 v24.7: 解析站点 header 字段(防盗链头), 修复 php 直连站 403"解析失败"。
+            // 兼容三种写法: ① 对象 {"Referer":"..","User-Agent":".."} ② JSON 字符串 ③ "k=v&k2=v2" 表单风格
+            try {
+                if (obj.has("header") && !obj.get("header").isJsonNull()) {
+                    com.google.gson.JsonElement he = obj.get("header");
+                    java.util.HashMap<String, String> hs = new java.util.HashMap<>();
+                    if (he.isJsonObject()) {
+                        for (java.util.Map.Entry<String, com.google.gson.JsonElement> en : he.getAsJsonObject().entrySet()) {
+                            if (en.getValue() != null && !en.getValue().isJsonNull())
+                                hs.put(en.getKey(), en.getValue().getAsString());
+                        }
+                    } else {
+                        String hstr = he.getAsString().trim();
+                        if (hstr.startsWith("{")) {
+                            com.google.gson.JsonObject ho = com.google.gson.JsonParser.parseString(hstr).getAsJsonObject();
+                            for (java.util.Map.Entry<String, com.google.gson.JsonElement> en : ho.entrySet()) {
+                                if (en.getValue() != null && !en.getValue().isJsonNull())
+                                    hs.put(en.getKey(), en.getValue().getAsString());
+                            }
+                        } else if (!hstr.isEmpty()) {
+                            for (String pair : hstr.split("&")) {
+                                int eq = pair.indexOf('=');
+                                if (eq > 0) hs.put(pair.substring(0, eq).trim(), pair.substring(eq + 1).trim());
+                            }
+                        }
+                    }
+                    if (!hs.isEmpty()) sb.setHeaders(hs);
+                }
+            } catch (Throwable ignored) {
+            }
             if (firstSite == null && sb.getHide() == 0)
                 firstSite = sb;
             // 小贾影视仓: 记录第一个非 meta 的内容站, 供首页兜底
