@@ -18,6 +18,17 @@ public class SourceBean {
     private int playerType; // 0 system 1 ikj 2 exo 10 mxplayer -1 以参数设置页面的为准
     private String clickSelector; // 需要点击播放的嗅探站点selector   ddrk.me;#id
     private String style; // 展示风格
+    // 小贾影视仓 v24.7: 站点自定义请求头 —— php 直连站(type 0/1)常配防盗链头(Referer/User-Agent),
+    // 之前全工程不读这个字段, 列表/详情/取流全裸奔 → 防盗链站 403, 表现为"部分资源解析失败"。
+    private java.util.HashMap<String, String> headers;
+
+    public java.util.HashMap<String, String> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(java.util.HashMap<String, String> headers) {
+        this.headers = headers;
+    }
     public String getKey() {
         return key;
     }
