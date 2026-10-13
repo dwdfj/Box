@@ -21,14 +21,15 @@
 
     <!-- Alternative Themes -->
     <!-- 小贾影视仓 v24.0 冰晶蓝玻璃: 默认主题主色 霓虹品红#FF2BD6 → 冰晶蓝#3EC8F5(与壁纸冰蓝玻璃呼应) -->
+    <!-- 小贾影视仓 v24.2 鎏金: 默认主题主色 冰晶蓝#3EC8F5 → 鎏金#E8B34B(与金色壁纸呼应) -->
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
-        <item name="color_theme">#3EC8F5</item>
-        <item name="color_theme_80">#CC3EC8F5</item>
-        <item name="color_theme_70">#B33EC8F5</item>
-        <item name="color_theme_60">#993EC8F5</item>
-        <item name="color_theme_50">#803EC8F5</item>
-        <item name="color_theme_40">#663EC8F5</item>
-        <item name="color_theme_dark_70">#B3125A8F</item>
+        <item name="color_theme">#E8B34B</item>
+        <item name="color_theme_80">#CCE8B34B</item>
+        <item name="color_theme_70">#B3E8B34B</item>
+        <item name="color_theme_60">#99E8B34B</item>
+        <item name="color_theme_50">#80E8B34B</item>
+        <item name="color_theme_40">#66E8B34B</item>
+        <item name="color_theme_dark_70">#B38F6414</item>
     </style>
     <style name="DoraeTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#18A2E7</item>
