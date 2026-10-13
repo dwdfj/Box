@@ -381,13 +381,13 @@ public class SourceViewModel extends ViewModel {
             };
             spThreadPool.execute(waitResponse);
         } else if (type == 0 || type == 1) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .tag(sourceBean.getKey() + "_sort")
                     .execute(new AbsCallback<String>() {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -432,7 +432,7 @@ public class SourceViewModel extends ViewModel {
         } else if (type == 4) {
             String extend=sourceBean.getExt();
             extend=getFixUrl(extend);
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .tag(sourceBean.getKey() + "_sort")
                     .params("filter", "true")
                     .params("extend", extend)
@@ -440,7 +440,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -514,7 +514,7 @@ public class SourceViewModel extends ViewModel {
                 }
             });
         } else if (type == 0 || type == 1) {
-            OkGo.<String>get(homeSourceBean.getApi())
+            siteReq(homeSourceBean.getApi(), homeSourceBean)
                     .tag(homeSourceBean.getApi())
                     .params("ac", type == 0 ? "videolist" : "detail")
                     .params("t", sortData.id)
@@ -526,7 +526,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -560,7 +560,7 @@ public class SourceViewModel extends ViewModel {
                     e.printStackTrace();
                 }
             }
-            OkGo.<String>get(homeSourceBean.getApi())
+            siteReq(homeSourceBean.getApi(), homeSourceBean)
                     .tag(homeSourceBean.getApi())
                     .params("ac", "detail")
                     .params("filter", "true")
@@ -571,7 +571,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -645,7 +645,7 @@ public class SourceViewModel extends ViewModel {
             };
             spThreadPool.execute(waitResponse);
         } else if (type == 0 || type == 1) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .tag("detail")
                     .params("ac", sourceBean.getType() == 0 ? "videolist" : "detail")
                     .params("ids", TextUtils.join(",", ids))
@@ -654,7 +654,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -756,7 +756,7 @@ public class SourceViewModel extends ViewModel {
         } else if (type == 0 || type == 1|| type == 4) {
             String extend=sourceBean.getExt();
             extend=getFixUrl(extend);
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .tag("detail")
                     .params("ac", type == 0 ? "videolist" : "detail")
                     .params("ids", id)
@@ -766,7 +766,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -807,6 +807,48 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
+    // ===== 小贾影视仓 v24.7: php 直连站兼容(防盗链请求头 + GBK 编码) =====
+    // 背景: php 线路"部分资源解析失败"两大根因 ——
+    //  ① 站点配置的 header(防盗链 Referer/UA)全工程没人读, 请求裸奔 403;
+    //  ② 老式 php 站输出 GBK 编码, okhttp string() 按 UTF-8 解出乱码 → JSON/XML 解析抛异常 → 静默失败。
+    /** 构造带站点自定义请求头(防盗链 Referer/UA 等)的 GET 请求; sb 无 header 时与 OkGo.get 等价 */
+    private static com.lzy.okgo.request.GetRequest<String> siteReq(String url, SourceBean sb) {
+        com.lzy.okgo.request.GetRequest<String> req = OkGo.<String>get(url);
+        try {
+            java.util.HashMap<String, String> hs = sb == null ? null : sb.getHeaders();
+            if (hs != null) {
+                for (java.util.Map.Entry<String, String> e : hs.entrySet()) {
+                    if (e.getKey() != null && e.getValue() != null
+                            && !e.getKey().isEmpty() && !e.getValue().isEmpty())
+                        req.headers(e.getKey(), e.getValue());
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return req;
+    }
+
+    /** 响应体转字符串: 严格 UTF-8 解码失败(GBK 站点/charset 声明)自动回退 GBK, 并去掉 BOM */
+    private static String siteBodyStr(okhttp3.Response response) throws Throwable {
+        okhttp3.ResponseBody body = response.body();
+        if (body == null) throw new IllegalStateException("网络请求错误");
+        byte[] bytes = body.bytes();
+        String s;
+        try {
+            java.nio.charset.CharsetDecoder dec = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+            s = dec.decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+        } catch (Throwable t) {
+            try {
+                s = new String(bytes, "GBK");
+            } catch (Throwable th) {
+                s = new String(bytes);
+            }
+        }
+        return com.github.tvbox.osc.util.js.UTF8BOMFighter.removeUTF8BOM(s);
+    }
+
     public void getSearch(String sourceKey, String wd) {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
         int type = sourceBean.getType();
@@ -843,7 +885,7 @@ public class SourceViewModel extends ViewModel {
                 json(searchResult, "", sourceBean.getKey());
             }
         } else if (type == 0 || type == 1) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .params("wd", wd)
                     .params(type == 1 ? "ac" : null, type == 1 ? "detail" : null)
                     .tag("search")
@@ -851,7 +893,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -877,7 +919,7 @@ public class SourceViewModel extends ViewModel {
                         }
                     });
         } else if (type == 4) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .params("wd", wd)
                     .params("ac", "detail")
                     .params("quick", "false")
@@ -886,7 +928,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -933,7 +975,7 @@ public class SourceViewModel extends ViewModel {
                 logSearch(sourceBean.getKey(), "quicksearch-catch", th.getClass().getSimpleName() + ": " + th.getMessage());
             }
         } else if (type == 0 || type == 1) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .params("wd", wd)
                     .params(type == 1 ? "ac" : null, type == 1 ? "detail" : null)
                     .tag("quick_search")
@@ -941,7 +983,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -970,7 +1012,7 @@ public class SourceViewModel extends ViewModel {
                         }
                     });
         } else if (type == 4) {
-            OkGo.<String>get(sourceBean.getApi())
+            siteReq(sourceBean.getApi(), sourceBean)
                     .params("wd", wd)
                     .params("ac", "detail")
                     .params("quick", "true")
@@ -979,7 +1021,7 @@ public class SourceViewModel extends ViewModel {
                         @Override
                         public String convertResponse(okhttp3.Response response) throws Throwable {
                             if (response.body() != null) {
-                                return response.body().string();
+                                return siteBodyStr(response);
                             } else {
                                 throw new IllegalStateException("网络请求错误");
                             }
@@ -1034,12 +1076,18 @@ public class SourceViewModel extends ViewModel {
                 result.put("parse", BooleanUtils.toInteger(!parse));
                 result.put("url", url);
                 result.put("playUrl", playUrl);
+                // 小贾影视仓 v24.7: 直连取流也带上站点防盗链头(Referer/UA/Cookie), 否则部分 php 站 m3u8 403
+                try {
+                    java.util.HashMap<String, String> hs = sourceBean.getHeaders();
+                    if (hs != null && !hs.isEmpty()) result.put("header", new JSONObject(hs).toString());
+                } catch (Throwable ignored) {
+                }
                 //直接就有
             } else if (type == 4) {
                 String extend=sourceBean.getExt();
                 extend=getFixUrl(extend);
-                okhttp3.Response response = OkGo.<String>get(sourceBean.getApi()).params("play", url).params("flag", playFlag).params("extend", extend).tag("play").execute();
-                String json = response.body().string();
+                okhttp3.Response response = siteReq(sourceBean.getApi(), sourceBean).params("play", url).params("flag", playFlag).params("extend", extend).tag("play").execute();
+                String json = siteBodyStr(response);
                 result = new JSONObject(json);
             }
             if (result != null) {
@@ -1332,7 +1380,7 @@ public class SourceViewModel extends ViewModel {
                                             return;
                                         }
                                         if (sb.getType() == 4) {
-                                            OkGo.<String>get(sb.getApi())
+                                            siteReq(sb.getApi(), sb)
                                                     .tag("detail")
                                                     .params("ac", "detail")
                                                     .params("ids", finalPushUrl)
@@ -1340,7 +1388,7 @@ public class SourceViewModel extends ViewModel {
                                                         @Override
                                                         public String convertResponse(okhttp3.Response response) throws Throwable {
                                                             if (response.body() != null) {
-                                                                return response.body().string();
+                                                                return siteBodyStr(response);
                                                             } else {
                                                                 return "";
                                                             }
