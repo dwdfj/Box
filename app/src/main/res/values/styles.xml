@@ -22,6 +22,16 @@
     <!-- Alternative Themes -->
     <!-- 小贾影视仓 v24.0 冰晶蓝玻璃: 默认主题主色 霓虹品红#FF2BD6 → 冰晶蓝#3EC8F5(与壁纸冰蓝玻璃呼应) -->
     <!-- 小贾影视仓 v24.2 鎏金: 默认主题主色 冰晶蓝#3EC8F5 → 鎏金#E8B34B(与金色壁纸呼应) -->
+    <!-- 小贾影视仓 v24.5 详情中转页专用: 半透明+无窗口动画。
+         点封面 → DetailActivity 只是拉详情数据的中转页(autoPlay 直达 PlayActivity),
+         默认主题的进出场缩放动画让它以"小窗"形态闪现一下, 然后播放页又缩放进场
+         —— 用户看到的"50%竖屏之前闪一下旧小窗"。此主题让中转页透明无动画, 链路无缝。 -->
+    <style name="XiaojiaPassThroughTheme" parent="AppTheme.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#E8B34B</item>
         <item name="color_theme_80">#CCE8B34B</item>
