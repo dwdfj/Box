@@ -82,7 +82,11 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
 
         // takagen99 : Set Theme Color
-        if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 0) {
+        // 小贾影视仓 v24.5: 中转页透明化钩子 —— 子类返回 true 时改用半透明无动画主题,
+        // 不走下面的皮肤主题(内容是否绘制由子类自己决定)。
+        if (passThroughWindow()) {
+            setTheme(R.style.XiaojiaPassThroughTheme);
+        } else if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 0) {
             setTheme(R.style.NetfxTheme);
         } else if (Hawk.get(HawkConfig.THEME_SELECT, 0) == 1) {
             setTheme(R.style.DoraeTheme);
@@ -105,6 +109,16 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         AppManager.getInstance().addActivity(this);
         init();
         setScreenOn();
+    }
+
+    /**
+     * 小贾影视仓 v24.5: 中转页透明化钩子。
+     * 返回 true 时 onCreate 用 XiaojiaPassThroughTheme(半透明+无窗口动画)替代皮肤主题,
+     * 用于"只拉数据、随即跳走"的中转页(如 DetailActivity 的 autoPlay 直达播放模式),
+     * 消灭进出场缩放动画造成的"闪一下旧小窗"。
+     */
+    protected boolean passThroughWindow() {
+        return false;
     }
 
     @Override
