@@ -326,7 +326,9 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
             android.graphics.Canvas c = new android.graphics.Canvas(out);
             c.drawBitmap(src, 0f, 0f, null);
-            c.drawColor(android.graphics.Color.argb(115, 0, 0, 0));
+            // 小贾影视仓 v24.2: 压暗 45%(alpha 115) -> 25%(alpha 64) —— v24.0/v24.1 暗色壁纸
+            // 叠 45% 后近乎纯黑, 用户观感"壁纸没了"。配鎏金亮色壁纸 + 25% 压暗, 壁纸清晰可见且不干扰文字。
+            c.drawColor(android.graphics.Color.argb(64, 0, 0, 0));
             return out;
         } catch (Throwable t) {
             return src;
