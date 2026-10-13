@@ -9,7 +9,7 @@
     <LinearLayout
         android:id="@+id/top_container"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_128"
+        android:layout_height="@dimen/vs_150"
         android:layout_gravity="top"
         android:background="@drawable/box_controller_top_bg"
         android:gravity="end"
@@ -23,7 +23,8 @@
         <LinearLayout
             android:id="@+id/tv_top_line1"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_40"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/vs_40"
             android:layout_marginTop="@dimen/vs_10"
             android:orientation="horizontal">
 
@@ -46,12 +47,11 @@
                 android:layout_gravity="center|left"
                 android:layout_weight="1"
                 android:clickable="true"
-                android:ellipsize="marquee"
+                android:ellipsize="end"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:gravity="center|left"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:singleLine="true"
+                android:maxLines="2"
                 android:shadowColor="@color/color_FF000000"
                 android:shadowDx="0"
                 android:shadowDy="0"
@@ -248,7 +248,7 @@
     <LinearLayout
         android:id="@+id/top_container_hide"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_128"
+        android:layout_height="@dimen/vs_150"
         android:layout_gravity="top"
         android:gravity="end"
         android:orientation="horizontal"
@@ -261,7 +261,8 @@
         <LinearLayout
             android:id="@+id/tv_top_line1_hide"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_40"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/vs_40"
             android:layout_marginTop="@dimen/vs_10"
             android:orientation="horizontal">
 
@@ -271,10 +272,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|left"
                 android:layout_weight="1"
-                android:ellipsize="marquee"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:singleLine="true"
+                android:ellipsize="end"
                 android:gravity="left"
+                android:maxLines="2"
                 android:paddingLeft="@dimen/vs_50"
                 android:shadowColor="@color/color_FF000000"
                 android:shadowDx="0"
