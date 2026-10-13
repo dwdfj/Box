@@ -8,28 +8,28 @@
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
-            <stroke android:width="1.5mm" android:color="#FF3EC8F5" />
+            <stroke android:width="1.5mm" android:color="#FFE8B34B" />
         </shape>
     </item>
     <item android:state_focused="false" android:state_pressed="true">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
-            <stroke android:width="1.5mm" android:color="#FF3EC8F5" />
+            <stroke android:width="1.5mm" android:color="#FFE8B34B" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
             <solid android:color="?attr/color_theme_40" />
-            <stroke android:width="2mm" android:color="#FF7DE9FF" />
+            <stroke android:width="2mm" android:color="#FFFFE9A8" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/vs_60" />
-            <solid android:color="#B30D1B33" />
-            <stroke android:width="1.5mm" android:color="#8C7DE9FF" />
+            <solid android:color="#B32B1F08" />
+            <stroke android:width="1.5mm" android:color="#8CFFE9A8" />
         </shape>
     </item>
 </selector>
