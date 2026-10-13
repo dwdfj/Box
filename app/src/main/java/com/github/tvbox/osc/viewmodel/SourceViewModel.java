@@ -829,7 +829,7 @@ public class SourceViewModel extends ViewModel {
     }
 
     /** 响应体转字符串: 严格 UTF-8 解码失败(GBK 站点/charset 声明)自动回退 GBK, 并去掉 BOM */
-    private static String siteBodyStr(okhttp3.Response response) throws Throwable {
+    private static String siteBodyStr(okhttp3.Response response) throws Exception {
         okhttp3.ResponseBody body = response.body();
         if (body == null) throw new IllegalStateException("网络请求错误");
         byte[] bytes = body.bytes();
