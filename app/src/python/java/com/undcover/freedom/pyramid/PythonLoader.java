@@ -241,22 +241,64 @@ public class PythonLoader {
 
     int port = -1;
 
+    /**
+     * 小贾影视仓 v24.9: 端口探测专用短超时客户端。
+     * 【"py 源加载缓慢"的真正病根】旧 getPort() 用 OkHttpUtil.string() 逐个探测 9978~10000,
+     * 而该方法走全局 OkGo 客户端(读/连超时都是 10 秒 DEFAULT_MILLISECONDS)且**同步阻塞**。
+     * 本机 python 代理没起来时, 22 个端口依次失败 = 调用线程被阻塞数分钟,
+     * 表现为"切到 py 源迟迟不出内容"。这里换成 1 秒超时的专用客户端,
+     * 最坏 22 次探测也只要 ~22s, 且实际命中通常在第一个端口。
+     */
+    private static final java.util.Set<Integer> portProbeFailed =
+            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<Integer, Boolean>());
+
+    private static okhttp3.OkHttpClient probeClient() {
+        if (portProbeClient == null) {
+            synchronized (PythonLoader.class) {
+                if (portProbeClient == null) {
+                    portProbeClient = new okhttp3.OkHttpClient.Builder()
+                            .connectTimeout(1, TimeUnit.SECONDS)
+                            .readTimeout(1, TimeUnit.SECONDS)
+                            .writeTimeout(1, TimeUnit.SECONDS)
+                            .callTimeout(1, TimeUnit.SECONDS)
+                            .retryOnConnectionFailure(false)
+                            .build();
+                }
+            }
+        }
+        return portProbeClient;
+    }
+
+    private static okhttp3.OkHttpClient portProbeClient = null;
+
     public void getPort() {
         if (port > 0) return;
+        // 小贾影视仓 v24.9: 本次进程内若已整体探测失败过, 直接用默认端口, 不再重复扫 22 个端口
+        if (portProbeFailed.contains(-1)) {
+            port = 9978;
+            return;
+        }
         for (int i = 9978; i < 10000; i++) {
+            if (portProbeFailed.contains(i)) continue; // 已确认不响应的端口不再重复探测
             try {
-                if (OkHttpUtil.string("http://127.0.0.1:" + i + "/proxy?do=ck&api=python", null).equals("ok")) {
+                String r = OkHttpUtil.string(probeClient(),
+                        "http://127.0.0.1:" + i + "/proxy?do=ck&api=python",
+                        null, null, null, null);
+                if ("ok".equals(r)) {
                     port = i;
                     return;
                 }
             } catch (Throwable ignored) {
             }
+            portProbeFailed.add(i);
         }
         // 小贾影视仓 v23.3: 原实现在全部探测失败时 port 仍是 -1 且不重试,
         // localProxyUrl() 会返回 "http://127.0.0.1:-1/proxy" 这种废地址,
         // py 源换算出来的播放地址直接失效。这里兜底用默认端口, 并允许下次重试。
         if (port <= 0) {
             port = 9978;
+            // 整轮都没探到 -> 标记, 后续调用不再阻塞式重扫(等 python 真正起来由用户重进线路触发)
+            portProbeFailed.add(-1);
         }
     }
 
