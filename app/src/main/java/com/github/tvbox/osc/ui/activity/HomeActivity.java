@@ -170,6 +170,10 @@ public class HomeActivity extends BaseActivity {
 
     private void initView() {
         this.topLayout = findViewById(R.id.topLayout);
+        // 小贾影视仓 v24.4: 捕获顶部栏 XML 设计尺寸(见 topBarDesignH 注释)
+        ViewGroup.MarginLayoutParams tlp = (ViewGroup.MarginLayoutParams) topLayout.getLayoutParams();
+        topBarDesignH = tlp.height;
+        topBarDesignMt = tlp.topMargin;
         this.tvName = findViewById(R.id.tvName);
         this.tvFind = findViewById(R.id.tvFind);
         this.tvMenu = findViewById(R.id.tvMenu);
@@ -1256,9 +1260,18 @@ public class HomeActivity extends BaseActivity {
 
     byte topHide = 0;
 
+    // 小贾影视仓 v24.4: 顶部栏设计尺寸(像素) —— init 时从 XML 布局解析后的实际值捕获。
+    // 根治"重新进入首页胶囊变大": 旧 restoreTopBar/show 动画每次都用 AutoSizeUtils.mm2px
+    // 现场换算 140mm/30mm, 换算结果与 XML mm 单位的解析值在部分机型上不一致, 每次 onResume
+    // 都把布局尺寸往换算值上覆盖, 尺寸随之漂移。改用布局真值后, restore 恒等于设计尺寸。
+    private int topBarDesignH = 0;
+    private int topBarDesignMt = 0;
+    private AnimatorSet topAnimator;
+
     private void changeTop(boolean hide) {
         ViewObj viewObj = new ViewObj(topLayout, (ViewGroup.MarginLayoutParams) topLayout.getLayoutParams());
         AnimatorSet animatorSet = new AnimatorSet();
+        topAnimator = animatorSet; // v24.4: 供 restoreTopBar 取消在飞的动画, 避免与复位互相打架
         animatorSet.addListener(new Animator.AnimatorListener() {
             @Override
             public void onAnimationStart(Animator animation) {
@@ -1285,16 +1298,16 @@ public class HomeActivity extends BaseActivity {
         // 而这里历史上动画的是 50mm/20mm —— ObjectAnimator 首帧直接 snap 到起始值,
         // 于是第一次 changeTop 之后胶囊就被永久缩成 140 的 36%, 且再没有任何路径恢复
         // (用户: "点击影视界面以后, 再返回的话, 首页胶囊又变小了")。
-        // 现在起止尺寸与布局完全一致: 显示态 = 140mm/30mm, 隐藏态 = 1mm/0。
-        final float TOP_SHOW_H = 140.0f;
-        final float TOP_SHOW_MT = 30.0f;
+        // 现在起止尺寸与布局完全一致: 显示态 = 布局真值(v24.4 捕获, 见 topBarDesignH), 隐藏态 = 1mm/0。
+        final int TOP_SHOW_H = topBarDesignH > 0 ? topBarDesignH : (int) AutoSizeUtils.mm2px(this.mContext, 140.0f);
+        final int TOP_SHOW_MT = topBarDesignMt > 0 ? topBarDesignMt : (int) AutoSizeUtils.mm2px(this.mContext, 30.0f);
         // Hide Top =======================================================
         if (hide && topHide == 0) {
             animatorSet.playTogether(ObjectAnimator.ofObject(viewObj, "marginTop", new IntEvaluator(),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_MT)),
+                            Integer.valueOf(TOP_SHOW_MT),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 0.0f))),
                     ObjectAnimator.ofObject(viewObj, "height", new IntEvaluator(),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_H)),
+                            Integer.valueOf(TOP_SHOW_H),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 1.0f))),
                     ObjectAnimator.ofFloat(this.topLayout, "alpha", 1.0f, 0.0f));
             animatorSet.setDuration(250);
@@ -1309,10 +1322,10 @@ public class HomeActivity extends BaseActivity {
         if (!hide && topHide == 1) {
             animatorSet.playTogether(ObjectAnimator.ofObject(viewObj, "marginTop", new IntEvaluator(),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 0.0f)),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_MT))),
+                            Integer.valueOf(TOP_SHOW_MT)),
                     ObjectAnimator.ofObject(viewObj, "height", new IntEvaluator(),
                             Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, 1.0f)),
-                            Integer.valueOf(AutoSizeUtils.mm2px(this.mContext, TOP_SHOW_H))),
+                            Integer.valueOf(TOP_SHOW_H)),
                     ObjectAnimator.ofFloat(this.topLayout, "alpha", 0.0f, 1.0f));
             animatorSet.setDuration(250);
             animatorSet.start();
@@ -1330,10 +1343,16 @@ public class HomeActivity extends BaseActivity {
      */
     private void restoreTopBar() {
         if (topLayout == null) return;
+        // v24.4: 先取消在飞的收起/展开动画, 否则动画会继续写 height/marginTop 覆盖复位值
+        if (topAnimator != null) {
+            topAnimator.cancel();
+            topAnimator = null;
+        }
         topHide = 0;
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) topLayout.getLayoutParams();
-        lp.height = AutoSizeUtils.mm2px(this.mContext, 140.0f);
-        lp.topMargin = AutoSizeUtils.mm2px(this.mContext, 30.0f);
+        // v24.4: 用 init 捕获的布局真值复位(不再现场 mm2px 换算, 根治重进后胶囊尺寸漂移)
+        lp.height = topBarDesignH > 0 ? topBarDesignH : AutoSizeUtils.mm2px(this.mContext, 140.0f);
+        lp.topMargin = topBarDesignMt > 0 ? topBarDesignMt : AutoSizeUtils.mm2px(this.mContext, 30.0f);
         topLayout.setLayoutParams(lp);
         topLayout.setAlpha(1.0f);
         topLayout.clearAnimation();
