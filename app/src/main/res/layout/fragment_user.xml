@@ -201,8 +201,9 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- ③ 3 列海报网格(竖屏铺满, 整页滚动, 自身不独立滚动) -->
-            <com.owen.tvrecyclerview.widget.TvRecyclerView
+            <!-- ③ 3 列海报网格(竖屏铺满, 整页滚动, 自身不独立滚动)
+                 小贾影视仓 v24.7.1: 换 SafeTvRecyclerView —— 懒加载页布局先于 setLayoutManager 的 NPE 守卫 -->
+            <com.github.tvbox.osc.widget.SafeTvRecyclerView
                 android:id="@+id/tvHotGrid"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
