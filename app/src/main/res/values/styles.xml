@@ -44,6 +44,20 @@
     <style name="XiaojiaNoAnimStyle">
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- 小贾影视仓 v24.9: 播放页专用 —— 不透明窗口 + 无动画。
+         【v24.8 修不掉的真凶】AppTheme.NoActionBar 里 windowBackground=@android:color/transparent,
+         即全 app 窗口都是半透明的, PlayActivity 叠上去时能直接看穿到下层的详情页/列表页。
+         用户看到的"50%竖屏之前闪一下旧小窗"不是窗口动画, 而是**透明窗口把下层旧画面透出来** ——
+         所以 v24.6/v24.7.2/v24.8 一路杀动画(overridePendingTransition / overrideActivityTransition /
+         windowAnimationStyle=@null)全都无效, 因为透明才是病根。
+         这里给播放页铺不透明底色, 一帧都不透下层。 -->
+    <style name="XiaojiaOpaqueNoAnimStyle">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowBackground">@color/color_32364E</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#E8B34B</item>
         <item name="color_theme_80">#CCE8B34B</item>
