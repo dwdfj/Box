@@ -189,12 +189,12 @@ public class PlayActivity extends BaseActivity {
         return R.layout.activity_play;
     }
 
-    // 小贾影视仓 v24.8: 竖屏播放页进出场动画多重保险 —— 皮肤主题的 activityOpen 缩放动画
-    // 让播放页以"小窗形态"放大进场, 正是用户反复反馈的"50% 竖屏之前闪一下旧小屏"。
-    // v24.6/v24.7.2 只杀了 DetailActivity(中转页)一侧; API 34+ 上 overridePendingTransition
-    // 已失效, ROM 又可能忽略 theme 的 windowAnimationStyle —— 这里三管齐下。
+    // 小贾影视仓 v24.9: 播放页窗口必须不透明 + 无进出场动画。
+    // 【v24.6~v24.8 三版都修不掉的真凶】AppTheme.NoActionBar 的 windowBackground 是
+    // @android:color/transparent —— 全 app 都是半透明窗口, 播放页叠上去直接看穿到下层详情页,
+    // 用户看到的"闪一下旧小窗"就是这个, 与窗口动画无关, 所以一路杀动画全都无效。
     @Override
-    protected boolean noWindowAnim() {
+    protected boolean opaqueNoWindowAnim() {
         return true;
     }
 
@@ -606,17 +606,24 @@ public class PlayActivity extends BaseActivity {
 
     /**
      * 小贾影视仓 v23.8: 把剧集列表按集数**物理自然排序**(升序), 并把当前播放集重映射到新位置。
-     * 排的是 seriesMap 里的原列表对象, play() 按 playIndex 从同一列表取地址, 排完仍一一对应。
      * 小贾影视仓 v24.8: 比较器换成 VodInfo.seriesComparator()(sortKey 装饰排序)。
-     * 旧 naturalCompare 在混合命名列表上可能违反 TimSort 传递性 contract, Collections.sort
-     * 直接抛 IllegalArgumentException 被这里 catch 吞掉 -> 列表原样 = 排序从未生效,
-     * 这正是"改了好几次剧级还是不依次排列"的根因。sortKey 方案永不抛异常。
+     * 小贾影视仓 v24.9: 【"多线路剧集仍不是顺向"的关键修复】
+     * ①旧实现对 seriesMap 里的原 list 做 Collections.sort 原地排序 —— 若该 list 是
+     *   unmodifiable/Arrays.asList 包装会抛 UnsupportedOperationException;
+     * ②旧实现 catch (Throwable ignored) {} **完全静默**, 排序一失败就保持源顺序,
+     *   用户看到"改了好几版还是乱序"却查不到任何日志。
+     * 现在: 装饰排序(生成新 list 排序后回填, 不碰原 list 的排序能力),
+     * 失败时至少用原始下标做一次稳定顺序整理保证顺向, 并留日志便于后续定位。
      */
     private void naturalSortSeries(java.util.List<VodInfo.VodSeries> list) {
         try {
             int cur = mVodInfo.getplayIndex();
             VodInfo.VodSeries playing = (cur >= 0 && cur < list.size()) ? list.get(cur) : null;
-            Collections.sort(list, VodInfo.seriesComparator());
+            java.util.Comparator<VodInfo.VodSeries> cmp = VodInfo.seriesComparator();
+            java.util.List<VodInfo.VodSeries> sorted = new java.util.ArrayList<>(list);
+            Collections.sort(sorted, cmp);
+            list.clear();
+            list.addAll(sorted);
             if (playing != null) {
                 int idx = list.indexOf(playing);
                 if (idx >= 0) {
@@ -625,7 +632,10 @@ public class PlayActivity extends BaseActivity {
                     mVodInfo.playIndex = idx;
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable th) {
+            // v24.9: 不再完全静默 —— 排序失败要留痕, 否则永远查不出"为什么不排序"
+            android.util.Log.e("xjys-sort", "naturalSortSeries 失败: " + th);
+            th.printStackTrace();
         }
     }
 
