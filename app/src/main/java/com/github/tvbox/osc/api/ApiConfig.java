@@ -840,10 +840,17 @@ public class ApiConfig {
             }
             // 小贾影视仓 v21: 注入「本地 .py 单源」(用户通过信号源面板的"加载本地 .py"添加)
             injectLocalPySites();
-            // 小贾影视仓: 首页推荐"锁死豆瓣"——优先线路自带豆瓣; 线路没有豆瓣则注入参考豆瓣(自带其全局jar, 自包含可用)
+            // 小贾影视仓 v24.5: 尊重用户上次选中的首页站点(含 py 本地源)。
+            // 旧逻辑"首页推荐锁死豆瓣": 持久化的 HOME_API 只要不是豆瓣站就作废, 强制换豆瓣/兜底站
+            // —— 这就是用户反馈"添加的 py 下次启动默认退回默认线路"的根因。
+            // 现在只要持久化站点仍存在且未隐藏就原样恢复; 豆瓣兜底仅在无记录/站点失效时生效。
+            // (v24.4 起 initHomeHotVod 对非豆瓣首页已有豆瓣/历史兜底, 推荐不会空白。)
             String home = Hawk.get(HawkConfig.HOME_API, "");
             SourceBean sh = getSource(home);
-            if (sh == null || sh.getHide() == 1 || !isDouban(sh)) {
+            if (sh != null && sh.getHide() == 0) {
+                // 恢复的是豆瓣站时顺手记作参考豆瓣, 与下方兜底链行为一致
+                if (isDouban(sh)) saveReferenceDouban(sh);
+            } else {
                 sh = null;
                 // 1) 找当前线路自己的豆瓣站
                 for (SourceBean sb : sourceBeanList.values()) {
@@ -897,8 +904,11 @@ public class ApiConfig {
             }
             // v15: 兜底到的站若是 type3 且 jar 为空(依赖 main), 而本线路又没有全局 spider → 首页必然 SpiderNull 空白
             // 此时优先换一个可独立工作的站, 保证首页一定有内容
+            // v24.5: 本地 py 源(py_local_*)不依赖全局 jar —— pyLoader 按 .py 后缀分发, 走本地 python 运行时,
+            // 不能因为"无全局 spider"被这个安全网顶掉, 否则恢复的 py 首页站又被换走(退回默认线路)。
             if (sh != null && sh.getType() == 3 && (sh.getJar() == null || sh.getJar().isEmpty())
-                    && (spider == null || spider.isEmpty())) {
+                    && (spider == null || spider.isEmpty())
+                    && !sh.getKey().startsWith("py_local_")) {
                 for (SourceBean sb : sourceBeanList.values()) {
                     if (sb.getHide() == 0 && !isMetaSite(sb) && sb != sh
                             && (sb.getJar() != null && !sb.getJar().isEmpty() || sb.getType() != 3)) {
