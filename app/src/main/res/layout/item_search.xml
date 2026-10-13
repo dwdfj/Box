@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23.5 搜索结果卡片: 严格 3:4 竖版海报 + 标题在下(与首页 item_user_home_grid 同比例)。
-     为什么必须改: <=v23.4 的写法是 海报容器 layout_height="0dp" + layout_weight="1",
-     却挂在 layout_height="wrap_content" 的卡片根上 —— 这是无效的高度写法。
-     LinearLayout 只在父容器高度是"确定值"(MeasureSpec.EXACTLY)时, 才会把剩余空间按权重
-     分给 0dp 子项; wrap_content 的卡片先按内容算出高度, 剩余空间算出来是 0, 整段权重分配
-     直接被跳过(源码里 skippedMeasure=false 且 remainingExcess=0), 于是海报保持首次测量的
-     0 高 —— 封面撑不起来, 卡片只剩一行标题, 看起来就是"细长条"。
-     改为 ConstraintLayout 的 layout_constraintDimensionRatio="3:4": 高度由宽度按 3:4 算,
-     与首页 3 列竖版海报完全一致, 不再依赖任何权重/父高度。 -->
+<!-- 小贾影视仓 v24.7 搜索结果卡片: 标题在上、海报在下 —— 用户反馈"右侧影视名字显示不全，
+     整体文字变大，影视封面位置下移不就解决了吗"。
+     为什么这样改: 旧结构海报在上(占满 3:4)、标题在下且 maxLines=3 + ellipsize=end,
+     长标题会被省略号截断; 且海报先占掉大块高度, 标题空间天然不足。
+     新结构: 标题放卡片顶部、不限制行数(不省略), 海报约束到标题下方 ——
+     标题多长都能完整显示, 海报位置自然下移让位, 两者互不挤压。 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -17,7 +14,22 @@
     android:focusable="true"
     android:padding="@dimen/vs_6">
 
-    <!-- 海报: 宽度铺满卡片, 高度 = 宽度 × 4/3 (3:4) -->
+    <!-- 标题: 卡片顶部通栏, 字号加大(ts_30), 不限行数不省略 —— 完整显示影视名 -->
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:lineSpacingExtra="@dimen/vs_2"
+        android:paddingBottom="@dimen/vs_10"
+        android:text="Title"
+        android:textColor="@android:color/white"
+        android:textSize="@dimen/ts_30"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 海报: 宽度铺满卡片, 高度 = 宽度 × 4/3 (3:4), 位置在标题下方(标题越长海报越往下) -->
     <ImageView
         android:id="@+id/ivThumb"
         android:layout_width="0dp"
@@ -27,11 +39,10 @@
         app:layout_constraintDimensionRatio="3:4"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/tvName" />
 
     <!-- 左上角: 来源名(竖排来源列取消后, 来源信息移到卡片角标)
-         小贾影视仓 v23.8: 字号由 ts_22(36mm) 放大到 ts_28(46mm), 内边距同步加大
-         —— 用户反馈"搜索界面播放源文字太小了"。 -->
+         小贾影视仓 v23.8: 字号由 ts_22(36mm) 放大到 ts_28(46mm)。 -->
     <TextView
         android:id="@+id/tvSite"
         android:layout_width="wrap_content"
@@ -52,7 +63,7 @@
         app:layout_constraintTop_toTopOf="@id/ivThumb" />
 
     <!-- 右下角: 备注(更新至第X集 / 4K / HD)
-         小贾影视仓 v24.5: 字号 ts_22 → ts_26、限宽 vs_210 → vs_240 —— 用户反馈备注也看不清。 -->
+         小贾影视仓 v24.5: 字号 ts_22 → ts_26、限宽 vs_210 → vs_240。 -->
     <TextView
         android:id="@+id/tvNote"
         android:layout_width="wrap_content"
@@ -71,24 +82,5 @@
         android:textSize="@dimen/ts_26"
         app:layout_constraintBottom_toBottomOf="@id/ivThumb"
         app:layout_constraintEnd_toEndOf="@id/ivThumb" />
-
-    <!-- 标题: 海报下方独立一行
-         小贾影视仓 v24.5: 字号 ts_24 → ts_28、maxLines 2 → 3
-         —— 用户反馈"作品名称还是显示不全，文字也太小"。3 行 + 自动省略，长标题基本完整。 -->
-    <TextView
-        android:id="@+id/tvName"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/vs_10"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:lineSpacingExtra="@dimen/vs_2"
-        android:maxLines="3"
-        android:text="Title"
-        android:textColor="@android:color/white"
-        android:textSize="@dimen/ts_28"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/ivThumb" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
