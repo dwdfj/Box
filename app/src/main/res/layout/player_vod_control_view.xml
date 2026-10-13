@@ -46,11 +46,12 @@
                 android:layout_gravity="center|left"
                 android:layout_weight="1"
                 android:clickable="true"
-                android:ellipsize="end"
+                android:ellipsize="marquee"
                 android:focusable="false"
                 android:focusableInTouchMode="false"
                 android:gravity="center|left"
-                android:maxLines="1"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
                 android:shadowColor="@color/color_FF000000"
                 android:shadowDx="0"
                 android:shadowDy="0"
@@ -270,9 +271,10 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|left"
                 android:layout_weight="1"
-                android:ellipsize="end"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
                 android:gravity="left"
-                android:maxLines="1"
                 android:paddingLeft="@dimen/vs_50"
                 android:shadowColor="@color/color_FF000000"
                 android:shadowDx="0"
@@ -938,22 +940,22 @@
 	                    android:src="@drawable/v_ffwd" />
 	
 	            </LinearLayout>
-	            <TextView
-	                android:id="@+id/play_speed_txt"
-	                android:layout_width="@dimen/vs_64"
-	                android:layout_height="@dimen/vs_20"
-	                android:layout_gravity="center"
-	                android:layout_marginStart="-20mm"
-	                android:layout_marginLeft="-15mm"
-	                android:layout_marginTop="8mm"
-	                android:background="@drawable/shape_speed_hint"
-	                android:focusable="false"
-	                android:focusableInTouchMode="false"
-	                android:gravity="center"
-	                android:text="x0.25"
-	                android:textColor="@color/color_FFFFFF"
-	                android:textSize="@dimen/ts_12"
-	                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/play_speed_txt"
+                android:layout_width="@dimen/vs_80"
+                android:layout_height="@dimen/vs_24"
+                android:layout_gravity="center"
+                android:layout_marginStart="-20mm"
+                android:layout_marginLeft="-15mm"
+                android:layout_marginTop="8mm"
+                android:background="@drawable/shape_speed_hint"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:text="x0.25"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_16"
+                android:textStyle="bold" />
 	
 	            <LinearLayout
 	                android:id="@+id/play_retry"
@@ -997,22 +999,22 @@
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_aspect" />
 	            </LinearLayout>
-	            <TextView
-	                android:id="@+id/play_scale_txt"
-	                android:layout_width="@dimen/vs_64"
-	                android:layout_height="@dimen/vs_20"
-	                android:layout_gravity="center"
-	                android:layout_marginStart="-20mm"
-	                android:layout_marginLeft="-15mm"
-	                android:layout_marginTop="8mm"
-	                android:background="@drawable/shape_speed_hint"
-	                android:focusable="false"
-	                android:focusableInTouchMode="false"
-	                android:gravity="center"
-	                android:text="16:9"
-	                android:textColor="@color/color_FFFFFF"
-	                android:textSize="@dimen/ts_12"
-	                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/play_scale_txt"
+                android:layout_width="@dimen/vs_80"
+                android:layout_height="@dimen/vs_24"
+                android:layout_gravity="center"
+                android:layout_marginStart="-20mm"
+                android:layout_marginLeft="-15mm"
+                android:layout_marginTop="8mm"
+                android:background="@drawable/shape_speed_hint"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:text="16:9"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_16"
+                android:textStyle="bold" />
 	
 	            <LinearLayout
 	                android:id="@+id/play_player"
@@ -1063,9 +1065,9 @@
 	                android:focusable="true"
 	                android:gravity="center"
 	                android:padding="@dimen/vs_8"
-	                android:text="硬解码"
-	                android:textColor="@android:color/white"
-	                android:textSize="@dimen/ts_14" />
+                android:text="硬解码"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_20" />
 
 	            <!-- 小贾影视仓 v23.3: 画质切换(4K/1080P/720P 多清晰度)。
 	                 默认 gone: 只有 Exo + DASH/HLS 多轨流才有得选, 由 VodController 动态显示。 -->
@@ -1082,9 +1084,9 @@
 	                android:focusable="true"
 	                android:gravity="center"
 	                android:padding="@dimen/vs_4"
-	                android:text="画质"
-	                android:textColor="@android:color/white"
-	                android:textSize="@dimen/ts_14"
+                android:text="画质"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_20"
 	                android:visibility="gone" />
 
 	            <!-- 小贾影视仓 v23.3: 投屏入口(跳系统无线显示设置 Miracast) -->
@@ -1101,9 +1103,9 @@
 	                android:focusable="true"
 	                android:gravity="center"
 	                android:padding="@dimen/vs_4"
-	                android:text="投屏"
-	                android:textColor="@android:color/white"
-	                android:textSize="@dimen/ts_14" />
+                android:text="投屏"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_20" />
 	
 	            <LinearLayout
 	                android:id="@+id/play_subtitle"
@@ -1235,9 +1237,9 @@
 	                android:nextFocusUp="@id/play_time_start"
 	                android:nextFocusDown="@id/play_time_start"
 	                android:padding="@dimen/vs_8"
-	                android:text="01:00"
-	                android:textColor="@android:color/white"
-	                android:textSize="@dimen/ts_16" />
+                android:text="01:00"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_18" />
 	
 	            <TextView
 	                android:id="@+id/play_time_end"
@@ -1253,9 +1255,9 @@
 	                android:nextFocusUp="@id/play_time_end"
 	                android:nextFocusDown="@id/play_time_end"
 	                android:padding="@dimen/vs_8"
-	                android:text="01:00"
-	                android:textColor="@android:color/white"
-	                android:textSize="@dimen/ts_16" />
+                android:text="01:00"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_18" />
 	
 	            <TextView
 	                android:id="@+id/play_time_step"
