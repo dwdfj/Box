@@ -371,6 +371,12 @@ public class HomeActivity extends BaseActivity {
                 SourceBean guardHome = ApiConfig.get().getHomeSourceBean();
                 if (guard != null && (guardHome == null || !guard.equals(guardHome.getKey()))) {
                     homeSortGuard = null;
+                    // 小贾影视仓 v24.7.3: 该过期结果占掉了一次"切站结果"机会却与当前站点不符。
+                    // 若只 return 不复位, 真正的新站结果到场时 guard 已空(fromHomeSwitch=false),
+                    // inPlaceSwitching 永不复位 => 之后所有切站被"正在切换站点"挡死
+                    // (看门狗若已被 onPause 撤掉则永久死锁, 用户被锁死在坏源上)。
+                    inPlaceSwitching = false;
+                    cancelSwitchWatchdog();
                     return;
                 }
                 boolean fromHomeSwitch = (guard != null);
@@ -438,6 +444,13 @@ public class HomeActivity extends BaseActivity {
                             DefaultConfig.adjustSort(homeSortKey, new ArrayList<>(), true)));
                 }
                 initViewPager(absXml);
+                // 小贾影视仓 v24.7.3: 源坏了(分类空)时确保顶部胶囊/入口回满尺寸且可聚焦 ——
+                // 此前若用户停在"顶栏已收起"状态, 源一坏分类区空白, 红胶囊 alpha=0 不可聚焦,
+                // 体感就是"首页死了也换不了源"(MENU 键仍可救, 但遥控器用户不知道)。
+                if (absXml == null || absXml.classes == null || absXml.classes.sortList == null
+                        || absXml.classes.sortList.isEmpty()) {
+                    restoreTopBar();
+                }
                 // v15.15: 首页数据已到位 => 8 秒后判定本次启动成功, 清掉启动哨兵标记(native 崩溃不会清 => 下次启动计数+1)
                 postDelayedIfAlive(new Runnable() {
                     @Override
@@ -1024,6 +1037,20 @@ public class HomeActivity extends BaseActivity {
         // (changeTop(true) 会把胶囊缩到 1mm 且 alpha=0, 而以前没有任何路径恢复它)
         restoreTopBar();
 
+        // 小贾影视仓 v24.7.3: onPause 的 removeCallbacksAndMessages(null) 会把切站/分类看门狗一并撤掉。
+        // 若切站期间发生 onPause(熄屏/跳到别的页), 坏源结果又永不到场 => inPlaceSwitching 死锁,
+        // 信号源面板里点每个站点都只弹"正在切换站点, 请稍候…"—— 用户被锁死在坏源上无法切换。
+        // 回到前台时若有未完成的切站/加载, 重新补挂看门狗。
+        if (inPlaceSwitching) {
+            SourceBean resumeHome = ApiConfig.get().getHomeSourceBean();
+            boolean resumePy = resumeHome != null && resumeHome.getKey() != null
+                    && resumeHome.getKey().startsWith("py_local_");
+            armSwitchWatchdog(resumePy ? 45000 : 12000);
+        }
+        if (isLoading()) {
+            armSortWatchdog();
+        }
+
         // takagen99: Icon Placement
         if (Hawk.get(HawkConfig.HOME_SEARCH_POSITION, true)) {
             tvFind.setVisibility(View.VISIBLE);
@@ -1604,8 +1631,10 @@ public class HomeActivity extends BaseActivity {
         sourceViewModel.prefetchExt(target);
         sourceViewModel.getSort(target.getKey());
         // 小贾影视仓 v23.5: 起切站看门狗 —— 坏源不回调时回滚原站, 避免卡死无法返回。
-        // v23.8: py 源(含本地 py)给 35s 长看门狗(冷启动 Python+下载插件耗时, 12s 会误杀好源)
-        armSwitchWatchdog(target.getKey() != null && target.getKey().startsWith("py_local_") ? 35000 : 12000);
+        // v23.8: py 源(含本地 py)给长看门狗(冷启动 Python+下载插件耗时, 12s 会误杀好源)
+        // v24.7.3: py 看门狗 35s -> 45s —— getSort 给 py 源的超时是 40s, 35s 看门狗会把
+        // 35~40s 之间才返回的好源误判回滚(结果白算, 用户体感"切过去被弹回来, 再切一次秒进")。
+        armSwitchWatchdog(target.getKey() != null && target.getKey().startsWith("py_local_") ? 45000 : 12000);
     }
 
     // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
