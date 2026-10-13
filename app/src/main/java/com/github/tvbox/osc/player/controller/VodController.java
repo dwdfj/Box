@@ -1131,8 +1131,8 @@ public class VodController extends BaseController {
 
     public void setTitle(String playTitleInfo) {
         mPlayTitle.setText(playTitleInfo);
-        // 小贾影视仓 v24.2: 长片名跑马灯滚动 —— 原来超宽直接截断"…"看不到全名。
-        // marquee 需要 selected=true 才会滚动(参考 AndroidTextView Marquee 条件)。
+        // 小贾影视仓 v24.3: 标题改 2 行换行(布局层), 不再需要跑马灯 —— 跑马灯在部分 ROM 不滚动,
+        // 用户反馈"作品名称显示不全没修复"。这里保留 selected 兼容老布局, 无副作用。
         mPlayTitle.setSelected(true);
     }
 
