@@ -1082,8 +1082,14 @@ public class SourceViewModel extends ViewModel {
     // playerContent
     //开销会不会太大了 参考 FongMi 写法优化 获取播放地址代码
     public ExecutorService threadPoolGetPlay = null;
+    // 小贾影视仓 v24.8: 切源序号, 用于作废旧 getPlay 结果(防旧 null/异常污染新请求)
+    private final java.util.concurrent.atomic.AtomicLong playSeq = new java.util.concurrent.atomic.AtomicLong(0);
 
     public void getPlay(String sourceKey, String playFlag, String progressKey, String url, String subtitleKey) {
+        // 小贾影视仓 v24.8: 切源序号 —— 快速连续切线路/换集时, 旧请求被 shutdownNow 打断后
+        // 仍会 postValue(null), 与新请求的成功回调竞争 -> 新源被误判"获取播放信息错误"。
+        // 旧结果统一按序号作废; 被打断(InterruptedException)属正常取消, 静默。
+        final long seq = playSeq.incrementAndGet();
         if (threadPoolGetPlay != null) threadPoolGetPlay.shutdownNow();
         // 小贾影视仓 v17: 2 -> 4。该池里存在"池内再 submit 自己"的写法(threadPoolGetPlay.execute
         // 内部又 threadPoolGetPlay.submit + get(15s)), 2 线程时并发解析两次就可能互相占满而空转超时,
@@ -1145,9 +1151,13 @@ public class SourceViewModel extends ViewModel {
                 } catch (Throwable ignored) {
                 }
                 JSONObject jsonObject = future.get(playType == 3 ? 60 : 15, TimeUnit.SECONDS);
+                if (seq != playSeq.get()) return; // v24.8: 已有更新的切源请求, 旧结果作废
                 playResult.postValue(jsonObject);
+            } catch (InterruptedException ie) {
+                // v24.8: 被下一次 getPlay 的 shutdownNow 打断 = 正常取消, 不再误报错误
             } catch (Throwable e) {
                 e.printStackTrace();
+                if (seq != playSeq.get()) return; // v24.8: 旧请求的超时/异常不投毒新请求
                 playResult.postValue(null);
             }
         });
