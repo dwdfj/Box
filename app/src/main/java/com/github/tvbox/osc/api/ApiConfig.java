@@ -637,6 +637,17 @@ public class ApiConfig {
                         File file = response.body();
                         if (file != null && file.exists()) {
                             try {
+                                // 小贾影视仓 v24.8: 下载完成后立即校验 ;md5; 签名 —— 网络抖动写入半个
+                                // jar 时, 之前直接 DexClassLoader 加载报"写入缓存后加载失败", 用户看到的就是
+                                // "php 线路加载不了"且无任何线索。现在校验失败即删坏缓存, 提示重试。
+                                if (!md5.isEmpty()) {
+                                    String got = fileMd5Cached(file, jarKey);
+                                    if (!got.equalsIgnoreCase(md5)) {
+                                        try { file.delete(); } catch (Throwable ignored) {}
+                                        callback.error("jar 校验失败(下载不完整, 大小 " + file.length() + "), 已清缓存请重试");
+                                        return;
+                                    }
+                                }
                                 if (jarLoader.load(file.getAbsolutePath())) {
                                     callback.success();
                                 } else {
