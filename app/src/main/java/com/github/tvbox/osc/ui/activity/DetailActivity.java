@@ -787,7 +787,10 @@ public class DetailActivity extends BaseActivity {
                             GroupCount = vodInfo.playGroupCount;
                             vodInfo.playFlag = vodInfoRecord.playFlag;
                             vodInfo.playerCfg = vodInfoRecord.playerCfg;
-                            vodInfo.reverseSort = vodInfoRecord.reverseSort;
+                            // 小贾影视仓 v24.4: 选集一律顺向展示 —— 不再恢复历史里的倒序标记。
+                            // 旧版: 上次会话点过"↓倒序"会持久化, 重进详情选集整条是倒的
+                            // (用户: "竖屏播放界面选集没有顺向依次排列")。倒序保留为会话内临时行为。
+                            vodInfo.reverseSort = false;
                         } else {
                             vodInfo.playIndex = 0;
                             vodInfo.playGroup = 0;
@@ -796,9 +799,7 @@ public class DetailActivity extends BaseActivity {
                             vodInfo.reverseSort = false;
                         }
 
-                        if (vodInfo.reverseSort) {
-                            vodInfo.reverse();
-                        }
+                        // 小贾影视仓 v24.4: reverseSort 已强制 false, 不再按历史标记物理反转列表。
 
                         updateSortButtonText();
 
