@@ -598,21 +598,18 @@ public class PlayActivity extends BaseActivity {
     /**
      * 小贾影视仓 v23.8: 把剧集列表按集数**物理自然排序**(升序), 并把当前播放集重映射到新位置。
      * 排的是 seriesMap 里的原列表对象, play() 按 playIndex 从同一列表取地址, 排完仍一一对应。
+     * 小贾影视仓 v24.5: 比较器统一换成 VodInfo.naturalCompare(逐段数值比较)。
+     * 旧实现按"名称里最后一段数字"做键, 遇到「第9集(2023)」vs「第10集(2023)」这类
+     * 末段数字相同的命名会退化成字典序, 9 排到 10 后面 —— 用户反馈"部分线路仍乱序"的根因。
+     * naturalCompare 从左到右逐段比数值(9 < 10), 各种命名格式都稳定顺向。
      */
     private void naturalSortSeries(java.util.List<VodInfo.VodSeries> list) {
         try {
             int cur = mVodInfo.getplayIndex();
             VodInfo.VodSeries playing = (cur >= 0 && cur < list.size()) ? list.get(cur) : null;
-            Collections.sort(list, (a, b) -> {
-                long na = extractEpisodeNum(a == null ? null : a.name);
-                long nb = extractEpisodeNum(b == null ? null : b.name);
-                if (na >= 0 && nb >= 0 && na != nb) return Long.compare(na, nb);
-                if (na >= 0 && nb < 0) return -1;
-                if (nb >= 0 && na < 0) return 1;
-                String sa = a == null || a.name == null ? "" : a.name;
-                String sbn = b == null || b.name == null ? "" : b.name;
-                return sa.compareToIgnoreCase(sbn);
-            });
+            Collections.sort(list, (a, b) -> VodInfo.naturalCompare(
+                    a == null || a.name == null ? "" : a.name,
+                    b == null || b.name == null ? "" : b.name));
             if (playing != null) {
                 int idx = list.indexOf(playing);
                 if (idx >= 0) {
@@ -622,23 +619,6 @@ public class PlayActivity extends BaseActivity {
                 }
             }
         } catch (Throwable ignored) {
-        }
-    }
-
-    /** v23.8: 取集数 —— 取名称里**最后一段**数字(通常是集数, 如 "第12集"/"EP12"/"12"); 无数字返回 -1 */
-    private static long extractEpisodeNum(String name) {
-        if (name == null) return -1;
-        try {
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d+").matcher(name);
-            long first = -1, last = -1;
-            while (m.find()) {
-                long v = Long.parseLong(m.group());
-                if (first < 0) first = v;
-                last = v;
-            }
-            return last >= 0 ? last : first;
-        } catch (Throwable ignored) {
-            return -1;
         }
     }
 
