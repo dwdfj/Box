@@ -28,8 +28,8 @@
         <shape>
             <corners android:radius="@dimen/vs_30" />
             <!-- v24.0 冰晶蓝玻璃: 深海军蓝圆底 + 冰蓝细描边 -->
-            <solid android:color="#800D1B33" />
-            <stroke android:width="1mm" android:color="#593EC8F5" />
+            <solid android:color="#802B1F08" />
+            <stroke android:width="1mm" android:color="#59E8B34B" />
         </shape>
     </item>
 </selector>
