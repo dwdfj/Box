@@ -100,14 +100,11 @@ public class VodInfo implements Serializable {
             for (VodSeriesFlag flag : seriesFlags) {
                 List<VodSeries> list = tempSeriesMap.get(flag.name);
                 assert list != null;
-                // 小贾影视仓 v24.2: 选集顺向排列 —— 用户反馈"线路的级数不是顺向排列"。
-                // 很多源把集数当字符串排: 第1集→第10集→第2集。若整条列表都是
-                // "统一前缀+数字+统一后缀"(如 第X集/第XX集/01.xxx), 按数值升序重排;
-                // 含花絮/预告等异构名的列表不动, 保持源语义。
-                sortSeriesIfNeeded(list);
-                if(seriesFlags.size()<=3){
-                    if(isReverse(list))Collections.reverse(list);
-                }
+                // 小贾影视仓 v24.4: 选集一律数值自然升序(顺向)。旧版启发式太脆:
+                // ①要求整条列表都是"统一前缀+数字+统一后缀"才排, 源里混一个异名(如"第01集"
+                //   和"第1集"并存)就整条放弃; ②倒序检测只在线路数<=3 时生效。
+                // 现在只要 60% 以上条目带数字就整条稳定自然升序; 纯文字列表(花絮/上中下)保留源顺序。
+                sortSeriesNatural(list);
                 seriesMap.put(flag.name, list);
             }
         }
@@ -163,66 +160,31 @@ public class VodInfo implements Serializable {
     }
 
     /**
-     * 小贾影视仓 v24.2: 若列表所有名字都是「统一前缀 + 数字 + 统一后缀」结构
-     * (典型: 第1集/第2集/... , 01.mp4/02.mp4/...), 按数字升序重排, 解决
-     * 字符串序导致的 1→10→2 乱序。异构列表(花絮/预告混排)原样保留。
+     * 小贾影视仓 v24.4: 选集自然升序 —— 列表里 60% 以上条目带数字(阿拉伯数字或带圈数字)时,
+     * 整条按 naturalCompare 稳定升序重排(第2集 < 第10集, ① < ②, 倒序源自动转正向);
+     * 纯文字列表(花絮/预告/上中下)保留源顺序。稳定排序保证同键条目相对位置不变。
      */
-    private void sortSeriesIfNeeded(List<VodSeries> list) {
+    private void sortSeriesNatural(List<VodSeries> list) {
         try {
             int n = list.size();
-            if (n < 2 || n > 999) return;
-            java.util.regex.Matcher m = getPattern("^(.*?)(\\d+)([^0-9]*)$").matcher(list.get(0).name);
-            if (!m.matches()) return;
-            String prefix = m.group(1), suffix = m.group(3);
-            long[] nums = new long[n];
-            Integer[] order = new Integer[n];
-            for (int i = 0; i < n; i++) {
-                java.util.regex.Matcher mi = getPattern("^(.*?)(\\d+)([^0-9]*)$").matcher(list.get(i).name);
-                if (!mi.matches() || !mi.group(1).equals(prefix) || !mi.group(3).equals(suffix)) return;
-                nums[i] = Long.parseLong(mi.group(2));
-                order[i] = i;
+            if (n < 2 || n > 2000) return;
+            int numCount = 0;
+            for (VodSeries s : list) {
+                if (s != null && s.name != null && nameHasNumber(s.name)) numCount++;
             }
-            boolean asc = true, desc = true;
-            for (int i = 1; i < n; i++) {
-                if (nums[i] < nums[i - 1]) asc = false;
-                if (nums[i] > nums[i - 1]) desc = false;
-            }
-            if (asc) return; // 本来就顺向, 不动
-            java.util.Arrays.sort(order, (x, y) -> nums[x] != nums[y]
-                    ? Long.compare(nums[x], nums[y]) : Integer.compare(x, y));
-            List<VodSeries> sorted = new ArrayList<>(n);
-            for (int i = 0; i < n; i++) sorted.add(list.get(order[i]));
-            list.clear();
-            list.addAll(sorted);
+            if (numCount * 10 < n * 6) return;
+            java.util.Collections.sort(list, (a, b) -> naturalCompare(
+                    a == null || a.name == null ? "" : a.name,
+                    b == null || b.name == null ? "" : b.name));
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
 
-    private int extractNumber(String name) {
-        java.util.regex.Matcher matcher = getPattern("\\d+").matcher(name);
-        if (matcher.find()) {
-            return Integer.parseInt(matcher.group());
-        }
-        return 0;
-    }
-    private boolean isReverse(List<VodInfo.VodSeries> list) {
-        if (list.size() > 300) {
-            return false;
-        }
-        int ascCount = 0, descCount = 0;
-        // 比较最多前 6 个相邻元素对
-        int limit = Math.min(list.size() - 1, 6);
-        for (int i = 0; i < limit; i++) {
-            int current = extractNumber(list.get(i).name);
-            int next = extractNumber(list.get(i + 1).name);
-            if (current < next) {
-                ascCount++;
-                if (ascCount == 2) return false;
-            } else if (current > next) {
-                descCount++;
-                if (descCount == 2) return true;
-            }
+    private boolean nameHasNumber(String name) {
+        if (getPattern("\\d+").matcher(name).find()) return true;
+        for (int i = 0; i < name.length(); i++) {
+            if (circledDigit(name.charAt(i)) > 0) return true;
         }
         return false;
     }
