@@ -103,18 +103,19 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         if (passThroughWindow()) {
             getTheme().applyStyle(R.style.XiaojiaPassThroughStyle, true);
         }
-        if (noWindowAnim()) {
-            // 小贾影视仓 v24.8: 播放页等页面 —— 只杀窗口进出场缩放动画(窗口保持不透明),
-            // 消灭"播放页以小窗形态放大进场"的最后一环(皮肤主题自带的 activityOpen 动画)。
-            getTheme().applyStyle(R.style.XiaojiaNoAnimStyle, true);
+        if (opaqueNoWindowAnim()) {
+            // 小贾影视仓 v24.9: 播放页 —— 窗口必须**不透明**。
+            // AppTheme.NoActionBar 的 windowBackground 是 transparent, 全 app 都是半透明窗口;
+            // 播放页叠上去会直接看穿到下层的详情页, 这才是"闪一下旧小窗"的真凶(杀动画无效)。
+            getTheme().applyStyle(R.style.XiaojiaOpaqueNoAnimStyle, true);
         }
 
         super.onCreate(savedInstanceState);
         if (passThroughWindow()) {
             overridePendingTransition(0, 0); // 中转页无缝进场
         }
-        if (noWindowAnim()) {
-            killOwnTransitions(); // v24.8: 自身进出场动画多重保险(见方法注释)
+        if (opaqueNoWindowAnim()) {
+            killOwnTransitions(); // v24.8: 进出场动画多重保险(API 21~34+)
         }
         setContentView(getLayoutResID());
         mContext = this;
@@ -137,11 +138,21 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     /**
      * 小贾影视仓 v24.8: 杀自身窗口进出场动画钩子(窗口不透明)。
      * 返回 true 时叠加 XiaojiaNoAnimStyle + overridePendingTransition/overrideActivityTransition 双保险。
-     * 背景: Android 14(API 34)起 overridePendingTransition 已失效, 必须用 overrideActivityTransition;
-     * 而"竖屏播放页进场时闪一下旧小窗"正是皮肤主题的 activityOpen 缩放动画 —— v24.6/v24.7.2 只处理了
-     * DetailActivity(中转页)一侧, 播放页自身的进场动画在部分 ROM 上仍然生效。
      */
     protected boolean noWindowAnim() {
+        return false;
+    }
+
+    /**
+     * 小贾影视仓 v24.9: 播放页专用 —— 不透明窗口 + 无进出场动画。
+     * 【真正的病根】AppTheme.NoActionBar 声明了 windowBackground=@android:color/transparent,
+     * 全 app 所有 Activity 都是半透明窗口。PlayActivity 叠在 DetailActivity/列表页之上时,
+     * 下层旧画面会直接透过播放页窗口显示出来 —— 这正是用户反复报告的
+     "点封面到竖屏播放之间闪一下以前的小屏界面"。此前三版(v24.6/v24.7.2/v24.8)分别用
+     setTheme 换主题 / applyStyle 透明 / overrideActivityTransition 杀动画, 全部无效,
+     因为问题从来不是动画, 而是窗口透明。
+     */
+    protected boolean opaqueNoWindowAnim() {
         return false;
     }
 
