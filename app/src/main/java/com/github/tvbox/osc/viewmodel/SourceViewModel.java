@@ -354,16 +354,22 @@ public class SourceViewModel extends ViewModel {
                                 sortXml.videoList = absXml.movie.videoList;
                                 sortResult.postValue(sortXml);
                                 sortCache.put(sourceKey, sortXml);
-                                } else {
-                                    getHomeRecList(sourceBean, null, new HomeRecCallback() {
-                                        @Override
-                                        public void done(List<Movie.Video> videos) {
-                                            sortXml.videoList = videos;
-                                            sortResult.postValue(sortXml);
-                                            sortCache.put(sourceKey, sortXml);
+                            } else {
+                                // 小贾影视仓 v24.7.3: 分类结果**立即发布**, 推荐数据改为纯后台补存。
+                                // 旧逻辑在这里等 getHomeRecList(py 源 future.get(30s)) 完成才发分类结果,
+                                // py 源首开最坏要 homeContent(40s)+推荐(30s) 才显示分类 —— 用户反馈"py 加载慢"的主因。
+                                // 现分类秒显; 推荐先落按天缓存(下次启动可用), 本会话由 UserFragment 的豆瓣/历史兜底(v24.4)填充。
+                                sortResult.postValue(sortXml);
+                                sortCache.put(sourceKey, sortXml);
+                                getHomeRecList(sourceBean, null, new HomeRecCallback() {
+                                    @Override
+                                    public void done(List<Movie.Video> videos) {
+                                        if (videos != null && !videos.isEmpty()) {
+                                            saveHomeRecVideos(sourceBean.getKey(), videos);
                                         }
-                                    });
-                                }
+                                    }
+                                });
+                            }
                             } else {
                                 sortResult.postValue(sortXml);
                                 sortCache.put(sourceKey, sortXml);
@@ -504,11 +510,34 @@ public class SourceViewModel extends ViewModel {
             spThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
+                    ExecutorService executor = Executors.newSingleThreadExecutor();
+                    Future<String> future = executor.submit(new Callable<String>() {
+                        @Override
+                        public String call() throws Exception {
+                            Spider sp = ApiConfig.get().getCSP(homeSourceBean);
+                            return sp.categoryContent(sortData.id, page + "", true, sortData.filterSelect);
+                        }
+                    });
+                    String listJson = null;
                     try {
-                        Spider sp = ApiConfig.get().getCSP(homeSourceBean);
-                        json(listResult, sp.categoryContent(sortData.id, page + "", true, sortData.filterSelect), homeSourceBean.getKey());
-                    } catch (Throwable th) {
-                        th.printStackTrace();
+                        // 小贾影视仓 v24.7.3: categoryContent 补 30s 超时 —— 旧代码裸调无超时,
+                        // py 插件一旦挂住就占死 spThreadPool(4线程) 一格; 两个慢 py tab 来回切、
+                        // 叠加详情/推荐请求池满后, 所有 sort/list/detail 全部排队, 全面变慢。
+                        listJson = future.get(30, TimeUnit.SECONDS);
+                    } catch (TimeoutException e) {
+                        e.printStackTrace();
+                        future.cancel(true);
+                    } catch (InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            executor.shutdown();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                    if (listJson != null) {
+                        json(listResult, listJson, homeSourceBean.getKey());
+                    } else {
                         listResult.postValue(null);
                     }
                 }
