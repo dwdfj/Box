@@ -194,6 +194,16 @@ public class DetailActivity extends BaseActivity {
         return R.layout.activity_detail;
     }
 
+    /**
+     * 小贾影视仓 v24.5: autoPlay 直达模式下本页只是拉详情数据的中转页,
+     * 启用半透明+无动画主题 —— 拉取期间底层列表保持可见, 数据一到立刻跳播放页。
+     * 彻底消灭"点封面后旧详情页(小窗形态)闪一下"。
+     */
+    @Override
+    protected boolean passThroughWindow() {
+        return autoPlay;
+    }
+
     @Override
     protected void init() {
         EventBus.getDefault().register(this);
@@ -829,9 +839,13 @@ public class DetailActivity extends BaseActivity {
                             // 小贾影视仓 v23.8: 详情数据一到 → 直达 PlayActivity 并关闭本页。
                             // showPreview 置 false 让 jumpToPlay() 走 jumpActivity(PlayActivity) 分支,
                             // 不再往内嵌 PlayFragment 塞数据(消灭"中间过渡一遍的小窗")。
+                            // 小贾影视仓 v24.5: 同时杀掉两端窗口动画 —— 默认进出场缩放动画会让
+                            // 播放页以"小窗"形态放大进场, 这就是用户看到的"50%竖屏之前闪一下旧小窗"。
                             showPreview = false;
                             jumpToPlay();
+                            overridePendingTransition(0, 0);
                             finish();
+                            overridePendingTransition(0, 0);
                         } else if (showPreview) {
                             jumpToPlay();
                             llPlayerFragmentContainer.setVisibility(View.VISIBLE);
