@@ -93,7 +93,8 @@ public class VodInfo implements Serializable {
             // 自然排序(数字按数值比、①②③按序号比)后同族线路自动相邻、编号顺向。
             // 同名 flag 保持源顺序(稳定排序), 不破坏源本身的语义。
             try {
-                java.util.Collections.sort(seriesFlags, (f1, f2) -> naturalCompare(f1.name, f2.name));
+                // v24.8: 同样换成 sortKey 装饰排序, 与选集排序共用一套规范 key
+                java.util.Collections.sort(seriesFlags, (f1, f2) -> sortKey(f1.name).compareTo(sortKey(f2.name)));
             } catch (Throwable t) {
                 t.printStackTrace();
             }
@@ -170,9 +171,49 @@ public class VodInfo implements Serializable {
     }
 
     /**
+     * 小贾影视仓 v24.8: 装饰排序(decorate-sort-undecorate) key。
+     * 把名称转成"数字段展开为 \\u0001 + 8位定宽数字 + \\u0002、其余字符原样"的规范串,
+     * 之后直接 String.compareTo —— 定宽数字段的字典序 == 数值序(第2集 < 第10集),
+     * 全角/带圈数字统一折算。关键收益: String.compareTo 永不违反 TimSort 的
+     * "comparison method violates its general contract", 旧版 naturalCompare 在
+     * 混合命名(数字段与字符段交错)列表上偶发违反传递性 -> Collections.sort 抛
+     * IllegalArgumentException -> 被上层 catch 吞掉 -> 列表保持源顺序 = **排序从未生效**,
+     * 这就是"改了好几次剧级还是不依次排列"的真正根因。
+     */
+    public static String sortKey(String name) {
+        if (name == null) name = "";
+        StringBuilder sb = new StringBuilder(name.length() + 16);
+        int i = 0;
+        while (i < name.length()) {
+            char c = name.charAt(i);
+            if (isNumChar(c)) {
+                int[] pos = {i};
+                long v = readNum(name, pos);
+                sb.append('\u0001');
+                // readNum 上限 99999999, 8 位定宽足够
+                String num = Long.toString(v);
+                for (int pad = num.length(); pad < 8; pad++) sb.append('0');
+                sb.append(num).append('\u0002');
+                i = pos[0];
+            } else {
+                sb.append(Character.toLowerCase(c));
+                i++;
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 小贾影视仓 v24.8: 剧集/线路统一比较器 —— 基于 sortKey 的字典序, 语义与 naturalCompare 等价但绝对安全。 */
+    public static java.util.Comparator<VodSeries> seriesComparator() {
+        return (a, b) -> sortKey(a == null || a.name == null ? "" : a.name)
+                .compareTo(sortKey(b == null || b.name == null ? "" : b.name));
+    }
+
+    /**
      * 小贾影视仓 v24.4: 选集自然升序 —— 列表里 60% 以上条目带数字(阿拉伯数字或带圈数字)时,
-     * 整条按 naturalCompare 稳定升序重排(第2集 < 第10集, ① < ②, 倒序源自动转正向);
+     * 整条稳定升序重排(第2集 < 第10集, ① < ②, 倒序源自动转正向);
      * 纯文字列表(花絮/预告/上中下)保留源顺序。稳定排序保证同键条目相对位置不变。
+     * 小贾影视仓 v24.8: 比较器换成 sortKey 装饰排序, 根治 TimSort contract 异常导致排序静默失效。
      */
     private void sortSeriesNatural(List<VodSeries> list) {
         try {
@@ -183,9 +224,7 @@ public class VodInfo implements Serializable {
                 if (s != null && s.name != null && nameHasNumber(s.name)) numCount++;
             }
             if (numCount * 10 < n * 6) return;
-            java.util.Collections.sort(list, (a, b) -> naturalCompare(
-                    a == null || a.name == null ? "" : a.name,
-                    b == null || b.name == null ? "" : b.name));
+            java.util.Collections.sort(list, seriesComparator());
         } catch (Throwable t) {
             t.printStackTrace();
         }
