@@ -26,7 +26,12 @@
          点封面 → DetailActivity 只是拉详情数据的中转页(autoPlay 直达 PlayActivity),
          默认主题的进出场缩放动画让它以"小窗"形态闪现一下, 然后播放页又缩放进场
          —— 用户看到的"50%竖屏之前闪一下旧小窗"。此主题让中转页透明无动画, 链路无缝。 -->
-    <style name="XiaojiaPassThroughTheme" parent="AppTheme.NoActionBar">
+    <!-- 小贾影视仓 v24.7.2: 中转页窗口样式改为"可叠加样式"(无 parent, 仅 4 个窗口属性)。
+         v24.6~v24.7.1 用 setTheme(XiaojiaPassThroughTheme) 整套换主题, 在部分 EMUI/华为机型上
+         主题叠加后框架 TextAppearance 内的 ?android:attr/textColorLink 解析失败,
+         inflate 直接崩 (UnsupportedOperationException: Failed to resolve attribute at index 6)。
+         现改为 BaseActivity 在皮肤主题上 applyStyle 叠加, 主题主体保持已验证可用的皮肤主题。 -->
+    <style name="XiaojiaPassThroughStyle">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">false</item>
