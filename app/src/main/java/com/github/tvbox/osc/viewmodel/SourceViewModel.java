@@ -144,11 +144,13 @@ public class SourceViewModel extends ViewModel {
     // 有该标记后 getFixUrl() 在池内直接同步执行, 不再二次提交。
     private static final ThreadLocal<Boolean> inFixPool = new ThreadLocal<Boolean>();
 
-    //homeContent缓存，最多存储5个sourceKey的AbsSortXml对象
-    private static final Map<String, AbsSortXml> sortCache = new LinkedHashMap<String, AbsSortXml>(5, 0.75f, true) {
+    //homeContent缓存，最多存储30个sourceKey的AbsSortXml对象
+    // 小贾影视仓 v25: 5 -> 30。itv666 一条线路就 40+ 站, 5 条 LRU 意味着"站点间来回切 5 次就必然重新拉网络",
+    // 用户观感就是"切线路很慢"。AbsSortXml 只是分类/筛选/推荐列表(几 KB~几百 KB), 30 条内存完全可接受。
+    private static final Map<String, AbsSortXml> sortCache = new LinkedHashMap<String, AbsSortXml>(30, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Entry<String, AbsSortXml> eldest) {
-            return size() > 5;
+            return size() > 30;
         }
     };
 
@@ -1191,6 +1193,28 @@ public class SourceViewModel extends ViewModel {
                     }
                 }
             });
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    /**
+     * 小贾影视仓 v25: 站点"面板级"预热 —— 只预热 extend, 不发任何首页请求。
+     * <p>背景: {@link #prefetchExt(SourceBean)} 一次只能救一个站点, 而用户切线路的路径是
+     * "开面板 → 在几十个站点里挑一个 → 点"。如果只在真正切换时才预热, 首次点任意站点
+     * 仍会撞上 getFixUrl 的 5 秒等待(主线程卡顿)。</p>
+     * <p>做法: 打开切换面板时对**面板上要展示的站点**批量预热一次。extendCache 自身去重,
+     * 所以重复调用零成本; 预热全部在 fixUrlPool 后台跑, 不占主线程、也不打断当前页面。</p>
+     */
+    public void prefetchExtForSites(java.util.List<SourceBean> beans) {
+        try {
+            if (beans == null || beans.isEmpty()) return;
+            int n = 0;
+            for (SourceBean b : beans) {
+                if (b == null) continue;
+                if (++n > 60) break;   // 上限保护: 面板站点再多也不打爆后台池
+                prefetchExt(b);
+            }
         } catch (Throwable th) {
             th.printStackTrace();
         }
