@@ -381,7 +381,23 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         return themeColor;
     }
 
-    protected static android.graphics.drawable.Drawable globalWp = null;
+    // 小贾影视仓 v25: 缓存**Bitmap**(不可变, 可安全跨 Activity 共享), 不再缓存 Drawable。
+    // 【壁纸只画上半屏的根因】旧代码缓存的是 BitmapDrawable 实例(static globalWp), 而 Drawable 是
+    // **有状态的** —— 它的 bounds 由窗口在绘制时写入。一个 Drawable 实例被先后 setBackgroundDrawable
+    // 给多个窗口(首页/搜索/详情/播放)时, bounds 会残留上一次窗口的尺寸; 某些机型上窗口首帧还没
+    // 完成 measure 就取到旧 bounds, 于是壁纸按旧高度画一半, 下面露出黑底 —— 用户看到的
+    // "加载推荐列表时壁纸缩到一半"(带壁纸/无壁纸两个版本都会出现, 因为 ColorDrawable 同样是
+    // 同一个被共享的实例)。改成缓存 Bitmap、每个 Activity 现造 BitmapDrawable 并显式 FILL,
+    // 彻底断掉 Drawable 状态的跨窗口污染。
+    protected static Bitmap globalWpBitmap = null;
+
+    private android.graphics.drawable.Drawable buildWallpaperDrawable() {
+        if (globalWpBitmap == null) return null;
+        android.graphics.drawable.BitmapDrawable d =
+                new android.graphics.drawable.BitmapDrawable(getResources(), globalWpBitmap);
+        d.setGravity(android.view.Gravity.FILL);
+        return d;
+    }
 
     // 小贾影视仓: 壁纸压暗, 让白色文字清晰
     private static Bitmap darkenWallpaper(Bitmap src) {
@@ -433,9 +449,29 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     }
 
     public void changeWallpaper(boolean force) {
-        if (!force && globalWp != null) {
-            getWindow().setBackgroundDrawable(globalWp);
+        // 小贾影视仓 v25: 无壁纸版(BuildConfig.XJ_WALLPAPER=false)直接走主题纯色 ——
+        // 这个判断必须放在**读 filesDir/wp 和解码任何 Bitmap 之前**, 否则:
+        //   1) 无壁纸版用户曾在设置里下载过壁纸 → filesDir/wp 还在 → 照样画壁纸, 违背"无壁纸版"定义;
+        //   2) 每次进页面都要 decodeFile + darken + centerCrop, 白白拖慢启动。
+        boolean withWp;
+        try {
+            withWp = com.github.tvbox.osc.BuildConfig.XJ_WALLPAPER;
+        } catch (Throwable t) {
+            withWp = true; // debug/无字段时保持原行为
+        }
+        if (!withWp) {
+            globalWpBitmap = null;
+            applyThemeColorBackground();
             return;
+        }
+        // v25: 快速路径也要**每次新建 Drawable**, 不能复用上一次的实例 ——
+        // 共享 Drawable 会带着上个窗口的 bounds 画出半截壁纸。
+        if (!force && globalWpBitmap != null) {
+            android.graphics.drawable.Drawable d = buildWallpaperDrawable();
+            if (d != null) {
+                getWindow().setBackgroundDrawable(d);
+                return;
+            }
         }
         try {
             File wp = new File(getFilesDir().getAbsolutePath() + "/wp");
@@ -455,49 +491,54 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 opts.inJustDecodeBounds = false;
                 // 采样率
                 opts.inSampleSize = scale;
-                globalWp = new BitmapDrawable(getResources(), darkenWallpaper(centerCropWallpaper(BitmapFactory.decodeFile(wp.getAbsolutePath(), opts))));
+                Bitmap src = BitmapFactory.decodeFile(wp.getAbsolutePath(), opts);
+                if (src == null) {
+                    globalWpBitmap = null;
+                } else {
+                    globalWpBitmap = darkenWallpaper(centerCropWallpaper(src));
+                }
             } else {
-                globalWp = null;
+                globalWpBitmap = null;
             }
         } catch (Throwable throwable) {
             throwable.printStackTrace();
-            globalWp = null;
+            globalWpBitmap = null;
         }
-        if (globalWp != null) {
-            getWindow().setBackgroundDrawable(globalWp);
+        if (globalWpBitmap != null) {
+            android.graphics.drawable.Drawable d = buildWallpaperDrawable();
+            if (d != null) getWindow().setBackgroundDrawable(d);
         } else {
             // 小贾影视仓: 无线路壁纸时回退到内置壁纸(home_wallpaper=用户美女图), 采样压缩+压暗, 失败再纯色(绝不黑屏)
-            // v15: BuildConfig.XJ_WALLPAPER 构建开关(assembleRelease -PxjWallpaper=false 出"无壁纸版"= 主题纯色)
-            boolean withWp;
+            // v15: BuildConfig.XJ_WALLPAPER 构建开关已在方法开头判过, 到这里必然是带壁纸版
             try {
-                withWp = com.github.tvbox.osc.BuildConfig.XJ_WALLPAPER;
-            } catch (Throwable t) {
-                withWp = true; // debug/无字段时保持原行为
-            }
-            if (withWp) {
-                try {
-                    android.content.res.Resources res = getResources();
-                    BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inJustDecodeBounds = true;
-                    BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
-                    // 小贾影视仓 v23: 基准同步改竖屏(原 1080x720 是横屏设计稿尺寸)
-                    int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 1920), 1);
-                    opts.inJustDecodeBounds = false;
-                    opts.inSampleSize = scale;
-                    Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
-                    if (bmp != null) {
-                        globalWp = new BitmapDrawable(res, darkenWallpaper(centerCropWallpaper(bmp)));
-                        getWindow().setBackgroundDrawable(globalWp);
-                        return;
-                    }
-} catch (Throwable t) {
-                        t.printStackTrace();
-                    }
-                    // 小贾影视仓 v15.10: 内置壁纸回退失败(bmp==null 或 catch 后), 不再掉到 color_theme 主题色兜底
-                    // (默认 NetfxTheme=#D81F26=红色), 直接 return, window 背景保持 styl transparent 绝不出红屏
+                android.content.res.Resources res = getResources();
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inJustDecodeBounds = true;
+                BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
+                // 小贾影视仓 v23: 基准同步改竖屏(原 1080x720 是横屏设计稿尺寸)
+                int scale = Math.max(Math.max(opts.outWidth / 1080, opts.outHeight / 1920), 1);
+                opts.inJustDecodeBounds = false;
+                opts.inSampleSize = scale;
+                Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
+                if (bmp != null) {
+                    globalWpBitmap = darkenWallpaper(centerCropWallpaper(bmp));
+                    android.graphics.drawable.Drawable d = buildWallpaperDrawable();
+                    if (d != null) getWindow().setBackgroundDrawable(d);
                     return;
                 }
-                android.util.TypedValue tv = new android.util.TypedValue();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+            // 小贾影视仓 v15.10: 内置壁纸回退失败(bmp==null 或 catch 后), 不再掉到 color_theme 主题色兜底
+            // (默认 NetfxTheme=#D81F26=红色), 直接 return, window 背景保持 styl transparent 绝不出红屏
+            return;
+        }
+    }
+
+    // 无壁纸版唯一的绘制路径: 主题色纯色背景(不读盘、不解码 Bitmap)
+    private void applyThemeColorBackground() {
+        try {
+            android.util.TypedValue tv = new android.util.TypedValue();
             getTheme().resolveAttribute(R.attr.color_theme, tv, true);
             int themeColor;
             if (tv.resourceId != 0) {
@@ -505,8 +546,10 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
             } else {
                 themeColor = tv.data;
             }
-            globalWp = new android.graphics.drawable.ColorDrawable(themeColor);
-            getWindow().setBackgroundDrawable(globalWp);
+            // v25: ColorDrawable 每次新建, 不用 static 共享实例(与壁纸同一个坑)
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(themeColor));
+        } catch (Throwable t) {
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF101010));
         }
     }
 }
