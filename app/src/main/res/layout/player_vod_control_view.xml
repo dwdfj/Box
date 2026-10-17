@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -433,7 +433,7 @@
 
     <ImageView
         android:id="@+id/tv_lock"
-        android:layout_width="@dimen/vs_64"
+        android:layout_width="@dimen/vs_88"
         android:layout_height="@dimen/vs_64"
         android:layout_gravity="center|left"
         android:layout_marginStart="@dimen/vs_50"
@@ -449,7 +449,7 @@
     
     <LinearLayout
         android:id="@+id/tvBackButton"
-        android:layout_width="@dimen/vs_88"
+        android:layout_width="@dimen/vs_120"
         android:layout_height="@dimen/vs_88"
         android:layout_gravity="center|right"
         android:layout_marginStart="@dimen/vs_50"
@@ -833,7 +833,7 @@
 	                 竖屏点一下即转横向全屏, 再点一下(退出图标)回竖屏半屏。 -->
 	            <LinearLayout
 	                android:id="@+id/landscape_portrait"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginEnd="@dimen/vs_6"
@@ -854,7 +854,7 @@
 
 	            <LinearLayout
 	                android:id="@+id/play_prev"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginEnd="@dimen/vs_6"
@@ -874,7 +874,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_pause"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -888,7 +888,7 @@
 	
 	                <ImageView
 	                    android:id="@+id/play_pauseImg"
-	                    android:layout_width="@dimen/vs_80"
+	                    android:layout_width="@dimen/vs_100"
 	                    android:layout_height="@dimen/vs_80"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_pause" />
@@ -896,7 +896,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_next"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -917,7 +917,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_speed"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -959,7 +959,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_retry"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -972,7 +972,7 @@
 	                android:orientation="horizontal">
 	
 	                <ImageView
-	                    android:layout_width="@dimen/vs_64"
+	                    android:layout_width="@dimen/vs_88"
 	                    android:layout_height="@dimen/vs_64"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_replay" />
@@ -980,7 +980,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_scale"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1018,7 +1018,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_player"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1032,7 +1032,7 @@
 	
 	                <ImageView
 	                    android:id="@+id/play_player_img"
-	                    android:layout_width="@dimen/vs_64"
+	                    android:layout_width="@dimen/vs_88"
 	                    android:layout_height="@dimen/vs_64"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_type" />
@@ -1053,7 +1053,7 @@
 	
 	            <TextView
 	                android:id="@+id/play_ijk"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1073,7 +1073,7 @@
 	                 默认 gone: 只有 Exo + DASH/HLS 多轨流才有得选, 由 VodController 动态显示。 -->
 	            <TextView
 	                android:id="@+id/play_quality"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1092,7 +1092,7 @@
 	            <!-- 小贾影视仓 v23.3: 投屏入口(跳系统无线显示设置 Miracast) -->
 	            <TextView
 	                android:id="@+id/play_cast"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1109,7 +1109,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_subtitle"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1122,7 +1122,7 @@
 	                android:orientation="horizontal">
 	
 	                <ImageView
-	                    android:layout_width="@dimen/vs_64"
+	                    android:layout_width="@dimen/vs_88"
 	                    android:layout_height="@dimen/vs_64"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_subtitle" />
@@ -1130,7 +1130,7 @@
 
                 <LinearLayout
                     android:id="@+id/ll_danmu_setting"
-                    android:layout_width="@dimen/vs_96"
+                    android:layout_width="@dimen/vs_120"
                     android:layout_height="@dimen/vs_96"
                     android:layout_gravity="center"
                     android:layout_marginStart="@dimen/vs_6"
@@ -1151,7 +1151,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/play_audio"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1164,7 +1164,7 @@
 	                android:orientation="horizontal">
 	
 	                <ImageView
-	                    android:layout_width="@dimen/vs_64"
+	                    android:layout_width="@dimen/vs_88"
 	                    android:layout_height="@dimen/vs_64"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/v_audio" />
@@ -1172,7 +1172,7 @@
 	
 	            <LinearLayout
 	                android:id="@+id/screen_display"
-	                android:layout_width="@dimen/vs_96"
+	                android:layout_width="@dimen/vs_120"
 	                android:layout_height="@dimen/vs_96"
 	                android:layout_gravity="center"
 	                android:layout_marginStart="@dimen/vs_6"
@@ -1185,7 +1185,7 @@
 	                android:orientation="horizontal">
 	
 	                <ImageView
-	                    android:layout_width="@dimen/vs_64"
+	                    android:layout_width="@dimen/vs_88"
 	                    android:layout_height="@dimen/vs_64"
 	                    android:layout_gravity="center"
 	                    android:src="@drawable/ic_clock" />
