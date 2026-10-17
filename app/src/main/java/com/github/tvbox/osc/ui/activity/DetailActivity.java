@@ -570,7 +570,12 @@ public class DetailActivity extends BaseActivity {
             }
         });
 
-        setLoadSir(llLayout);
+        // 小贾影视仓 v25: 直达播放模式(autoPlay)下**不注册 LoadSir** ——
+        // LoadSir 的 register/showSuccess 会接管并重新 setVisibility(llLayout, VISIBLE),
+        // 把本想藏起来的旧详情页(横屏小窗形态)又画一帧, 就是"点封面闪一下旧小窗"的根因。
+        // 本页在直达模式下只是拉数据的中转页, 从头到尾不显示任何内容, 无需加载态视图。
+        // v24.7.2 只藏了 llLayout 却仍留着这行 setLoadSir, 是前几版杀动画/杀透明都无效的原因。
+        if (!autoPlay) setLoadSir(llLayout);
 
         tvName.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -759,10 +764,24 @@ public class DetailActivity extends BaseActivity {
             @Override
             public void onChanged(AbsXml absXml) {
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
-                    showSuccess();
+                    // 小贾影视仓 v25: 【点封面闪一下旧横屏小窗的真正根因】——
+                    // v24.7.2 只在 initView() 里把 llLayout 设成 GONE, 但下一行 showSuccess()
+                    // 会走 LoadSir 的 showSuccess(), 它内部把**注册的内容 View 重新 setVisibility(VISIBLE)**,
+                    // 于是刚藏起来的旧详情页(横屏小窗那一套: 封面+简介+播放/快播/倒序/推送/简介 按钮条)
+                    // 又被画出来一帧, 然后才 jumpToPlay()。这就是用户看到"闪一下以前的小窗"。
+                    // 之前 v24.6/v24.7.2/v24.8 分别用换主题 / 窗口透明 / overrideActivityTransition 杀动画,
+                    // 全都没打中点 —— 病根是这个 setVisibility(VISIBLE), 不是动画, 也不是窗口透明。
+                    // 修法: autoPlay(直达播放)模式下根本不注册 LoadSir、也从不调用 showSuccess/showEmpty,
+                    // 页面自始至终保持 llLayout=GONE, 只在拉数据期间让下层列表透出。
+                    if (!autoPlay) showSuccess();
                     if (!TextUtils.isEmpty(absXml.msg) && !absXml.msg.equals("数据列表")) {
                         Toast.makeText(DetailActivity.this, absXml.msg, Toast.LENGTH_SHORT).show();
-                        if (autoPlay && llLayout != null) llLayout.setVisibility(View.VISIBLE); // v24.7.2: 失败兜底恢复内容
+                        // v25: 直达模式下要显示"没找到数据"必须先把 llLayout 放回来(LoadSir 依附其上),
+                        // 但只能在这一帧做, 之后不再走 showSuccess 把旧小窗画出来。
+                        if (autoPlay) {
+                            if (llLayout != null) llLayout.setVisibility(View.VISIBLE);
+                            setLoadSir(llLayout);
+                        }
                         showEmpty();
                         return;
                     }
@@ -868,7 +887,12 @@ public class DetailActivity extends BaseActivity {
                         mEmptyPlayList.setVisibility(View.VISIBLE);
                     }
                 } else {
-                    if (autoPlay && llLayout != null) llLayout.setVisibility(View.VISIBLE); // v24.7.2: 失败兜底恢复内容
+                    // v25: 同上 —— 直达模式失败兜底才恢复 llLayout 并挂 LoadSir,
+                    // 避免成功路径上 showSuccess() 把旧横屏小窗画一帧。
+                    if (autoPlay) {
+                        if (llLayout != null) llLayout.setVisibility(View.VISIBLE);
+                        setLoadSir(llLayout);
+                    }
                     showEmpty();
                     llPlayerFragmentContainer.setVisibility(View.GONE);
                     llPlayerFragmentContainerBlock.setVisibility(View.GONE);
