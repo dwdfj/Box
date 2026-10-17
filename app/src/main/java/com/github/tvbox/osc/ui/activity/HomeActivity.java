@@ -375,8 +375,14 @@ public class HomeActivity extends BaseActivity {
                     // 若只 return 不复位, 真正的新站结果到场时 guard 已空(fromHomeSwitch=false),
                     // inPlaceSwitching 永不复位 => 之后所有切站被"正在切换站点"挡死
                     // (看门狗若已被 onPause 撤掉则永久死锁, 用户被锁死在坏源上)。
-                    inPlaceSwitching = false;
-                    cancelSwitchWatchdog();
+                    //
+                    // v25 修正: 这里**既不复位 inPlaceSwitching, 也不撤看门狗** ——
+                    // 抢占式切换后, 本条过期结果属于"上一轮"那一代, 而新一轮切换已经把
+                    // inPlaceSwitching 置回 true 并重新 arm 了看门狗。
+                    // ① 若复位 inPlaceSwitching: 新一轮真正到场时 fromHomeSwitch=false,
+                    //    新站结果被当成普通首页刷新(不复位分类选中位), 面板状态与实际站点对不上;
+                    // ② 若撤看门狗: 新一轮若是坏源就彻底没人收尾 => 又锁死。
+                    // 只清 guard 让本条过期结果退场, 由新一轮自己的结果或它自己的看门狗收尾。
                     return;
                 }
                 boolean fromHomeSwitch = (guard != null);
@@ -1482,6 +1488,12 @@ public class HomeActivity extends BaseActivity {
             }
         });
         panel.show();
+        // 小贾影视仓 v25: 面板一打开就后台批量预热所有站点的 extend ——
+        // 否则用户点哪个站点, 哪个站点就要在主线程上挨 getFixUrl 的 5 秒等待。
+        try {
+            sourceViewModel.prefetchExtForSites(sites);
+        } catch (Throwable ignored) {
+        }
         // 焦点落到右列站点列表(高频操作)
         if (panel.getWindow() != null) {
             panel.getWindow().getDecorView().post(new Runnable() {
@@ -1601,15 +1613,33 @@ public class HomeActivity extends BaseActivity {
     // 切换中二次触发给 Toast 防抖。失败路径在 observer 内回滚原站 + restartHome 兜底。
     void switchHomeSourceInPlace(final SourceBean target) {
         if (target == null) return;
-        if (inPlaceSwitching) {
-            Toast.makeText(this, "正在切换站点, 请稍候…", Toast.LENGTH_SHORT).show();
-            return;
-        }
         SourceBean current = ApiConfig.get().getHomeSourceBean();
         String oldKey = current == null ? "" : current.getKey();
         if (oldKey.equals(target.getKey())) {
             Toast.makeText(this, "当前已是「" + target.getName() + "」", Toast.LENGTH_SHORT).show();
             return;
+        }
+        // 小贾影视仓 v25: 【py 切不回线路的真正根因】旧逻辑开头是
+        //   if (inPlaceSwitching) { Toast("正在切换站点, 请稍候…"); return; }
+        // 只要上一次切换(py 源冷启动要 40s、看门狗给到 45s)还没结束, 用户点任何站点都被这句
+        // Toast 直接**丢弃**, 于是"py 加载完想切回 itv666 却切不回来"——面板点几次都没反应,
+        // 只能等 py 那次自己结束。py→线路、py→py 全部卡死, 体感就是"不够丝滑"。
+        //
+        // v25 改为**抢占式切换**: 新目标优先, 直接撤掉上一轮的守卫/看门狗/在途请求,
+        // 然后照常发起本次切换。上一轮迟到的结果会被 homeSortGuard 对不上而丢弃(observer 已守卫),
+        // 所以不会串台; 用户想切到哪就切到哪, 不再被上一轮绑架。
+        if (inPlaceSwitching) {
+            cancelSwitchWatchdog();
+            homeSortGuard = null;
+            homeSwitchPrevKey = null;
+            inPlaceSwitching = false;
+            homeRecSelfHealFired = false;
+            pyAutoFallbackFired = false;
+            // 撤掉上一站在途的分类请求, 避免它回来后二次触发 observer
+            try {
+                OkGo.getInstance().cancelTag(oldKey + "_sort");
+            } catch (Throwable ignored) {
+            }
         }
         // 提前取消上一站点仍在途的 HTTP 分类请求, 收窄"旧结果串台"窗口
         try {
