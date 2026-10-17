@@ -277,15 +277,17 @@
                         android:textSize="@dimen/ts_24" />
                 </LinearLayout>
 
+                <!-- 小贾影视仓 v25: 选集由「3列网格」改为「横向单行滚动」——
+                     网格竖排时用户要跨行比对集数才看得出顺向, 改成一行横排后
+                     第1集→第N集 从左到右连续可读。固定单行高度, 不再随集数撑高卡片。 -->
                 <com.owen.tvrecyclerview.widget.TvRecyclerView
                     android:id="@+id/play_episode_list"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="@dimen/vs_110"
                     android:layout_marginTop="@dimen/vs_16"
                     android:clipChildren="false"
                     android:clipToPadding="false"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
-                    app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16" />
             </LinearLayout>
 
             <TextView
