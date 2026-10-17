@@ -14,17 +14,20 @@
     android:focusable="true"
     android:padding="@dimen/vs_6">
 
-    <!-- 标题: 卡片顶部通栏, 字号加大(ts_30), 不限行数不省略 —— 完整显示影视名 -->
+    <!-- 标题: 卡片顶部通栏。v25 字号 ts_30 → ts_36(用户反馈"顶部搜索结果旁边的影视名称显示不全",
+         3 列布局下每格只有约 1/3 屏宽, ts_30 只能显示 3~4 个字就被截成"木偶…")。
+         同时放开行数上限由 2 行提到 3 行, 让长片名(如"半玉合璧, 顾家少爷归位")能完整显示。 -->
     <TextView
         android:id="@+id/tvName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:lineSpacingExtra="@dimen/vs_2"
+        android:lineSpacingExtra="@dimen/vs_4"
+        android:maxLines="3"
         android:paddingBottom="@dimen/vs_10"
         android:text="Title"
         android:textColor="@android:color/white"
-        android:textSize="@dimen/ts_30"
+        android:textSize="@dimen/ts_36"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
