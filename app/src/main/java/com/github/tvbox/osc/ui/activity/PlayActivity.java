@@ -374,9 +374,11 @@ public class PlayActivity extends BaseActivity {
         mPlayLineList.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
         mPlayLineList.setAdapter(mLineAdapter);
 
-        // 选集: 横排胶囊(可换行的网格, 每行 3 个)
+        // 选集: 横向单行滚动(v25) —— 用户反馈"3 列网格看不出顺向, 竖着数格子容易读错"。
+        // 改成一行横排(和上方"线路"胶囊一致)后, 第1集→第2集→…→第N集 从左到右一眼连续,
+        // 不需要跨行去比对集数大小。数据侧仍由 naturalSortSeries() 保证物理升序。
         mEpisodeAdapter = new PlayChipAdapter();
-        mPlayEpisodeList.setLayoutManager(new V7GridLayoutManager(this, 3));
+        mPlayEpisodeList.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
         mPlayEpisodeList.setAdapter(mEpisodeAdapter);
 
         // 简介展开/收起
