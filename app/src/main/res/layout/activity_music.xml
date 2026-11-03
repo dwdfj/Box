@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 小贾影视仓 v27.12: 音乐首页(Voyage 式) —— 问候语+搜索+每日推荐+最近播放+榜单+底部胶囊导航+灵动条 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/musicRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_music_sky">
 
     <LinearLayout
+        android:id="@+id/musicContent"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -148,6 +150,7 @@
 
     <!-- 底部悬浮区: 首页/我的胶囊 + 灵动条 -->
     <LinearLayout
+        android:id="@+id/musicBottomArea"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
@@ -210,11 +213,23 @@
             android:paddingBottom="@dimen/vs_16"
             android:visibility="gone">
 
-            <ImageView
-                android:id="@+id/musicNowCover"
-                android:layout_width="@dimen/vs_96"
-                android:layout_height="@dimen/vs_96"
-                android:scaleType="centerCrop" />
+            <FrameLayout
+                android:layout_width="@dimen/vs_120"
+                android:layout_height="@dimen/vs_120">
+
+                <com.github.tvbox.osc.music.CoverRingView
+                    android:id="@+id/musicNowRing"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <ImageView
+                    android:id="@+id/musicNowCover"
+                    android:layout_width="@dimen/vs_78"
+                    android:layout_height="@dimen/vs_78"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_music_circle"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
 
             <LinearLayout
                 android:layout_width="0dp"

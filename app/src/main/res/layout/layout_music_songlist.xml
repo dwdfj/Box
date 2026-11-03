@@ -6,9 +6,11 @@
     android:orientation="vertical">
 
     <TextView
+        android:id="@+id/songListTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingLeft="@dimen/vs_28"
+        android:paddingTop="@dimen/vs_10"
         android:paddingBottom="@dimen/vs_6"
         android:text="最近播放"
         android:textColor="@color/color_FFFFFF"

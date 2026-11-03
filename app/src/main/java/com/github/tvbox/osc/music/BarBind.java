@@ -19,25 +19,35 @@ public final class BarBind implements MusicPlayer.Listener {
     private final ImageView cover;
     private final TextView name, info, nextBtn;
     private final BlobPlayButton blob;
+    private final CoverRingView ring;
     private ObjectAnimator spin;
 
     public BarBind(LinearLayout bar, ImageView cover, TextView name, TextView info,
                    BlobPlayButton blob, TextView nextBtn) {
+        this(bar, cover, name, info, blob, nextBtn, null);
+    }
+
+    public BarBind(LinearLayout bar, ImageView cover, TextView name, TextView info,
+                   BlobPlayButton blob, TextView nextBtn, CoverRingView ring) {
         this.bar = bar;
         this.cover = cover;
         this.name = name;
         this.info = info;
         this.blob = blob;
         this.nextBtn = nextBtn;
+        this.ring = ring;
     }
 
-    /** v27.12: 500ms 刷新 Blob 环形进度。 */
+    /** v27.13: 500ms 同时推进封面环与 Blob 环形进度。 */
     private final Runnable progressTick = new Runnable() {
         @Override
         public void run() {
-            if (blob != null && MusicPlayer.get().isPlaying()) {
+            if (MusicPlayer.get().isPlaying()) {
                 float r = MusicPlayer.get().progressRatio();
-                if (r >= 0) blob.setProgress(r);
+                if (r >= 0) {
+                    if (ring != null) ring.setProgress(r);
+                    if (blob != null) blob.setProgress(r);
+                }
             }
             bar.postDelayed(this, 500);
         }

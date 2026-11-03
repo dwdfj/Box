@@ -171,11 +171,54 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
+    /**
+     * 小贾影视仓 v27.13: 音乐页专用「真铺满」钩子。
+     * 返回 true 时:
+     *   1) 隐藏状态栏 + 导航栏, 并让内容延伸到系统栏区域(LAYOUT_FULLSCREEN / LAYOUT_HIDE_NAVIGATION);
+     *   2) window 背景换成音乐页自己的夜空渐变 —— 否则 changeWallpaper() 会把壁纸/主题色铺在
+     *      window 上, 而 activity_music.xml 的 bg_music_sky 只贴在内容区, 状态栏与导航栏那两条
+     *      露出的是壁纸, 看上去就是"没铺满、跟以前一样"(v27.12 用户反馈的实际原因)。
+     *   3) 不再走 changeWallpaper(), 音乐页所有 Activity 共用同一张背景, 视觉连续。
+     */
+    protected boolean musicFullscreen() {
+        return false;
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        if (musicFullscreen()) {
+            applyMusicFullscreen();
+            return;
+        }
         hideSystemUI(true);
         changeWallpaper(false);
+    }
+
+    /** 音乐页全屏: 系统栏沉浸 + 窗口背景与内容背景一致。 */
+    private void applyMusicFullscreen() {
+        try {
+            getWindow().setBackgroundDrawableResource(R.drawable.bg_music_sky);
+        } catch (Throwable ignored) {
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            int ui = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+            getWindow().getDecorView().setSystemUiVisibility(ui);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.layoutInDisplayCutoutMode =
+                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(lp);
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     // takagen99 : Check for Gesture or 3-Buttons NavBar

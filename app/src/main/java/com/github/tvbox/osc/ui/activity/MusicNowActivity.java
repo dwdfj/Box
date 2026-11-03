@@ -4,27 +4,40 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.music.BlobPlayButton;
+import com.github.tvbox.osc.music.LrcParser;
+import com.github.tvbox.osc.music.LyricView;
 import com.github.tvbox.osc.music.MusicApi;
+import com.github.tvbox.osc.music.MusicDirect;
+import com.github.tvbox.osc.music.MusicDownloader;
 import com.github.tvbox.osc.music.MusicPlayer;
 
+import java.util.List;
+
 /**
- * 小贾影视仓 v27.12: 全屏播放页(Now Playing) ——
- * 大封面 + 歌名/歌手置顶 + 进度条/时间 + 上一首/Blob 播放/下一首 + 音质/来源。
+ * 小贾影视仓 v27.13: 全屏播放页(Voyage 式) ——
+ * 黑胶唱片 ⇄ 滚动歌词(点一下切换) + 歌名/歌手 + 可拖进度条 +
+ * 模式/上一曲/Blob 播放/下一曲/队列 + 收藏/下载/线路。
  */
 public class MusicNowActivity extends BaseActivity {
     private TextView nameView, singerView, qualityView, posView, durView, statusView;
-    private ProgressBar progress;
+    private TextView lineView, modeView, favView, downloadView;
+    private SeekBar progress;
     private ImageView cover;
+    private View discArea, discRing;
+    private LyricView lyricView;
     private BlobPlayButton blob;
+
     private final Handler main = new Handler(Looper.getMainLooper());
     private boolean ticking = false;
+    private boolean lyricMode = false;
+    private boolean dragging = false;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -33,21 +46,35 @@ public class MusicNowActivity extends BaseActivity {
             long dur = p.durationMs();
             long pos = p.positionMs();
             if (dur > 0) {
-                progress.setProgress((int) (pos * 1000 / dur));
+                if (!dragging) progress.setProgress((int) (pos * 1000 / dur));
                 posView.setText(fmt(pos));
                 durView.setText(fmt(dur));
-                blob.setProgress(dur > 0 ? (float) pos / dur : 0f);
+                blob.setProgress((float) pos / dur);
             }
             blob.setPlaying(p.isPlaying());
-            main.postDelayed(this, 500);
+            if (lyricMode) lyricView.setProgress(pos);
+            main.postDelayed(this, 300);
         }
     };
 
     private final MusicPlayer.Listener listener = new MusicPlayer.Listener() {
         @Override public void onStatus(String s) { statusView.setText(s); }
-        @Override public void onPlaying(MusicApi.Song s, String src, String q) { bind(s, src, q); }
+
+        @Override
+        public void onPlaying(MusicApi.Song s, String src, String q) {
+            bind(s, src, q);
+            refreshModeAndFav();
+        }
+
         @Override public void onPaused() { blob.setPlaying(false); }
+
         @Override public void onError(String s) { statusView.setText(s); }
+
+        @Override
+        public void onLyric(List<LrcParser.Line> lines) {
+            lyricView.setLines(lines);
+            statusView.setText(lines.isEmpty() ? "暂无歌词" : lines.size() + " 行歌词");
+        }
     };
 
     @Override
@@ -56,30 +83,174 @@ public class MusicNowActivity extends BaseActivity {
     }
 
     @Override
+    protected boolean musicFullscreen() {
+        return true;
+    }
+
+    @Override
     protected void init() {
-        MusicPlayer.get().addListener(listener);
+        int statusH = MusicActivity.sysBarHeight(this, true);
+        int navH = MusicActivity.sysBarHeight(this, false);
+        android.widget.LinearLayout root = findViewById(R.id.musicNowRoot);
+        if (root != null) root.setPadding(root.getPaddingLeft(), statusH,
+                root.getPaddingRight(), navH);
+
+        MusicPlayer p = MusicPlayer.get();
+        p.addListener(listener);
+
         nameView = findViewById(R.id.musicNowName);
         singerView = findViewById(R.id.musicNowSinger);
         qualityView = findViewById(R.id.musicNowQuality);
         posView = findViewById(R.id.musicNowPos);
         durView = findViewById(R.id.musicNowDur);
         statusView = findViewById(R.id.musicNowStatus);
+        lineView = findViewById(R.id.musicNowLine);
+        modeView = findViewById(R.id.musicNowMode);
+        favView = findViewById(R.id.musicNowFav);
+        downloadView = findViewById(R.id.musicNowDownload);
         progress = findViewById(R.id.musicNowProgress);
         cover = findViewById(R.id.musicNowCover);
+        discArea = findViewById(R.id.musicDiscArea);
+        discRing = findViewById(R.id.musicDiscRing);
+        lyricView = findViewById(R.id.musicLyric);
         blob = findViewById(R.id.musicBlobPlay);
 
         findViewById(R.id.musicNowBack).setOnClickListener(v -> finish());
-        blob.setOnClickListener(v -> MusicPlayer.get().toggle());
-        findViewById(R.id.musicNowNext).setOnClickListener(v -> MusicPlayer.get().playNext());
-        findViewById(R.id.musicNowPrev).setOnClickListener(v -> MusicPlayer.get().playPrev());
+        blob.setOnClickListener(v -> p.toggle());
+        findViewById(R.id.musicNowNext).setOnClickListener(v -> p.playNext());
+        findViewById(R.id.musicNowPrev).setOnClickListener(v -> p.playPrev());
 
-        MusicPlayer p = MusicPlayer.get();
+        // 唱片/歌词切换
+        discArea.setOnClickListener(v -> toggleLyric(true));
+        lyricView.setOnClickListener(v -> toggleLyric(false));
+        lyricView.setSeekListener(ms -> {
+            p.seekTo(ms);
+            lyricView.setProgress(ms);
+            statusView.setText("已跳转到 " + fmt(ms));
+        });
+
+        // 进度拖动
+        progress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int value, boolean fromUser) {
+                if (fromUser) {
+                    long dur = p.durationMs();
+                    posView.setText(fmt(dur * value / 1000));
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+                dragging = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+                dragging = false;
+                long dur = p.durationMs();
+                if (dur > 0) p.seekTo(dur * sb.getProgress() / 1000);
+            }
+        });
+
+        // 播放模式
+        modeView.setOnClickListener(v -> {
+            String m = p.cycleRepeatMode();
+            modeView.setText(m);
+            statusView.setText("播放模式: " + m);
+        });
+
+        // 队列弹层
+        findViewById(R.id.musicNowQueue).setOnClickListener(v ->
+                QueueDialog.show(this, music -> {
+                    // 选中即跳播
+                    p.playQueue(p.queue(), p.queue().indexOf(music));
+                }));
+
+        // 收藏
+        favView.setOnClickListener(v -> {
+            MusicApi.Song cur = p.current();
+            if (cur == null) return;
+            boolean fav = p.toggleFavorite(cur);
+            favView.setText(fav ? "♥ 已收藏" : "♡ 收藏");
+            statusView.setText(fav ? "已加入收藏" : "已取消收藏");
+        });
+
+        // 下载
+        downloadView.setOnClickListener(v -> {
+            MusicApi.Song cur = p.current();
+            if (cur == null) return;
+            downloadView.setText("⇩ 0%");
+            downloadView.setEnabled(false);
+            MusicDownloader.download(cur, p.preferredQuality(), new MusicDownloader.Cb() {
+                @Override
+                public void onProgress(float f) {
+                    downloadView.setText("⇩ " + (int) (f * 100) + "%");
+                }
+
+                @Override
+                public void onDone(String path) {
+                    downloadView.setText("✓ 已下载");
+                    downloadView.setEnabled(true);
+                    statusView.setText("已保存: " + path);
+                }
+
+                @Override
+                public void onFail(String err) {
+                    downloadView.setText("⇩ 下载");
+                    downloadView.setEnabled(true);
+                    statusView.setText("下载失败: " + err);
+                }
+            });
+        });
+
+        // 换线路
+        findViewById(R.id.musicNowLineBtn).setOnClickListener(v -> {
+            String name = p.nextLine();
+            lineView.setText(name);
+            statusView.setText("线路已切到 " + name + "，正在用新线路重取…");
+        });
+
+        // 音质
+        qualityView.setOnClickListener(v -> {
+            String q = p.cycleQuality();
+            qualityView.setText(q);
+            statusView.setText("音质偏好已切至 " + q + "，下次点歌生效");
+        });
+
+        refreshModeAndFav();
+        lineView.setText(p.lineName());
+        qualityView.setText(p.preferredQuality());
+        modeView.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
+
         MusicApi.Song cur = p.current();
         if (cur != null) {
             bind(cur, null, p.preferredQuality());
+            if (!p.lyric().isEmpty()) lyricView.setLines(p.lyric());
             statusView.setText(p.isPlaying() ? "播放中" : "已暂停");
         } else {
             statusView.setText("还没有播放任务 —— 返回列表点一首歌");
+        }
+    }
+
+    private void refreshModeAndFav() {
+        MusicPlayer p = MusicPlayer.get();
+        if (modeView != null) modeView.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
+        if (favView != null) {
+            MusicApi.Song cur = p.current();
+            favView.setText(cur != null && p.isFavorite(cur) ? "♥ 已收藏" : "♡ 收藏");
+        }
+    }
+
+    /** 唱片/歌词互斥显示; showLyric=true 进歌词, false 回唱片。 */
+    private void toggleLyric(boolean showLyric) {
+        if (lyricMode == showLyric) return;
+        lyricMode = showLyric;
+        discArea.setVisibility(showLyric ? View.GONE : View.VISIBLE);
+        lyricView.setVisibility(showLyric ? View.VISIBLE : View.GONE);
+        if (showLyric) {
+            lyricView.setLines(MusicPlayer.get().lyric());
+            lyricView.setProgress(MusicPlayer.get().positionMs());
+            statusView.setText(MusicPlayer.get().lyric().isEmpty() ? "暂无歌词" : "轻点歌词可跳转");
         }
     }
 
@@ -87,6 +258,7 @@ public class MusicNowActivity extends BaseActivity {
         nameView.setText(s.name);
         singerView.setText(s.singer + (s.album == null || s.album.isEmpty() ? "" : " · " + s.album));
         qualityView.setText(q == null ? "" : q);
+        if (src != null && !src.isEmpty()) lineView.setText(src);
         if (s.cover != null && !s.cover.isEmpty()) {
             Glide.with(mContext).load(s.cover).into(cover);
         }
@@ -115,7 +287,7 @@ public class MusicNowActivity extends BaseActivity {
     }
 
     private static String fmt(long ms) {
-        long sec = ms / 1000;
+        long sec = Math.max(0, ms) / 1000;
         return String.format("%02d:%02d", sec / 60, sec % 60);
     }
 }

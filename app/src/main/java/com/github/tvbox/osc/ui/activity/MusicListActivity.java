@@ -55,8 +55,19 @@ public class MusicListActivity extends BaseActivity {
         return R.layout.activity_music_list;
     }
 
+    /** v27.13: 真铺满 —— 系统栏沉浸, 窗口背景 = 内容背景。 */
+    @Override
+    protected boolean musicFullscreen() {
+        return true;
+    }
+
     @Override
     protected void init() {
+        int statusH = MusicActivity.sysBarHeight(this, true);
+        int navH = MusicActivity.sysBarHeight(this, false);
+        android.widget.LinearLayout root = findViewById(R.id.musicListRoot);
+        if (root != null) root.setPadding(root.getPaddingLeft(), statusH,
+                root.getPaddingRight(), navH);
         MusicPlayer.get().addListener(pageListener);
         titleView = findViewById(R.id.musicListTitle);
         statusView = findViewById(R.id.musicListStatus);
@@ -70,12 +81,11 @@ public class MusicListActivity extends BaseActivity {
         list.setAdapter(adapter);
 
         findViewById(R.id.musicListBack).setOnClickListener(v -> finish());
-        sourceBtn.setOnClickListener(v -> {
-            // v27.10: 音质偏好循环(flac/320k/128k)
-            String q = MusicPlayer.get().cycleQuality();
-            sourceBtn.setText(q.substring(0, 1));
-            setStatus("音质偏好已切至 " + q + "，下次点歌生效");
-        });
+        sourceBtn.setOnClickListener(v -> LineDialog.show(this, name -> {
+            sourceBtn.setText(name.substring(0, 1));
+            setStatus("线路已切到 " + name);
+        }));
+        sourceBtn.setText(MusicPlayer.get().lineName().substring(0, 1));
         findViewById(R.id.musicPlayAll).setOnClickListener(v -> {
             if (!songs.isEmpty()) MusicPlayer.get().playQueue(songs, 0); // v27.12
         });

@@ -2,6 +2,7 @@
 <!-- 小贾影视仓 v27.9: 歌单/榜单详情页改上下布局 —— 顶栏 → 歌单信息条(封面+标题+播放全部) → 歌曲列表 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/musicListRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_music_sky"

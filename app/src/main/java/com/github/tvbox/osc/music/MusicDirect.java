@@ -14,22 +14,32 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
- * 小贾影视仓 v27.10: 取链换方案 —— JS 音源运行时反复不稳, 改为直连 HTTP 取链端点链。
- * 端点经 Python 数据面实测(含 flac/lossless 无损 64MB 音频校验):
- *   ep0 洛雪  c.wwwweb.top      POST {source,musicId,quality} -> url (flac/320k/128k 均通)
- *   ep1 笒音  mcp.nianxinxz.com GET  wy.php?id=&level=         -> url (lossless/320k 通)
- * (haitangw 停服、103.79 卡密端点失联, 已剔除)
- * 任一端点拿到 http 开头 URL 即成功; 全部失败才回调错误(之后 MusicPlayer 再回落 JS 运行时)。
+ * 小贾影视仓 v27.13: 取链改为「独立线路」模型 —— 照 Voyage 的做法, 每条音源是一条可自由挑选的线路,
+ * 用户选了哪条就只用哪条, 不再像 v27.10 那样 ep0 成功就永久跳过 ep1(这导致实际永远是洛雪,
+ * 笒音代码存在但从未被调用)。
+ *
+ * 线路实测(2026-11):
+ *   LINE_LUOXUE  洛雪  c.wwwweb.top      POST {source,musicId,quality}  flac/320k/128k 全通
+ *   LINE_CENYIN  笒音  mcp.nianxinxz.com GET  wy.php?id=&level=         lossless/320k 通
+ * 任一条线路失败只报该线路的错误, 由用户决定切不切线路。
  */
 public final class MusicDirect {
     private static final String TAG = "MusicDirect";
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-    /** 端点展示名, 顺序与 ep 对应。 */
+    /** 线路 id(与 UI 顺序一致)。 */
+    public static final int LINE_LUOXUE = 0;
+    public static final int LINE_CENYIN = 1;
+
+    /** 线路展示名。 */
     public static final String[] NAMES = {"洛雪", "笒音"};
 
+    /** 线路说明(UI 副标题)。 */
+    public static final String[] DESCS = {"flac 无损 · 稳定", "lossless 母带 · 更快"};
+
     public interface Cb {
+        /** url 非空即成功; 否则 err 说明原因。 */
         void onResult(String sourceName, String url, String err);
     }
 
@@ -42,24 +52,12 @@ public final class MusicDirect {
     private MusicDirect() {
     }
 
-    /** quality: flac/320k/128k —— ep1 的 flac 映射为 lossless。 */
-    public static void fetch(final String songmid, final String quality, final Cb cb) {
-        tryEndpoint(0, songmid, quality, cb);
-    }
-
-    private static String mapLevel(String q, int ep) {
-        if (ep != 1) return q;
-        return "flac".equals(q) ? "lossless" : q;
-    }
-
-    private static void tryEndpoint(final int ep, final String songmid, final String quality, final Cb cb) {
-        if (ep >= NAMES.length) {
-            cb.onResult(null, null, "全部端点失败");
-            return;
-        }
+    /** 按指定线路取链。line 越界时自动收敛到 0。 */
+    public static void fetch(int line, final String songmid, final String quality, final Cb cb) {
+        final int ep = (line < 0 || line >= NAMES.length) ? LINE_LUOXUE : line;
         try {
             Request req;
-            if (ep == 0) {
+            if (ep == LINE_LUOXUE) {
                 JSONObject body = new JSONObject();
                 body.put("source", "wy");
                 body.put("musicId", songmid);
@@ -81,7 +79,8 @@ public final class MusicDirect {
                 @Override
                 public void onFailure(Call call, java.io.IOException e) {
                     Log.w(TAG, NAMES[ep] + " fail: " + e.getMessage());
-                    tryEndpoint(ep + 1, songmid, quality, cb);
+                    final String msg = e.getMessage() == null ? "网络失败" : e.getMessage();
+                    main(() -> cb.onResult(NAMES[ep], null, NAMES[ep] + " 不可达: " + msg));
                 }
 
                 @Override
@@ -106,14 +105,24 @@ public final class MusicDirect {
                     } else {
                         Log.w(TAG, NAMES[ep] + " no-url " + resp.code() + " "
                                 + bodyStr.substring(0, Math.min(120, bodyStr.length())));
-                        tryEndpoint(ep + 1, songmid, quality, cb);
+                        main(() -> cb.onResult(NAMES[ep], null, NAMES[ep] + " 无可用地址(" + resp.code() + ")"));
                     }
                 }
             });
         } catch (Throwable t) {
             Log.w(TAG, NAMES[ep] + " err", t);
-            tryEndpoint(ep + 1, songmid, quality, cb);
+            main(() -> cb.onResult(NAMES[ep], null, NAMES[ep] + " 请求异常"));
         }
+    }
+
+    /**
+     * 笒音只有 lossless 一档可用 —— 实测 level=320k/128k 都返回 {"code":200,"msg":"解析成功"}
+     * 但 url 为 null(空响应), 所以笒音线路一律按 lossless 请求, 否则会连报三次失败。
+     * 洛雪按用户选的音质原样请求(flac/320k/128k 三档都通)。
+     */
+    private static String mapLevel(String q, int ep) {
+        if (ep == LINE_CENYIN) return "lossless";
+        return q;
     }
 
     private static String optUrl(JSONObject d, String field) {

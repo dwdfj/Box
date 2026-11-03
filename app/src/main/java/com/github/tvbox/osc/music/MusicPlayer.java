@@ -28,6 +28,10 @@ public class MusicPlayer {
         void onPaused();
 
         void onError(String text);
+
+        /** v27.13: 歌词就绪(可能为空列表 = 暂无歌词)。 */
+        default void onLyric(java.util.List<LrcParser.Line> lines) {
+        }
     }
 
     private static volatile MusicPlayer sInstance;
@@ -42,24 +46,110 @@ public class MusicPlayer {
     }
 
     private final Handler main = new Handler(Looper.getMainLooper());
-    private LxRuntime lx;
     private ExoPlayer player;
-    private final List<String> sourceKeys = new ArrayList<>();
-    private final List<String> readyKeys = new ArrayList<>();
-    private int sourceIdx = 0;
     private int qualityIdx = 0;
-    private String lastQuality = "320k"; // v27.9: 实际生效的音质(直连/JS 两条链各自维护)
-    private String lastSourceName; // v27.9: 取链来源名(直连=null → 显示"直连")
+    private String lastQuality = "flac";
+    private String lastSourceName;
     private MusicApi.Song current;
     private final java.util.concurrent.CopyOnWriteArrayList<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean loading = false;
-    private boolean sourcesReady = false;
 
     // ---- v27.12: 播放队列 + 最近播放 ----
     private final List<MusicApi.Song> queue = new ArrayList<>();
     private int queuePos = -1;
     private static final String RECENT_PREF = "xj_music_recent";
     private static final int RECENT_MAX = 50;
+
+    // ---- v27.13: 线路(音源)自由挑选 + 播放模式 + 收藏/歌词 ----
+    /** 播放模式: 单曲循环 / 列表循环 / 顺序 / 随机。 */
+    public static final int MODE_SINGLE = 0;
+    public static final int MODE_LOOP = 1;
+    public static final int MODE_ORDER = 2;
+    public static final int MODE_SHUFFLE = 3;
+    public static final String[] MODE_NAMES = {"单曲循环", "列表循环", "顺序播放", "随机播放"};
+
+    private static final String PREF = "xj_music_cfg";
+    private int line = MusicDirect.LINE_LUOXUE;
+    private int repeatMode = MODE_LOOP;
+    private boolean lineInited = false;
+
+    /** 当前线路 id。 */
+    public int line() {
+        initCfg();
+        return line;
+    }
+
+    public String lineName() {
+        return MusicDirect.NAMES[line()];
+    }
+
+    /** 切换线路, 返回新线路名。切换后当前歌曲会按新线路重取。 */
+    public String setLine(int l) {
+        initCfg();
+        if (l < 0 || l >= MusicDirect.NAMES.length) return lineName();
+        line = l;
+        saveCfg();
+        MusicApi.Song cur = current;
+        if (cur != null) {
+            // 用户主动切线路 → 用新线路重取当前曲
+            playAt(Math.max(0, queuePos));
+        }
+        return lineName();
+    }
+
+    /** 循环切到下一线路。 */
+    public String nextLine() {
+        initCfg();
+        return setLine((line + 1) % MusicDirect.NAMES.length);
+    }
+
+    public int repeatMode() {
+        initCfg();
+        return repeatMode;
+    }
+
+    public String setRepeatMode(int m) {
+        initCfg();
+        if (m < 0 || m >= MODE_NAMES.length) return MODE_NAMES[repeatMode];
+        repeatMode = m;
+        saveCfg();
+        return MODE_NAMES[repeatMode];
+    }
+
+    /** 循环切播放模式, 返回新名字。 */
+    public String cycleRepeatMode() {
+        initCfg();
+        return setRepeatMode((repeatMode + 1) % MODE_NAMES.length);
+    }
+
+    private void initCfg() {
+        if (lineInited) return;
+        lineInited = true;
+        try {
+            android.content.SharedPreferences sp =
+                    AppContextHolder.get().getSharedPreferences(PREF, 0);
+            line = sp.getInt("line", MusicDirect.LINE_LUOXUE);
+            repeatMode = sp.getInt("mode", MODE_LOOP);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void saveCfg() {
+        try {
+            AppContextHolder.get().getSharedPreferences(PREF, 0)
+                    .edit().putInt("line", line).putInt("mode", repeatMode).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 队列(供队列弹层用)。 */
+    public List<MusicApi.Song> queue() {
+        return new ArrayList<>(queue);
+    }
+
+    public int queuePos() {
+        return queuePos;
+    }
 
     /** 用整张列表建队列并从 start 开始播。 */
     public void playQueue(List<MusicApi.Song> songs, int start) {
@@ -75,7 +165,6 @@ public class MusicPlayer {
         MusicApi.Song s = queue.get(pos);
         loading = true;
         qualityIdx = 0;
-        runtime();
         notifyStatus("已点「" + s.name + "」，取链中…");
         attemptDirect(s, 0);
     }
@@ -89,11 +178,41 @@ public class MusicPlayer {
     }
 
     public void playNext() {
+        // 列表循环: 到尾回到第一首; 顺序: 到尾停
         if (hasNext()) playAt(queuePos + 1);
+        else if (repeatMode() == MODE_LOOP && !queue.isEmpty()) playAt(0);
     }
 
     public void playPrev() {
         if (hasPrev()) playAt(queuePos - 1);
+        else if (repeatMode() == MODE_LOOP && !queue.isEmpty()) playAt(queue.size() - 1);
+    }
+
+    /**
+     * v27.13: 一首播完后的去向, 由播放模式决定。
+     * 单曲循环 → 原曲重播(重新取链); 随机 → 随机一首; 列表循环/顺序 → playNext。
+     */
+    private void onTrackEnded() {
+        initCfg();
+        if (queue.isEmpty()) return;
+        switch (repeatMode) {
+            case MODE_SINGLE:
+                playAt(queuePos);
+                break;
+            case MODE_SHUFFLE:
+                if (queue.size() == 1) playAt(0);
+                else {
+                    int n;
+                    do {
+                        n = (int) (Math.random() * queue.size());
+                    } while (n == queuePos);
+                    playAt(n);
+                }
+                break;
+            default:
+                playNext();
+                break;
+        }
     }
 
     /** 最近播放(SharedPreferences, 去重, 最前为新)。 */
@@ -151,73 +270,103 @@ public class MusicPlayer {
         listeners.remove(l);
     }
 
-    public LxRuntime runtime() {
-        if (lx == null) {
-            lx = new LxRuntime((key, event, json) -> {
-                if (LxRuntime.EVT_INIT.equals(event)) {
-                    // v27.5 修复: 之前不看 status, 加载失败也标"音源就绪", 用户点歌全被吞。
-                    // 任一源成功即视为可用; 全部失败才报错。
-                    boolean ok = json != null && json.contains("\"status\":true");
-                    if (ok) readyKeys.add(key);
-                    sourcesReady = !readyKeys.isEmpty();
-                    if (readyKeys.size() == 1 && ok) notifyStatus("音源就绪");
-                    if (!sourcesReady) notifyStatus("音源加载失败: " + json);
-                } else if (LxRuntime.EVT_UPDATE_ALERT.equals(event)) {
-                    notifyStatus("音源提示更新");
-                }
-            });
-            String[] files = {"animemusic.js", "helloworld.js", "hyw.js"};
-            for (String f : files) {
-                try {
-                    String script = readAsset("lx_music/sources/" + f);
-                    String key = f.replace(".js", "");
-                    lx.loadSource(key, f.replace(".js", ""), script);
-                    sourceKeys.add(key);
-                } catch (Throwable t) {
-                    Log.e(TAG, "load " + f, t);
-                }
-            }
-        }
-        return lx;
-    }
-
-    private String readAsset(String path) throws Throwable {
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-        java.io.InputStream is = AppContextHolder.get().getAssets().open(path);
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
-        is.close();
-        return bos.toString("UTF-8");
-    }
-
-    public boolean sourcesReady() {
-        return sourcesReady;
-    }
-
-    public String currentSourceName() {
-        String k = currentSourceKey();
-        return k == null ? "" : runtime().getSources().get(k);
-    }
-
-    public String currentSourceKey() {
-        // 只在加载成功的源里轮换(v27.5: 失败源不再参与取链)
-        List<String> pool = readyKeys.isEmpty() ? sourceKeys : readyKeys;
-        return pool.isEmpty() ? null : pool.get(sourceIdx % pool.size());
-    }
-
-    /** 轮换音源, 返回新源名。 */
-    public String nextSource() {
-        List<String> pool = readyKeys.isEmpty() ? sourceKeys : readyKeys;
-        if (pool.size() > 1) {
-            sourceIdx = (sourceIdx + 1) % pool.size();
-            qualityIdx = 0;
-        }
-        return currentSourceName();
-    }
-
     public MusicApi.Song current() {
         return current;
+    }
+
+    // ---- v27.13: 歌词 ----
+    private java.util.List<LrcParser.Line> lyric = java.util.Collections.emptyList();
+    private String lyricSongmid;
+
+    public java.util.List<LrcParser.Line> lyric() {
+        return lyric;
+    }
+
+    private void loadLyric(final MusicApi.Song song) {
+        if (song == null || song.songmid == null) return;
+        if (song.songmid.equals(lyricSongmid)) return; // 同一首不重复拉
+        lyricSongmid = song.songmid;
+        lyric = java.util.Collections.emptyList();
+        notifyLyric(lyric);
+        LyricApi.fetch(song.songmid, (lines, raw, err) -> {
+            if (!song.songmid.equals(lyricSongmid)) return; // 已切歌
+            lyric = lines == null ? java.util.Collections.emptyList() : lines;
+            notifyLyric(lyric);
+        });
+    }
+
+    private void notifyLyric(java.util.List<LrcParser.Line> lines) {
+        for (Listener l : listeners) l.onLyric(lines);
+    }
+
+    // ---- v27.13: 收藏 ----
+    private static final String FAV_PREF = "xj_music_fav";
+
+    public boolean isFavorite(MusicApi.Song song) {
+        if (song == null || song.songmid == null) return false;
+        for (MusicApi.Song s : favorites()) {
+            if (song.songmid.equals(s.songmid)) return true;
+        }
+        return false;
+    }
+
+    /** 切换收藏, 返回切换后是否已收藏。 */
+    public boolean toggleFavorite(MusicApi.Song song) {
+        List<MusicApi.Song> list = favorites();
+        boolean now;
+        for (java.util.Iterator<MusicApi.Song> it = list.iterator(); it.hasNext(); ) {
+            if (song.songmid != null && song.songmid.equals(it.next().songmid)) {
+                it.remove();
+                saveSongs(FAV_PREF, list);
+                return false;
+            }
+        }
+        list.add(0, song);
+        saveSongs(FAV_PREF, list);
+        now = true;
+        return now;
+    }
+
+    public List<MusicApi.Song> favorites() {
+        return loadSongs(FAV_PREF);
+    }
+
+    private List<MusicApi.Song> loadSongs(String pref) {
+        List<MusicApi.Song> out = new ArrayList<>();
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray(
+                    AppContextHolder.get().getSharedPreferences(pref, 0).getString("list", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.getJSONObject(i);
+                MusicApi.Song s = new MusicApi.Song();
+                s.songmid = o.optString("id");
+                s.name = o.optString("n");
+                s.singer = o.optString("a");
+                s.album = o.optString("al");
+                s.cover = o.optString("c");
+                if (s.songmid != null && !s.songmid.isEmpty()) out.add(s);
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    private void saveSongs(String pref, List<MusicApi.Song> list) {
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (MusicApi.Song s : list) {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("id", s.songmid == null ? "" : s.songmid);
+                o.put("n", s.name == null ? "" : s.name);
+                o.put("a", s.singer == null ? "" : s.singer);
+                o.put("al", s.album == null ? "" : s.album);
+                o.put("c", s.cover == null ? "" : s.cover);
+                arr.put(o);
+            }
+            AppContextHolder.get().getSharedPreferences(pref, 0)
+                    .edit().putString("list", arr.toString()).apply();
+        } catch (Throwable ignored) {
+        }
     }
 
     public boolean isPlaying() {
@@ -239,6 +388,11 @@ public class MusicPlayer {
         return player == null || player.getDuration() <= 0 ? 0 : player.getDuration();
     }
 
+    /** v27.13: 拖动进度条/点歌词跳转。 */
+    public void seekTo(long ms) {
+        if (player != null) player.seekTo(Math.max(0, ms));
+    }
+
     public void toggle() {
         if (player == null) return;
         if (player.isPlaying()) {
@@ -247,7 +401,7 @@ public class MusicPlayer {
         } else {
             player.play();
             if (current != null)
-                notifyPlaying(current, currentSourceName(), lastQuality);
+                notifyPlaying(current, lastSourceName == null ? lineName() : lastSourceName, lastQuality);
         }
     }
 
@@ -274,77 +428,34 @@ public class MusicPlayer {
 
     private void attemptDirect(final MusicApi.Song song, final int i) {
         if (i >= DIRECT_Q.length) {
-            notifyStatus("直连失败，尝试内置音源…");
-            attemptJs(song, 0, 0);
+            loading = false;
+            notifyError("「" + lineName() + "」线路取链失败(flac/320k/128k 均无)，可点「线路」换一条");
             return;
         }
         final int qSlot = (preferQ + i) % DIRECT_Q.length;
         final String q = DIRECT_Q[qSlot];
         qualityIdx = Math.min(i, QUALITY_FALLBACK.length - 1);
         lastQuality = q;
-        lastSourceName = null; // 直连(名称由回调填)
-        notifyStatus("取链中(直连 · " + q + ")…");
-        MusicDirect.fetch(song.songmid, q, (sourceName, url, err) -> {
+        lastSourceName = lineName();
+        notifyStatus("取链中(" + lineName() + " · " + q + ")…");
+        MusicDirect.fetch(line(), song.songmid, q, (sourceName, url, err) -> {
             if (!loading) return; // 已被超时/新点击接管
             if (url != null && !TextUtils.isEmpty(url)) {
                 lastSourceName = sourceName;
+                // 笒音恒为 lossless, 显示真实音质而不是用户选的那档
+                if (line() == MusicDirect.LINE_CENYIN) lastQuality = "lossless";
                 startPlay(song, url);
                 return;
             }
+            // 笒音只有 lossless 一档, 降档没意义, 直接报错
+            if (line() == MusicDirect.LINE_CENYIN) {
+                loading = false;
+                notifyError((err == null ? "笒音" : err) + " — 可切到「洛雪」线路");
+                return;
+            }
+            // 线路内降音质重试; 全档失败才报错(不自动跨线路 —— 用户选定哪条就是哪条)
             attemptDirect(song, i + 1);
         });
-    }
-
-    private void attempt(final MusicApi.Song song, final boolean allowFallback) {
-        attemptDirect(song, 0);
-    }
-
-    private void attemptJs(final MusicApi.Song song, final int qIdx, final int waitCnt) {
-        qualityIdx = qIdx;
-        lastQuality = QUALITY_FALLBACK[qIdx];
-        lastSourceName = currentSourceName();
-        // v27.9: runtime() 里 loadSource 是 post 到 JS 线程的, env 未装好前等待重试(最多 ~7s)
-        if (runtime().getSources().isEmpty()) {
-            if (waitCnt < 24) {
-                notifyStatus("音源启动中…(" + waitCnt + ")");
-                main.postDelayed(() -> attemptJs(song, qIdx, waitCnt + 1), 300);
-                return;
-            }
-            loading = false;
-            notifyError("取链失败: 直连与内置音源均不可用，请点「源」切换重试");
-            return;
-        }
-        final String key = currentSourceKey();
-        if (key == null) {
-            loading = false;
-            notifyError("无可用音源");
-            return;
-        }
-        // 单个源脚本还没 evaluate 完: 等它而不是立刻报错
-        if (!runtime().getSources().containsKey(key)) {
-            if (waitCnt < 24) {
-                notifyStatus("音源装载中…");
-                main.postDelayed(() -> attemptJs(song, qIdx, waitCnt + 1), 300);
-                return;
-            }
-            loading = false;
-            notifyError("音源未就绪，请稍后重试");
-            return;
-        }
-        notifyStatus("取链中(音源 " + currentSourceName() + " " + QUALITY_FALLBACK[qualityIdx] + ")…");
-        runtime().getMusicUrl(key, "wy", MusicApi.musicInfoFor(song), QUALITY_FALLBACK[qualityIdx],
-                (srcKey, error, url, ekey, format) -> {
-                    loading = false;
-                    if (error != null || TextUtils.isEmpty(url)) {
-                        if (qualityIdx < QUALITY_FALLBACK.length - 1) {
-                            attemptJs(song, qualityIdx + 1, 0);
-                        } else {
-                            notifyError("取链失败: " + (error == null ? "空地址" : error) + "，可切「音源」重试");
-                        }
-                        return;
-                    }
-                    startPlay(song, url);
-                });
     }
 
     private void startPlay(MusicApi.Song song, String url) {
@@ -371,17 +482,19 @@ public class MusicPlayer {
 
                     @Override
                     public void onPlaybackStateChanged(int state) {
-                        if (state == androidx.media3.common.Player.STATE_ENDED) main.post(MusicPlayer.this::playNext);
+                        if (state == androidx.media3.common.Player.STATE_ENDED)
+                            main.post(MusicPlayer.this::onTrackEnded);
                     }
                 });
             }
             current = song;
             addRecent(song); // v27.12: 写入最近播放
+            loadLyric(song); // v27.13: 拉歌词
             player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
             player.prepare();
             player.play();
-            notifyStatus("播放中 · " + (lastSourceName == null ? "直连" : lastSourceName) + " · " + lastQuality);
-            notifyPlaying(song, lastSourceName == null ? "直连" : lastSourceName, lastQuality);
+            notifyStatus("播放中 · " + (lastSourceName == null ? lineName() : lastSourceName) + " · " + lastQuality);
+            notifyPlaying(song, lastSourceName == null ? lineName() : lastSourceName, lastQuality);
         } catch (Throwable t) {
             loading = false;
             notifyError("播放失败: " + t.getMessage());

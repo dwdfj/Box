@@ -73,8 +73,22 @@ public class MusicActivity extends BaseActivity {
         return R.layout.activity_music;
     }
 
+    /** v27.13: 真铺满 —— 系统栏沉浸, 窗口背景 = 内容背景。 */
+    @Override
+    protected boolean musicFullscreen() {
+        return true;
+    }
+
+    /** 系统栏高度(px), 用于内容避让但背景仍铺到屏幕边缘。 */
+    static int sysBarHeight(android.content.Context ctx, boolean statusBar) {
+        int id = ctx.getResources().getIdentifier(
+                statusBar ? "status_bar_height" : "navigation_bar_height", "dimen", "android");
+        return id > 0 ? ctx.getResources().getDimensionPixelSize(id) : 0;
+    }
+
     @Override
     protected void init() {
+        applySysBarPadding();
         MusicPlayer.get().addListener(pageListener);
         statusView = findViewById(R.id.musicStatus);
         sourceBtn = findViewById(R.id.musicSourceBtn);
@@ -94,11 +108,10 @@ public class MusicActivity extends BaseActivity {
         rv.setAdapter(rowsAdapter);
 
         findViewById(R.id.musicBack).setOnClickListener(v -> finish());
-        sourceBtn.setOnClickListener(v -> {
-            String q = MusicPlayer.get().cycleQuality();
-            sourceBtn.setText(q);
-            setStatus("音质偏好已切至 " + q + "，下次点歌生效");
-        });
+        sourceBtn.setOnClickListener(v -> LineDialog.show(this, name -> {
+            sourceBtn.setText(name);
+            setStatus("线路已切到 " + name);
+        }));
         tabHome.setOnClickListener(v -> setMode(false));
         tabMine.setOnClickListener(v -> setMode(true));
 
@@ -115,11 +128,31 @@ public class MusicActivity extends BaseActivity {
                 findViewById(R.id.musicNowName),
                 findViewById(R.id.musicNowInfo),
                 (BlobPlayButton) findViewById(R.id.musicBlobPlay),
-                findViewById(R.id.musicNextBtn));
+                findViewById(R.id.musicNextBtn),
+                (com.github.tvbox.osc.music.CoverRingView) findViewById(R.id.musicNowRing));
         bar.bind(this);
 
-        sourceBtn.setText(MusicPlayer.get().preferredQuality());
+        sourceBtn.setText(MusicPlayer.get().lineName());
         loadHall();
+    }
+
+    /**
+     * v27.13: 让背景铺满全屏(含系统栏区域), 但可点击内容避让状态栏与导航栏。
+     * 直接给根 FrameLayout 加 padding 会把背景也缩进去, 所以 padding 加在两层子容器上:
+     * 上部主内容补状态栏高度, 底部悬浮区补导航栏高度。
+     */
+    private void applySysBarPadding() {
+        int statusH = sysBarHeight(this, true);
+        int navH = sysBarHeight(this, false);
+        View content = findViewById(R.id.musicContent);
+        if (content != null) content.setPadding(
+                content.getPaddingLeft(), statusH,
+                content.getPaddingRight(), content.getPaddingBottom());
+        View bottom = findViewById(R.id.musicBottomArea);
+        if (bottom != null) bottom.setPadding(
+                bottom.getPaddingLeft(), bottom.getPaddingTop(),
+                bottom.getPaddingRight(),
+                navH + getResources().getDimensionPixelSize(R.dimen.vs_20));
     }
 
     private void setMode(boolean mine) {
@@ -165,10 +198,20 @@ public class MusicActivity extends BaseActivity {
         rows.clear();
         banners.clear();
         if (mineMode) {
+            // 我的: 收藏 → 最近播放
+            List<MusicApi.Song> fav = MusicPlayer.get().favorites();
+            if (!fav.isEmpty()) {
+                Row r = new Row();
+                r.type = TYPE_SONG_ROW;
+                r.sectionTitle = "我的收藏";
+                r.songs = fav;
+                rows.add(r);
+            }
             List<MusicApi.Song> rec = MusicPlayer.get().recent();
             if (!rec.isEmpty()) {
                 Row r = new Row();
                 r.type = TYPE_SONG_ROW;
+                r.sectionTitle = "最近播放";
                 r.songs = rec;
                 rows.add(r);
             }
@@ -368,10 +411,12 @@ public class MusicActivity extends BaseActivity {
     /** 我的 tab: 竖版歌曲列表容器。 */
     class SongListHolder extends RecyclerView.ViewHolder {
         final RecyclerView list;
+        final TextView title;
         final SongAdapter adapter;
 
         SongListHolder(View v) {
             super(v);
+            title = v.findViewById(R.id.songListTitle);
             list = v.findViewById(R.id.songList);
             list.setLayoutManager(new LinearLayoutManager(mContext));
             adapter = new SongAdapter();
@@ -379,6 +424,7 @@ public class MusicActivity extends BaseActivity {
         }
 
         void bind(Row r) {
+            title.setText(r.sectionTitle == null ? "歌曲" : r.sectionTitle);
             adapter.songs = r.songs;
             adapter.notifyDataSetChanged();
         }
