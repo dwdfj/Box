@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 音乐厅/歌单页入场动画(透明度+上移+微缩放, Voyage 式缓入) -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="280"
+    android:interpolator="@android:interpolator/decelerate_quad">
+    <alpha android:fromAlpha="0" android:toAlpha="1" />
+    <translate
+        android:fromYDelta="8%"
+        android:toYDelta="0" />
+    <scale
+        android:fromXScale="0.95"
+        android:fromYScale="0.95"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:toXScale="1"
+        android:toYScale="1" />
+</set>

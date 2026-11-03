@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.4: 播放条背景(圆角+半透明玻璃感) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#CC14161E" />
+    <corners android:radius="20mm" />
+    <stroke android:width="1mm" android:color="@color/color_aurora_line" />
+</shape>

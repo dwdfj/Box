@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 外层列表 layoutAnimation(逐项 12% 延迟渐入) -->
+<layoutAnimation xmlns:android="http://schemas.android.com/apk/res/android"
+    android:animation="@anim/music_enter"
+    android:animationOrder="normal"
+    android:delay="12%" />

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 焦点辉光描边(banner 大图聚焦时) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <stroke
+        android:width="@dimen/vs_3"
+        android:color="#B3FFFFFF" />
+    <corners android:radius="@dimen/vs_20" />
+</shape>

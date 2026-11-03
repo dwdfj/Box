@@ -180,4 +180,13 @@
     <style name="surfaceType_texture">
         <item name="surface_type">texture_view</item>
     </style>
+    <!-- 小贾影视仓 v27.4: 音乐模块圆角封面 -->
+    <style name="XjRounded20">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/vs_20</item>
+    </style>
+    <style name="XjRounded12">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/vs_12</item>
+    </style>
 </resources>

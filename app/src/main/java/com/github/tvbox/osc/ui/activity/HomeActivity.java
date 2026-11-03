@@ -331,11 +331,18 @@ public class HomeActivity extends BaseActivity {
                 jumpActivity(LivePlayActivity.class);
             }
         });
-        // 小贾影视仓 B1: 音乐入口 —— 拉起喵音乐(互拉深链方案), 未安装给提示
+        // 小贾影视仓 v27.2(B1/C+): 音乐入口 —— 点击进内置音乐页(QuickJS 洛雪运行时);
+        // 长按拉起喵音乐(互拉深链), 未安装给提示
         tvMusic.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 FastClickCheckUtil.check(view);
+                jumpActivity(MusicActivity.class);
+            }
+        });
+        tvMusic.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
                 try {
                     Intent mIntent = getPackageManager().getLaunchIntentForPackage(MIAO_MUSIC_PKG);
                     if (mIntent != null) {
@@ -347,6 +354,7 @@ public class HomeActivity extends BaseActivity {
                 } catch (Throwable e) {
                     Toast.makeText(mContext, "打开喵音乐失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
+                return true;
             }
         });
         // Button : Settings >> To go into App Settings ----------------

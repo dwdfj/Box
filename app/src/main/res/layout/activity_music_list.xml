@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 歌单/榜单详情页(Voyage 式双栏) —— 左: 大封面+歌单信息+播放全部; 右: 歌曲列表 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/color_aurora_bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="@dimen/vs_20">
+
+        <TextView
+            android:id="@+id/musicListBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/shape_top_icon_btn"
+            android:focusable="true"
+            android:nextFocusRight="@+id/musicListSource"
+            android:padding="@dimen/vs_16"
+            android:text="←"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_40" />
+
+        <TextView
+            android:id="@+id/musicListTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="@dimen/vs_20"
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_36"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/musicListSource"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/shape_top_icon_btn"
+            android:focusable="true"
+            android:nextFocusLeft="@+id/musicListBack"
+            android:nextFocusDown="@+id/musicSongList"
+            android:paddingLeft="@dimen/vs_24"
+            android:paddingTop="@dimen/vs_16"
+            android:paddingRight="@dimen/vs_24"
+            android:paddingBottom="@dimen/vs_16"
+            android:text="音源"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_30" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/musicListStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="@dimen/vs_24"
+        android:paddingTop="@dimen/vs_10"
+        android:paddingRight="@dimen/vs_24"
+        android:singleLine="true"
+        android:text=""
+        android:textColor="@color/color_FFFFFF_50"
+        android:textSize="@dimen/ts_24" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <!-- 左栏: 封面详情 -->
+        <LinearLayout
+            android:id="@+id/musicLeftPane"
+            android:layout_width="@dimen/vs_640"
+            android:layout_height="match_parent"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/vs_24"
+            android:paddingTop="@dimen/vs_10"
+            android:paddingRight="@dimen/vs_24">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/musicPaneCover"
+                android:layout_width="@dimen/vs_480"
+                android:layout_height="@dimen/vs_480"
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/XjRounded20" />
+
+            <TextView
+                android:id="@+id/musicPaneTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_20"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_34"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/musicPaneDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_8"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:textColor="@color/color_FFFFFF_50"
+                android:textSize="@dimen/ts_26" />
+
+            <TextView
+                android:id="@+id/musicPlayAll"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_24"
+                android:background="@drawable/shape_top_icon_btn"
+                android:focusable="true"
+                android:nextFocusDown="@+id/musicSongList"
+                android:paddingLeft="@dimen/vs_40"
+                android:paddingTop="@dimen/vs_20"
+                android:paddingRight="@dimen/vs_40"
+                android:paddingBottom="@dimen/vs_20"
+                android:text="▶  播放全部"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_30"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 右栏: 歌曲列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/musicSongList"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:layoutAnimation="@anim/layout_music_enter"
+            android:paddingLeft="@dimen/vs_16"
+            android:paddingTop="@dimen/vs_10"
+            android:paddingRight="@dimen/vs_16"
+            android:paddingBottom="@dimen/vs_20" />
+    </LinearLayout>
+
+    <!-- 播放进度细条 -->
+    <ProgressBar
+        android:id="@+id/musicProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/vs_3"
+        android:layout_marginLeft="@dimen/vs_24"
+        android:layout_marginRight="@dimen/vs_24"
+        android:layout_marginBottom="@dimen/vs_10"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="#B3FFFFFF"
+        android:visibility="gone" />
+
+    <!-- 底部播放条 -->
+    <LinearLayout
+        android:id="@+id/musicPlayerBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/vs_16"
+        android:background="@drawable/shape_music_bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="@dimen/vs_20"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/musicNowCover"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
+            android:scaleType="centerCrop" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="@dimen/vs_20"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/musicNowName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_28" />
+
+            <TextView
+                android:id="@+id/musicNowInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:textColor="@color/color_FFFFFF_50"
+                android:textSize="@dimen/ts_24" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/musicPlayPause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/shape_top_icon_btn"
+            android:focusable="true"
+            android:padding="@dimen/vs_20"
+            android:text="⏸"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_36" />
+    </LinearLayout>
+</LinearLayout>

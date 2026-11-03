@@ -62,6 +62,8 @@ public class App extends MultiDexApplication {
     @Override
     public void onCreate() {
         super.onCreate();
+        // 小贾影视仓 v27.3: music 包全局上下文(MusicPlayer 单例用)
+        com.github.tvbox.osc.music.AppContextHolder.init(this);
         // 小贾影视仓 v15.1: 全局崩溃日志 —— 任何未捕获异常(含切线路闪退)追加写入私有目录 xj_crash.log,
         // 便于线上诊断。捕获后仍交给系统默认处理器(照常弹崩溃/重启)。
         try {

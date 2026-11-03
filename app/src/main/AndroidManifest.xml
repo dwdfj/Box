@@ -101,7 +101,14 @@
         <activity
             android:name=".ui.activity.SettingActivity"
             android:screenOrientation="sensorPortrait" />
-            
+        <!-- 小贾影视仓 v27.2: 内置音乐页(方案C+ 洛雪运行时) -->
+        <activity
+            android:name=".ui.activity.MusicActivity"
+            android:screenOrientation="sensorPortrait" />
+        <activity
+            android:name=".ui.activity.MusicListActivity"
+            android:screenOrientation="sensorPortrait" />
+
         <service
             android:name=".server.PlayService"
             android:exported="false"

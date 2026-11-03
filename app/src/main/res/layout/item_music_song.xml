@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.4: 歌曲行(圆角封面+焦点缩放由代码挂) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:descendantFocusability="blocksDescendants"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="@dimen/vs_20"
+    android:paddingTop="@dimen/vs_12"
+    android:paddingRight="@dimen/vs_20"
+    android:paddingBottom="@dimen/vs_12">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/itemSongCover"
+        android:layout_width="@dimen/vs_110"
+        android:layout_height="@dimen/vs_110"
+        android:scaleType="centerCrop"
+        app:shapeAppearanceOverlay="@style/XjRounded12" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_20"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/itemSongName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_30" />
+
+        <TextView
+            android:id="@+id/itemSongSinger"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:textColor="@color/color_FFFFFF_50"
+            android:textSize="@dimen/ts_24" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/itemSongDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/color_FFFFFF_50"
+        android:textSize="@dimen/ts_22" />
+</LinearLayout>
