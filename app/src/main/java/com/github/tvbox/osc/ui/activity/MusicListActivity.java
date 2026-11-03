@@ -148,12 +148,11 @@ public class MusicListActivity extends BaseActivity {
     private class SongAdapter extends RecyclerView.Adapter<SongAdapter.Holder> {
 
         class Holder extends RecyclerView.ViewHolder {
-            ImageView cover;
-            TextView name, singer, duration;
+            TextView index, name, singer, duration;
 
             Holder(View v) {
                 super(v);
-                cover = v.findViewById(R.id.itemSongCover);
+                index = v.findViewById(R.id.itemSongIndex);
                 name = v.findViewById(R.id.itemSongName);
                 singer = v.findViewById(R.id.itemSongSinger);
                 duration = v.findViewById(R.id.itemSongDuration);
@@ -178,15 +177,13 @@ public class MusicListActivity extends BaseActivity {
             MusicApi.Song s = songs.get(position);
             MusicApi.Song cur = MusicPlayer.get().current();
             boolean now = cur != null && cur.songmid != null && cur.songmid.equals(s.songmid);
-            h.name.setText((now ? "▶ " : "") + (position + 1) + ". " + s.name);
+            // v27.9 喵音乐式: 编号列; 正在播放行用金色 ▶ 替代编号
+            h.index.setText(now ? "▶" : String.valueOf(position + 1));
+            h.index.setTextColor(now ? COLOR_GOLD : 0x66FFFFFF);
+            h.name.setText(s.name);
             h.name.setTextColor(now ? COLOR_GOLD : Color.WHITE);
             h.singer.setText(s.singer + (s.album.isEmpty() ? "" : " · " + s.album));
             h.duration.setText(s.durationMs > 0 ? formatMs(s.durationMs) : "");
-            if (s.cover != null && !s.cover.isEmpty()) {
-                Glide.with(mContext).load(s.cover).into(h.cover);
-            } else {
-                h.cover.setImageResource(android.R.drawable.ic_media_play);
-            }
         }
 
         @Override

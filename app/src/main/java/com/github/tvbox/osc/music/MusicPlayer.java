@@ -160,14 +160,41 @@ public class MusicPlayer {
         }
         loading = true;
         qualityIdx = 0;
-        attempt(song, true);
+        runtime(); // v27.9 修复: 必须先构造 runtime(装载音源), 否则 sourceKeys 为空 → 恒报"无可用音源"
+        attempt(song, true, 0);
     }
 
     private void attempt(final MusicApi.Song song, final boolean allowFallback) {
+        attempt(song, allowFallback, 0);
+    }
+
+    private void attempt(final MusicApi.Song song, final boolean allowFallback, final int waitCnt) {
+        // v27.9: runtime() 里 loadSource 是 post 到 JS 线程的, env 未装好前等待重试(最多 ~7s)
+        if (runtime().getSources().isEmpty()) {
+            if (waitCnt < 24) {
+                notifyStatus("音源启动中…(" + waitCnt + ")");
+                main.postDelayed(() -> attempt(song, allowFallback, waitCnt + 1), 300);
+                return;
+            }
+            loading = false;
+            notifyError("音源加载失败，请点「源」切换重试");
+            return;
+        }
         final String key = currentSourceKey();
         if (key == null) {
             loading = false;
             notifyError("无可用音源");
+            return;
+        }
+        // 单个源脚本还没 evaluate 完: 等它而不是立刻报错
+        if (!runtime().getSources().containsKey(key)) {
+            if (waitCnt < 24) {
+                notifyStatus("音源装载中…");
+                main.postDelayed(() -> attempt(song, allowFallback, waitCnt + 1), 300);
+                return;
+            }
+            loading = false;
+            notifyError("音源未就绪，请稍后重试");
             return;
         }
         notifyStatus("取链中(" + currentSourceName() + " " + QUALITY_FALLBACK[qualityIdx] + ")…");
