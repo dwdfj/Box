@@ -2,16 +2,16 @@
 <!-- 小贾影视仓 v27.5: 音乐厅封面卡片(横行内固定宽 240 方形圆角封面, TV 焦点缩放由代码挂) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="@dimen/vs_240"
+    android:layout_width="@dimen/vs_280"
     android:layout_height="wrap_content"
     android:descendantFocusability="blocksDescendants"
     android:focusable="true"
     android:orientation="vertical">
 
     <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/itemSheetCover"
-        android:layout_width="@dimen/vs_240"
-        android:layout_height="@dimen/vs_240"
+            android:id="@+id/itemSheetCover"
+            android:layout_width="@dimen/vs_280"
+            android:layout_height="@dimen/vs_280"
         android:scaleType="centerCrop"
         app:shapeAppearanceOverlay="@style/XjRounded20" />
 

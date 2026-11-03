@@ -46,6 +46,10 @@ public final class BarBind implements MusicPlayer.Listener {
         MusicPlayer p = MusicPlayer.get();
         p.addListener(this); // v27.8: 多监听器, 不再独占槽位
         playPause.setOnClickListener(v -> p.toggle());
+        // v27.10: 点播放条任意处进全屏播放页
+        bar.setOnClickListener(v -> v.getContext().startActivity(
+                new android.content.Intent(v.getContext(),
+                        com.github.tvbox.osc.ui.activity.MusicNowActivity.class)));
         MusicApi.Song cur = p.current();
         if (cur != null) {
             show(cur, "", "");

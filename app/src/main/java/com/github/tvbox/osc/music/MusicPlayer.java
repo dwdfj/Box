@@ -143,6 +143,15 @@ public class MusicPlayer {
         return (float) player.getCurrentPosition() / player.getDuration();
     }
 
+    /** v27.10: 全屏播放页用。 */
+    public long positionMs() {
+        return player == null ? 0 : Math.max(0, player.getCurrentPosition());
+    }
+
+    public long durationMs() {
+        return player == null || player.getDuration() <= 0 ? 0 : player.getDuration();
+    }
+
     public void toggle() {
         if (player == null) return;
         if (player.isPlaying()) {
@@ -167,26 +176,39 @@ public class MusicPlayer {
         attemptDirect(song, 0);
     }
 
-    /** v27.9 换方案: 优先直连 HTTP 取链端点链(数据面实测可用), 全败再回落 JS 音源运行时。 */
-    private static final String[] DIRECT_Q = {"320k", "128k", "flac"};
+    /** v27.10: 音质 flac 优先(端点已实测支持无损), 「音源」按钮循环切换偏好。 */
+    private static final String[] DIRECT_Q = {"flac", "320k", "128k"};
+    private int preferQ = 0;
 
-    private void attemptDirect(final MusicApi.Song song, final int qIdx) {
-        qualityIdx = Math.min(qIdx, QUALITY_FALLBACK.length - 1);
-        lastQuality = DIRECT_Q[qIdx];
-        lastSourceName = null; // 直连
-        notifyStatus("取链中(直连 · " + DIRECT_Q[qIdx] + ")…");
-        MusicDirect.fetch(song.songmid, DIRECT_Q[qIdx], (url, err) -> {
+    public String cycleQuality() {
+        preferQ = (preferQ + 1) % DIRECT_Q.length;
+        return DIRECT_Q[preferQ];
+    }
+
+    public String preferredQuality() {
+        return DIRECT_Q[preferQ];
+    }
+
+    private void attemptDirect(final MusicApi.Song song, final int i) {
+        if (i >= DIRECT_Q.length) {
+            notifyStatus("直连失败，尝试内置音源…");
+            attemptJs(song, 0, 0);
+            return;
+        }
+        final int qSlot = (preferQ + i) % DIRECT_Q.length;
+        final String q = DIRECT_Q[qSlot];
+        qualityIdx = Math.min(i, QUALITY_FALLBACK.length - 1);
+        lastQuality = q;
+        lastSourceName = null; // 直连(名称由回调填)
+        notifyStatus("取链中(直连 · " + q + ")…");
+        MusicDirect.fetch(song.songmid, q, (sourceName, url, err) -> {
             if (!loading) return; // 已被超时/新点击接管
             if (url != null && !TextUtils.isEmpty(url)) {
+                lastSourceName = sourceName;
                 startPlay(song, url);
                 return;
             }
-            if (qIdx + 1 < QUALITY_FALLBACK.length) {
-                attemptDirect(song, qIdx + 1);
-                return;
-            }
-            notifyStatus("直连失败，尝试内置音源…");
-            attemptJs(song, 0, 0);
+            attemptDirect(song, i + 1);
         });
     }
 

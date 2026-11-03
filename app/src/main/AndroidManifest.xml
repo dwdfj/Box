@@ -108,6 +108,10 @@
         <activity
             android:name=".ui.activity.MusicListActivity"
             android:screenOrientation="sensorPortrait" />
+        <!-- 小贾影视仓 v27.10: 全屏播放页 -->
+        <activity
+            android:name=".ui.activity.MusicNowActivity"
+            android:screenOrientation="sensorPortrait" />
 
         <service
             android:name=".server.PlayService"

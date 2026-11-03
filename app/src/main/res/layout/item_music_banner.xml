@@ -2,8 +2,8 @@
 <!-- 小贾影视仓 v27.5: 首页推荐大图卡(横滑 Banner, 700x300 圆角 + 底部渐变 + 标题) -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="@dimen/vs_700"
-    android:layout_height="@dimen/vs_300"
+    android:layout_width="@dimen/vs_900"
+    android:layout_height="@dimen/vs_380"
     android:descendantFocusability="blocksDescendants"
     android:focusable="true">
 

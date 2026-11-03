@@ -34,8 +34,6 @@ public class MusicActivity extends BaseActivity {
     private static final int TYPE_BANNER_ROW = 0;
     private static final int TYPE_SECTION_ROW = 1;
 
-    private static final String[] NAV_NAMES = {"音乐馆", "排行榜", "精品歌单"};
-
     /** 外层行: banner 模式=整行大图; section 模式=标题+横向封面列表。 */
     private static class Row {
         int type;
@@ -48,10 +46,8 @@ public class MusicActivity extends BaseActivity {
     private final List<MusicApi.Sheet> topListCache = new ArrayList<>();
     private final List<MusicApi.Sheet> hotSheetCache = new ArrayList<>();
     private RowsAdapter rowsAdapter;
-    private NavAdapter navAdapter;
-    private TextView statusView, sourceBtn, paneTitle;
+    private TextView statusView, sourceBtn;
     private BarBind bar;
-    private int navSel = 0;
 
     /** v27.8: 页面自身监听器 —— 取链/播放/错误全部上屏(此前被 BarBind 独占, 点击无任何反馈)。 */
     private final MusicPlayer.Listener pageListener = new MusicPlayer.Listener() {
@@ -71,13 +67,6 @@ public class MusicActivity extends BaseActivity {
         MusicPlayer.get().addListener(pageListener);
         statusView = findViewById(R.id.musicStatus);
         sourceBtn = findViewById(R.id.musicSourceBtn);
-        paneTitle = findViewById(R.id.musicPaneTitle);
-
-        RecyclerView nav = findViewById(R.id.musicNav);
-        navAdapter = new NavAdapter();
-        // v27.9: 导航改顶部横向标签页(上下布局)
-        nav.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        nav.setAdapter(navAdapter);
 
         RecyclerView rv = findViewById(R.id.musicRows);
         rowsAdapter = new RowsAdapter();
@@ -86,9 +75,10 @@ public class MusicActivity extends BaseActivity {
 
         findViewById(R.id.musicBack).setOnClickListener(v -> finish());
         sourceBtn.setOnClickListener(v -> {
-            String name = MusicPlayer.get().nextSource();
-            updateSourceLabel();
-            setStatus("已切换音源: " + name);
+            // v27.10: 「音源」按钮 = 音质偏好循环(flac/320k/128k)
+            String q = MusicPlayer.get().cycleQuality();
+            sourceBtn.setText(q);
+            setStatus("音质偏好已切至 " + q + "，下次点歌生效");
         });
         findViewById(R.id.musicSearchBtn).setOnClickListener(v -> doSearch());
         EditText input = findViewById(R.id.musicSearchInput);
@@ -106,7 +96,7 @@ public class MusicActivity extends BaseActivity {
                 findViewById(R.id.musicProgress));
         bar.bind(this);
 
-        updateSourceLabel();
+        sourceBtn.setText(MusicPlayer.get().preferredQuality());
         loadHall();
     }
 
@@ -118,13 +108,13 @@ public class MusicActivity extends BaseActivity {
     }
 
     private void loadHall() {
-        setStatus("正在加载音乐馆…");
+        setStatus("正在加载…");
         MusicApi.topLists((err, data) -> {
             if (data != null && !data.isEmpty()) {
                 topListCache.clear();
                 topListCache.addAll(data);
             }
-            if (navSel == 0 || navSel == 1) rebuildRows();
+            rebuildRows();
             MusicApi.hotSheets("全部", (err2, data2) -> {
                 if (data2 != null && !data2.isEmpty()) {
                     hotSheetCache.clear();
@@ -138,28 +128,16 @@ public class MusicActivity extends BaseActivity {
         });
     }
 
-    /** 按当前导航页重建内容行。 */
+    /** v27.10: 单首页(照喵音乐) —— Banner + 官方榜单 + 精品歌单, 无标签页。 */
     private void rebuildRows() {
         rows.clear();
         banners.clear();
-        int sel = navSel;
-        if (sel == 0) { // 音乐馆: Banner + 官方榜单 + 精品歌单
-            if (!topListCache.isEmpty()) {
-                banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
-                rows.add(bannerRow());
-                rows.add(sectionRow("官方榜单", topListCache));
-            }
-            if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
-        } else if (sel == 1) { // 排行榜
-            if (!topListCache.isEmpty()) {
-                banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
-                rows.add(bannerRow());
-                rows.add(sectionRow("官方榜单", topListCache));
-            }
-        } else { // 精品歌单
-            if (!hotSheetCache.isEmpty()) rows.add(sectionRow("热门精品", hotSheetCache));
+        if (!topListCache.isEmpty()) {
+            banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
+            rows.add(bannerRow());
+            rows.add(sectionRow("官方榜单", topListCache));
         }
-        paneTitle.setText(NAV_NAMES[sel]);
+        if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
         rowsAdapter.notifyDataSetChanged();
         if (!rows.isEmpty()) {
             ((ViewGroup) findViewById(R.id.musicRows)).scheduleLayoutAnimation();
@@ -180,13 +158,6 @@ public class MusicActivity extends BaseActivity {
         return r;
     }
 
-    private void selectNav(int idx) {
-        if (navSel == idx || idx < 0) return;
-        navSel = idx;
-        navAdapter.notifyDataSetChanged();
-        rebuildRows();
-    }
-
     private void openSheet(MusicApi.Sheet s) {
         Intent it = new Intent(this, MusicListActivity.class);
         it.putExtra(MusicListActivity.EXTRA_MODE, MusicListActivity.MODE_SHEET);
@@ -205,55 +176,11 @@ public class MusicActivity extends BaseActivity {
         startActivity(it);
     }
 
-    private void updateSourceLabel() {
-        String name = MusicPlayer.get().currentSourceName();
-        sourceBtn.setText(TextUtils.isEmpty(name) ? "音源" : name + " ▾");
-    }
-
     private void setStatus(String s) {
         statusView.setText(s);
     }
 
-    // ---------------- 左侧导航轨 ----------------
-
-    private class NavAdapter extends RecyclerView.Adapter<NavAdapter.Holder> {
-
-        class Holder extends RecyclerView.ViewHolder {
-            final View dot;
-            final TextView name;
-
-            Holder(View v) {
-                super(v);
-                dot = v.findViewById(R.id.navDot);
-                name = v.findViewById(R.id.navName);
-                FocusScale.attach(v, 1.03f);
-                v.setOnClickListener(v1 -> selectNav(getAdapterPosition()));
-            }
-        }
-
-        @NonNull
-        @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new Holder(getLayoutInflater().inflate(R.layout.item_music_nav, parent, false));
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull Holder h, int position) {
-            boolean sel = position == navSel;
-            h.name.setText(NAV_NAMES[position]);
-            h.name.setTextColor(sel ? 0xFFFFFFFF : 0xB3FFFFFF);
-            h.name.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-            h.dot.setVisibility(sel ? View.VISIBLE : View.INVISIBLE);
-            h.itemView.setNextFocusDownId(R.id.musicRows); // v27.9: 横向标签, 焦点下移进内容区
-        }
-
-        @Override
-        public int getItemCount() {
-            return NAV_NAMES.length;
-        }
-    }
-
-    // ---------------- 右侧内容行 ----------------
+    // ---------------- 内容行 ----------------
 
     private class RowsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 

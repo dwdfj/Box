@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.10: 全屏播放页粉紫圆形按钮 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:angle="0" android:startColor="#FF6E9C" android:endColor="#8E6BFF" />
+</shape>

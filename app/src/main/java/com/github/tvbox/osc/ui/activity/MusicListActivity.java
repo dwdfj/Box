@@ -71,9 +71,10 @@ public class MusicListActivity extends BaseActivity {
 
         findViewById(R.id.musicListBack).setOnClickListener(v -> finish());
         sourceBtn.setOnClickListener(v -> {
-            String name = MusicPlayer.get().nextSource();
-            sourceBtn.setText("源"); // v27.8: 圆形按钮只放图标字, 源名进状态行
-            setStatus("已切换音源: " + name + "，重新点歌即可");
+            // v27.10: 音质偏好循环(flac/320k/128k)
+            String q = MusicPlayer.get().cycleQuality();
+            sourceBtn.setText(q.substring(0, 1));
+            setStatus("音质偏好已切至 " + q + "，下次点歌生效");
         });
         findViewById(R.id.musicPlayAll).setOnClickListener(v -> {
             if (!songs.isEmpty()) MusicPlayer.get().play(songs.get(0));
