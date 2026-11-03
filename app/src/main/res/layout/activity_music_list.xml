@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/color_aurora_bg"
+    android:background="@drawable/bg_music_sky"
     android:orientation="vertical">
 
     <LinearLayout
@@ -18,7 +18,7 @@
             android:id="@+id/musicListBack"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/shape_top_icon_btn"
+            android:background="@drawable/bg_music_pill"
             android:focusable="true"
             android:nextFocusRight="@+id/musicListSource"
             android:padding="@dimen/vs_16"
@@ -41,7 +41,7 @@
             android:id="@+id/musicListSource"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/shape_top_icon_btn"
+            android:background="@drawable/bg_music_pill"
             android:focusable="true"
             android:nextFocusLeft="@+id/musicListBack"
             android:nextFocusDown="@+id/musicSongList"
@@ -116,7 +116,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/vs_24"
-                android:background="@drawable/shape_top_icon_btn"
+                android:background="@drawable/bg_music_accent_btn"
                 android:focusable="true"
                 android:nextFocusDown="@+id/musicSongList"
                 android:paddingLeft="@dimen/vs_40"
@@ -154,7 +154,7 @@
         android:layout_marginBottom="@dimen/vs_10"
         android:max="1000"
         android:progress="0"
-        android:progressTint="#B3FFFFFF"
+        android:progressDrawable="@drawable/bg_music_accent_bar"
         android:visibility="gone" />
 
     <!-- 底部播放条 -->
@@ -162,8 +162,10 @@
         android:id="@+id/musicPlayerBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="@dimen/vs_16"
-        android:background="@drawable/shape_music_bar"
+        android:layout_marginLeft="@dimen/vs_24"
+        android:layout_marginRight="@dimen/vs_24"
+        android:layout_marginBottom="@dimen/vs_20"
+        android:background="@drawable/bg_music_player_bar"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="@dimen/vs_20"

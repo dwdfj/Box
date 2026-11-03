@@ -1642,6 +1642,8 @@ public class HomeActivity extends BaseActivity {
             {"南风·XC 91站", "https://445569.pages.dev/https://raw.githubusercontent.com/yoursmile66/TVBox/main/XC.json"}, // 754~856ms(2423 变体 B, v27.24 修好解密; 旧代理要 35~77 秒)
             {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},             // 1004~1031ms
             {"肥猫·39站", "http://xn--z7x900a.net/tv"},                                // 929~2293ms(punycode; 中文域名 okhttp 会直接判非法 URL)
+            // v27.5: 专项动漫仓 —— 新方式1(网络单仓, 零内置风险); 实测 200 OK/8.7KB, 全 drpy/csp 动漫站
+            {"动漫城·二次元", "https://www.yingm.cc/dm/dm.json"},
             {"菜泥丝·37站", "https://tv.xn--yhqu5zs87a.top"}                          // 1366~3030ms
     };
 

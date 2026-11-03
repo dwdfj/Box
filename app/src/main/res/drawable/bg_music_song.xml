@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 歌曲行焦点底(强调色 18% 圆角块, TV 焦点可读性) -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33FFFFFF">
+    <item>
+        <shape>
+            <solid android:color="#00000000" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</ripple>

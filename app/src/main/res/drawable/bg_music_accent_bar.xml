@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: 音乐渐变强调条(粉→紫, 分区标题小色条/进度条) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="0"
+        android:startColor="@color/music_accent"
+        android:endColor="@color/music_accent2" />
+    <corners android:radius="99dp" />
+</shape>

@@ -131,7 +131,11 @@ public class LxRuntime {
                         + jq(name) + ",\"description\":\"box builtin\",\"version\":\"1.0\",\"author\":\"xj\"}}";
                 String escaped = jq(rawScript);
                 // 与 Voyage 相同的装配顺序: __lx_setup__(key, setupJson, rawScript)
+                // 注意: __lx_setup__ 只把 rawScript 存进 currentScriptInfo(preload.js:572), 从不执行它 ——
+                // 音源脚本必须由宿主在 setup 之后、同一 ctx 里直接 evaluate(v27.5 第二个致命bug:
+                // 此前从未跑过音源脚本, handlers.request 永远为空 → "Request event is not defined")。
                 ctx.evaluate("globalThis.__lx_setup__(" + jq(key) + "," + setupJson + "," + escaped + ");");
+                ctx.evaluate(rawScript);
                 envs.put(key, env);
                 sources.put(key, name);
                 Log.d(TAG, "source loaded: " + key);

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.5: banner 焦点辉光(粉紫渐变描边) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <stroke android:width="3dp" android:color="@color/music_accent" />
+    <corners android:radius="24dp" />
+</shape>
