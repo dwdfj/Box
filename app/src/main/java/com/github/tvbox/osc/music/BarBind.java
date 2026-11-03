@@ -132,8 +132,15 @@ public final class BarBind implements MusicPlayer.Listener {
         StringBuilder sb = new StringBuilder(song.singer == null ? "" : song.singer);
         if (song.album != null && !song.album.isEmpty()) sb.append(" · ").append(song.album);
         info.setText(sb.toString());
+        // v27.16: 没有封面(或图 404)时铺一张「歌名首字渐变图」, 不再留黑块
+        android.graphics.drawable.Drawable fallback =
+                new android.graphics.drawable.BitmapDrawable(
+                        bar.getResources(), CoverFallback.render(song.name, 256));
         if (song.cover != null && !song.cover.isEmpty()) {
-            Glide.with(bar.getContext()).load(song.cover).into(cover);
+            Glide.with(bar.getContext()).load(song.cover)
+                    .placeholder(fallback).error(fallback).into(cover);
+        } else {
+            cover.setImageDrawable(fallback);
         }
     }
 }

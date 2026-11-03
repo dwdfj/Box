@@ -15,18 +15,18 @@
         android:paddingBottom="@dimen/vs_18">
 
         <View
-            android:layout_width="@dimen/vs_10"
-            android:layout_height="@dimen/vs_42"
+            android:layout_width="@dimen/vs_12"
+            android:layout_height="@dimen/vs_48"
             android:background="@drawable/bg_music_accent_bar" />
 
         <TextView
             android:id="@+id/rowTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/vs_16"
+            android:layout_marginLeft="@dimen/vs_18"
             android:focusable="false"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_40"
+            android:textSize="@dimen/ts_44"
             android:textStyle="bold" />
     </LinearLayout>
 

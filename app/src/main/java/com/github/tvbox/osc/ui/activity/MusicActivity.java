@@ -98,9 +98,11 @@ public class MusicActivity extends BaseActivity {
         TextView greetSub = findViewById(R.id.musicGreetSub);
         TextView greet = findViewById(R.id.musicPaneTitle);
         Calendar c = Calendar.getInstance();
-        greetSub.setText((c.get(Calendar.MONTH) + 1) + "月" + c.get(Calendar.DAY_OF_MONTH) + "日 " + WEEK[c.get(Calendar.DAY_OF_WEEK) - 1]);
+        greetSubText = (c.get(Calendar.MONTH) + 1) + "月" + c.get(Calendar.DAY_OF_MONTH) + "日 " + WEEK[c.get(Calendar.DAY_OF_WEEK) - 1];
+        greetSub.setText(greetSubText);
         int h = c.get(Calendar.HOUR_OF_DAY);
-        greet.setText(h < 5 ? "夜深了" : h < 12 ? "早上好" : h < 18 ? "下午好" : "晚上好");
+        greetTitle = h < 5 ? "夜深了" : h < 12 ? "早上好" : h < 18 ? "下午好" : "晚上好";
+        greet.setText(greetTitle);
 
         RecyclerView rv = findViewById(R.id.musicRows);
         rowsAdapter = new RowsAdapter();
@@ -108,13 +110,6 @@ public class MusicActivity extends BaseActivity {
         rv.setAdapter(rowsAdapter);
 
         findViewById(R.id.musicBack).setOnClickListener(v -> finish());
-        // v27.15: 线路胶囊旁的音乐胶囊 —— 已在音乐首页, 点它回到「首页」tab 并聚焦内容区
-        findViewById(R.id.musicEnterBtn).setOnClickListener(v -> {
-            setMode(false);
-            RecyclerView rowsRv = findViewById(R.id.musicRows);
-            rowsRv.requestFocus();
-            if (rowsAdapter != null && rowsAdapter.getItemCount() > 0) rowsRv.scrollToPosition(0);
-        });
         sourceBtn.setOnClickListener(v -> LineDialog.show(this, name -> {
             sourceBtn.setText(name);
             setStatus("线路已切到 " + name);
@@ -169,8 +164,20 @@ public class MusicActivity extends BaseActivity {
         tabMine.setBackgroundResource(mine ? R.drawable.bg_music_accent_btn : android.R.color.transparent);
         tabMine.setTextColor(getResources().getColor(mine ? R.color.color_FFFFFF : R.color.music_sub));
         tabHome.setTextColor(getResources().getColor(mine ? R.color.music_sub : R.color.color_FFFFFF));
+        // v27.16: 「我的」不是副本首页 —— 标题与状态行跟着换, 否则两个 tab 长得一样分不清
+        TextView title = findViewById(R.id.musicPaneTitle);
+        if (title != null) title.setText(mine ? "我的" : greetTitle);
+        TextView sub = findViewById(R.id.musicGreetSub);
+        if (sub != null) {
+            sub.setText(mine ? "收藏 · 最近播放" : greetSubText);
+        }
+        setStatus(mine ? "我的音乐库" : "为你推荐");
         rebuildRows();
     }
+
+    /** 「首页」模式下的大标题与副标题(切到「我的」后要能切回来)。 */
+    private String greetTitle = "晚上好";
+    private String greetSubText = "";
 
     @Override
     protected void onDestroy() {
@@ -193,9 +200,10 @@ public class MusicActivity extends BaseActivity {
                     hotSheetCache.addAll(data2);
                 }
                 rebuildRows();
+                // v27.16: 原来这里显示「上下键选行, 左右键选封面, OK 进入」—— TV 操作提示
+                // 不该占首页, 按老大要求去掉, 状态行只在异常时提示
                 setStatus(topListCache.isEmpty() && hotSheetCache.isEmpty()
-                        ? "加载失败: " + (err != null ? err : err2)
-                        : "上下键选行, 左右键选封面, OK 进入");
+                        ? "加载失败: " + (err != null ? err : err2) : "为你推荐");
             });
         });
     }
@@ -223,6 +231,10 @@ public class MusicActivity extends BaseActivity {
                 rows.add(r);
             }
         } else {
+            // v27.16: 首页精简 —— 每日推荐 → 最近播放 → 精品歌单。
+            // 原来的「飙升榜大色块 banner」+「官方榜单」整块删掉:
+            //   banner 是纯装饰, 下面官方榜单又是同一批榜单, 重复且造成视觉噪音。
+            // 榜单/歌单只保留「精品歌单」一个入口, 点进去再挑。
             if (!topListCache.isEmpty()) {
                 banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
                 Row daily = new Row();
@@ -235,8 +247,6 @@ public class MusicActivity extends BaseActivity {
                     rr.songs = rec;
                     rows.add(rr);
                 }
-                rows.add(bannerRow());
-                rows.add(sectionRow("官方榜单", topListCache));
             }
             if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
         }
@@ -469,9 +479,7 @@ public class MusicActivity extends BaseActivity {
         public void onBindViewHolder(@NonNull Holder h, int position) {
             MusicApi.Sheet s = banners.get(position);
             h.title.setText(s.name);
-            if (s.cover != null && !s.cover.isEmpty()) {
-                Glide.with(mContext).load(s.cover).into(h.cover);
-            }
+            com.github.tvbox.osc.music.CoverFallback.load(h.cover, s.cover, s.name);
             h.ring.setVisibility(View.INVISIBLE);
         }
 
@@ -513,9 +521,7 @@ public class MusicActivity extends BaseActivity {
             MusicApi.Sheet s = sheets.get(position);
             h.name.setText(s.name);
             h.sub.setText(s.sub == null ? "" : s.sub);
-            if (s.cover != null && !s.cover.isEmpty()) {
-                Glide.with(mContext).load(s.cover).into(h.cover);
-            }
+            com.github.tvbox.osc.music.CoverFallback.load(h.cover, s.cover, s.name);
         }
 
         @Override
@@ -556,11 +562,7 @@ public class MusicActivity extends BaseActivity {
             MusicApi.Song s = songs.get(position);
             h.name.setText(s.name);
             h.singer.setText(s.singer);
-            if (s.cover != null && !s.cover.isEmpty()) {
-                Glide.with(mContext).load(s.cover).into(h.cover);
-            } else {
-                h.cover.setImageResource(android.R.drawable.ic_media_play);
-            }
+            com.github.tvbox.osc.music.CoverFallback.load(h.cover, s.cover, s.name);
         }
 
         @Override

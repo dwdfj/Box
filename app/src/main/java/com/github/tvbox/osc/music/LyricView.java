@@ -2,6 +2,7 @@ package com.github.tvbox.osc.music;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -14,30 +15,37 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 小贾影视仓 v27.15: 歌词动效(流行做法, 参照网易云/Spotify 的歌词层) ——
+ * 小贾影视仓 v27.16: 歌词动效 —— 定稿为「卡拉OK扫光 + 发光描边 + 景深 + 呼吸」。
  *
- * 1. 当前行「逐字点亮」: 已唱部分高亮色, 未唱部分半透明, 交界处有一段柔和渐变,
- *    跟播放进度实时推进(这才是真正的歌词播放特效, 不是整行一起变色);
- * 2. 当前行放大 + 轻微呼吸(±1.5% 缩放), 视线焦点始终在中间;
- * 3. 上下行按距离四级渐隐(0xCC / 0x88 / 0x55 / 0x22), 远端直接不画, 省性能;
- * 4. 行切换用 DecelerateInterpolator 平滑滚动(280ms), 不是生硬跳;
- * 5. 点击任意行 seek 到该行; 长按拖动可快速定位。
+ * 用户看过 A~F 六种方案后选定的组合(知识库「歌词动效」条目已更新):
+ *   ① 卡拉OK扫光: 当前行盖一层亮色底, 随时间从左扫到右, 扫过即变「实心亮白」,
+ *      未扫到是半透明灰白。比逐字点亮更连贯, 不会一个字一个字蹦。
+ *   ② 发光描边: 扫光经过的那一小段文字带柔和辉光(BlurMaskFilter), 暗底上很出片。
+ *   ③ 景深: 当前行最大最亮; ±1 行缩到 0.78、α0.55; ±2 行缩到 0.66、α0.28;
+ *      再远不画。这就是 Apple Music 那种「中间清楚、上下虚掉」的纵深感。
+ *   ④ 呼吸: 当前行 ±1.5% 缩放, 2600ms 往返。
+ *   ⑤ 行切换 280ms DecelerateInterpolator 平滑滚动, 不生硬跳。
+ *
+ * 性能注意: BlurMaskFilter 在部分低端机上掉帧, 所以辉光只画在扫光头部那一小块区域
+ * (clip 到 splitX±band), 不是整行开 blur。
  */
 public class LyricView extends View {
     public interface OnSeekListener {
         void onSeek(long timeMs);
     }
 
-    private static final int C_DONE = 0xFFFFFFFF;     // 已唱: 亮白
-    private static final int C_TODO = 0x66FFFFFF;     // 未唱: 灰白
-    private static final int C_ACCENT = 0xFF7AA8FF;   // 强调色(当前行光晕)
+    private static final int C_DONE = 0xFFFFFFFF;     // 已唱: 亮白实心
+    private static final int C_TODO = 0x55FFFFFF;     // 未唱: 灰白
+    private static final int C_ACCENT = 0xFF7AA8FF;   // 强调色(扫光底/辉光)
 
     private final List<LrcParser.Line> lines = new ArrayList<>();
     private final Paint donePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint todoPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint otherPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint emptyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint sweepPaint = new Paint(Paint.ANTI_ALIAS_FLAG);   // 扫光底
+    private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);    // 头部辉光
+    private final Paint hairPaint = new Paint(Paint.ANTI_ALIAS_FLAG);    // 扫光头部细线
 
     private int curIndex = -1;
     private long curPos = 0;
@@ -45,13 +53,11 @@ public class LyricView extends View {
     private float curTextSize;
     private float otherTextSize;
 
-    /** 当前行滚动偏移(像素), 从 old 平滑到 new。 */
     private float scrollOffset = 0f;
     private float scrollFrom = 0f;
     private float scrollTo = 0f;
     private ValueAnimator scrollAnim;
 
-    /** 呼吸缩放。 */
     private float pulse = 1f;
     private final ValueAnimator breath;
 
@@ -64,6 +70,8 @@ public class LyricView extends View {
     public LyricView(Context context, AttributeSet attrs) {
         super(context, attrs);
         setWillNotDraw(false);
+        setLayerType(LAYER_TYPE_SOFTWARE, null); // BlurMaskFilter 需要软件层
+
         donePaint.setTextAlign(Paint.Align.CENTER);
         donePaint.setColor(C_DONE);
         todoPaint.setTextAlign(Paint.Align.CENTER);
@@ -71,10 +79,13 @@ public class LyricView extends View {
         otherPaint.setTextAlign(Paint.Align.CENTER);
         emptyPaint.setTextAlign(Paint.Align.CENTER);
         emptyPaint.setColor(0x88FFFFFF);
+        sweepPaint.setStyle(Paint.Style.FILL);
         glowPaint.setStyle(Paint.Style.FILL);
         glowPaint.setColor(C_ACCENT);
+        hairPaint.setStyle(Paint.Style.FILL);
+        hairPaint.setColor(0x88FFFFFF);
 
-        breath = ValueAnimator.ofFloat(1f, 1.03f);
+        breath = ValueAnimator.ofFloat(1f, 1.015f);
         breath.setDuration(2600);
         breath.setRepeatMode(ValueAnimator.REVERSE);
         breath.setRepeatCount(ValueAnimator.INFINITE);
@@ -98,14 +109,13 @@ public class LyricView extends View {
         invalidate();
     }
 
-    /** 播放进度驱动: 行变化时平滑滚到新行, 行内推进时逐字点亮。 */
+    /** 播放进度驱动: 行变化时平滑滚到新行, 行内推进时扫光前进。 */
     public void setProgress(long posMs) {
         curPos = posMs;
         int idx = LrcParser.indexOf(lines, posMs);
         if (idx != curIndex) {
             int old = curIndex;
             curIndex = idx;
-            // 行切换: 从旧行位置滚到新行位置
             scrollFrom = scrollOffset;
             scrollTo = 0f;
             if (scrollAnim != null) scrollAnim.cancel();
@@ -120,7 +130,6 @@ public class LyricView extends View {
             scrollAnim.start();
             if (old < 0) scrollOffset = 0f;
         } else {
-            // 同一行内: 逐字点亮, 每帧都重绘
             invalidate();
         }
     }
@@ -136,8 +145,8 @@ public class LyricView extends View {
         }
         int n = lines.size();
         int base = curIndex < 0 ? 0 : curIndex;
-        int from = Math.max(0, base - 3);
-        int to = Math.min(n - 1, base + 3);
+        int from = Math.max(0, base - 2);
+        int to = Math.min(n - 1, base + 2);
 
         for (int i = from; i <= to; i++) {
             LrcParser.Line ln = lines.get(i);
@@ -148,83 +157,91 @@ public class LyricView extends View {
             if (dist == 0 && curIndex >= 0) {
                 drawCurrent(c, ln, w, y);
             } else {
-                int alpha = dist == 1 ? 0xCC : dist == 2 ? 0x88 : dist == 3 ? 0x55 : 0x22;
+                // ③ 景深: 距离越远越小、越淡、越"虚"
+                float scale;
+                int alpha;
+                switch (dist) {
+                    case 1:  scale = 0.78f; alpha = 0x8C; break;
+                    case 2:  scale = 0.66f; alpha = 0x48; break;
+                    default: scale = 0.58f; alpha = 0x20; break;
+                }
                 otherPaint.setColor((alpha << 24) | 0x00FFFFFF);
-                otherPaint.setTextSize(dist == 1 ? otherTextSize * 1.08f : otherTextSize);
+                otherPaint.setTextSize(otherTextSize * scale);
+                if (dist == 2) {
+                    otherPaint.setMaskFilter(new BlurMaskFilter(curTextSize * 0.10f, BlurMaskFilter.Blur.NORMAL));
+                } else if (dist > 2) {
+                    otherPaint.setMaskFilter(new BlurMaskFilter(curTextSize * 0.18f, BlurMaskFilter.Blur.NORMAL));
+                } else {
+                    otherPaint.setMaskFilter(null);
+                }
                 c.drawText(ln.text, w / 2f, y, otherPaint);
+                otherPaint.setMaskFilter(null);
             }
         }
     }
 
-    /** 当前行: 柔光底 + 逐字点亮(已唱亮白 / 未唱灰白, 中间一段渐变过渡)。 */
+    /** 当前行: 扫光底 + 卡拉OK扫光 + 头部辉光 + 呼吸。 */
     private void drawCurrent(Canvas c, LrcParser.Line ln, float w, float y) {
         float size = curTextSize * pulse;
         donePaint.setTextSize(size);
         todoPaint.setTextSize(size);
-
-        // 柔光底: 宽度随文字, 高度随字号
         float tw = donePaint.measureText(ln.text);
-        float glowA = 0.10f + 0.05f * (pulse - 1f) / 0.03f;
-        glowPaint.setAlpha((int) (255 * Math.max(0.08f, Math.min(0.16f, glowA))));
-        c.drawRoundRect(w / 2f - tw / 2f - size * 0.7f, y - size * 0.98f,
-                w / 2f + tw / 2f + size * 0.7f, y + size * 0.42f,
-                size * 0.5f, size * 0.5f, glowPaint);
+        float left = w / 2f - tw / 2f;
 
-        // 逐字进度: 当前行从 timeMs 到下一行 timeMs 之间推进
+        // 扫光进度
         int idx = curIndex;
         long start = ln.timeMs;
         long end = idx + 1 < lines.size() ? lines.get(idx + 1).timeMs : start + 4000L;
         float frac = end > start ? (curPos - start) / (float) (end - start) : 1f;
         frac = Math.max(0f, Math.min(1f, frac));
-
-        float left = w / 2f - tw / 2f;
         float splitX = left + tw * frac;
 
-        // 未唱部分整行先画灰白
+        // ① 整行先画「未唱」灰白
         c.drawText(ln.text, w / 2f, y, todoPaint);
 
-        // 已唱部分: 用渐变遮罩把左侧擦亮(过渡带 0.12 * 文字宽)
-        float band = Math.max(size * 0.6f, tw * 0.12f);
-        donePaint.setShader(new LinearGradient(
-                splitX - band, 0, splitX, 0,
-                new int[]{C_DONE, (C_DONE & 0x00FFFFFF)}, new float[]{0f, 1f},
-                Shader.TileMode.CLAMP));
+        // ② 已唱段: 裁到 splitX 左侧, 画实心亮白
         int save = c.save();
         c.clipRect(0, 0, splitX, getHeight());
-        // 中文按行画会重新居中, 这里用 clipRect 后整行重画 = 只显示已唱段
-        Paint clean = donePaint;
-        clean.setShader(null);
-        clean.setColor(C_DONE);
-        c.drawText(ln.text, w / 2f, y, clean);
+        c.drawText(ln.text, w / 2f, y, donePaint);
         c.restoreToCount(save);
 
-        // 过渡带: 在 splitX 附近画一小段柔光, 让交界不生硬
-        todoPaint.setShader(new LinearGradient(
-                splitX - band, 0, splitX + band, 0,
-                new int[]{0x66FFFFFF, 0x00FFFFFF}, new float[]{0f, 1f},
-                Shader.TileMode.CLAMP));
+        // ③ 扫光底: 已唱段铺一层很淡的强调色, 让"唱过的部分"有块亮的底盘
+        if (frac > 0.002f) {
+            sweepPaint.setShader(new LinearGradient(left, 0, splitX, 0,
+                    new int[]{0x00FFFFFF, 0x1E7AA8FF, 0x337AA8FF}, new float[]{0f, 0.6f, 1f},
+                    Shader.TileMode.CLAMP));
+            c.drawRoundRect(left - size * 0.35f, y - size * 0.92f, splitX,
+                    y + size * 0.34f, size * 0.42f, size * 0.42f, sweepPaint);
+            sweepPaint.setShader(null);
+        }
+
+        // ④ 头部辉光: 只 clip 到 splitX 附近一小段, 避免整行 blur 掉帧
+        float band = Math.max(size * 0.9f, tw * 0.06f);
         int save2 = c.save();
-        c.clipRect(Math.max(0, splitX - band), 0, Math.min(w, splitX + band), getHeight());
-        c.drawText(ln.text, w / 2f, y, todoPaint);
+        c.clipRect(Math.max(0f, splitX - band), 0, Math.min(w, splitX + band * 0.4f), getHeight());
+        glowPaint.setShader(new LinearGradient(splitX - band, 0, splitX + band * 0.4f, 0,
+                new int[]{0x007AA8FF, 0x887AA8FF}, new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+        c.drawRect(Math.max(0f, splitX - band), y - size * 0.95f,
+                Math.min(w, splitX + band * 0.4f), y + size * 0.36f, glowPaint);
+        glowPaint.setShader(null);
+        // 扫光头部一根细亮线
+        c.drawRect(splitX - size * 0.03f, y - size * 0.86f, splitX + size * 0.03f, y + size * 0.30f, hairPaint);
         c.restoreToCount(save2);
-        todoPaint.setShader(null);
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {
         super.onSizeChanged(w, h, ow, oh);
         float d = getResources().getDisplayMetrics().density;
-        // v27.15: 字号再放大一档 —— 全屏歌词要"看得清", 不是密密麻麻
-        curTextSize = Math.min(23 * d, Math.max(15 * d, h / 8.5f));
-        otherTextSize = curTextSize * 0.78f;
-        lineHeight = curTextSize * 2.05f;
+        curTextSize = Math.min(24 * d, Math.max(16 * d, h / 8.0f));
+        otherTextSize = curTextSize;
+        lineHeight = curTextSize * 2.10f;
         donePaint.setTextSize(curTextSize);
         todoPaint.setTextSize(curTextSize);
         otherPaint.setTextSize(otherTextSize);
         emptyPaint.setTextSize(otherTextSize);
     }
 
-    /** 点击歌词区: 命中某行即 seek 到该行开始时间。 */
     @Override
     public boolean onTouchEvent(android.view.MotionEvent e) {
         if (e.getAction() == android.view.MotionEvent.ACTION_UP && seekListener != null && !lines.isEmpty()) {

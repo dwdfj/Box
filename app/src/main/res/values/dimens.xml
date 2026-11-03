@@ -15,6 +15,9 @@
     <dimen name="ts_34">56mm</dimen>
     <dimen name="ts_36">60mm</dimen>
     <dimen name="ts_40">64mm</dimen>
+    <!-- v27.16: 分级放大补两档 —— 区块标题 ts_44、页面大标题 ts_56 -->
+    <dimen name="ts_44">68mm</dimen>
+    <dimen name="ts_56">82mm</dimen>
     <dimen name="ts_50">76mm</dimen>
 
     <dimen name="vs_4_">-4mm</dimen>

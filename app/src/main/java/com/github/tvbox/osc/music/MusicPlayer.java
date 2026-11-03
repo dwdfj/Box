@@ -232,6 +232,7 @@ public class MusicPlayer {
                 s.name = o.optString("n");
                 s.singer = o.optString("a");
                 s.album = o.optString("al");
+                s.albumId = o.optString("ai");
                 s.cover = o.optString("c");
                 if (s.songmid != null && !s.songmid.isEmpty()) out.add(s);
             }
@@ -255,6 +256,7 @@ public class MusicPlayer {
                 o.put("n", s.name == null ? "" : s.name);
                 o.put("a", s.singer == null ? "" : s.singer);
                 o.put("al", s.album == null ? "" : s.album);
+                o.put("ai", s.albumId == null ? "" : s.albumId);
                 o.put("c", s.cover == null ? "" : s.cover);
                 arr.put(o);
             }
@@ -346,6 +348,7 @@ public class MusicPlayer {
                 s.name = o.optString("n");
                 s.singer = o.optString("a");
                 s.album = o.optString("al");
+                s.albumId = o.optString("ai");
                 s.cover = o.optString("c");
                 if (s.songmid != null && !s.songmid.isEmpty()) out.add(s);
             }
@@ -363,6 +366,7 @@ public class MusicPlayer {
                 o.put("n", s.name == null ? "" : s.name);
                 o.put("a", s.singer == null ? "" : s.singer);
                 o.put("al", s.album == null ? "" : s.album);
+                o.put("ai", s.albumId == null ? "" : s.albumId);
                 o.put("c", s.cover == null ? "" : s.cover);
                 arr.put(o);
             }
@@ -416,10 +420,14 @@ public class MusicPlayer {
         playAt(0);
     }
 
-    /** v27.14: 音质档位按线路区分 —— Voyage 多两档母带, 洛雪三档, 笒音只有一档。 */
+    /**
+     * v27.14: 音质档位按线路区分 —— Voyage 多两档母带, 洛雪三档, 笒音只有一档。
+     * v27.16: Voyage 顺序改为 flac 优先 —— 实测 master/hires 对不少曲目上游没有资源(500),
+     * 排在前面会让每次播放都先白等两轮; flac 命中率最高, 放第一位大多数歌一次就成。
+     */
     private static final String[] Q_LUOXUE = {"flac", "320k", "128k"};
     private static final String[] Q_CENYIN = {"lossless"};
-    private static final String[] Q_VOYAGE = {"master", "hires", "flac", "320k", "128k"};
+    private static final String[] Q_VOYAGE = {"flac", "320k", "hires", "master", "128k"};
 
     /** 当前线路可选的音质档位(降档重试也走这张表)。 */
     private static String[] qualities() {
@@ -471,7 +479,9 @@ public class MusicPlayer {
         lastQuality = q;
         lastSourceName = lineName();
         notifyStatus("取链中(" + lineName() + " · " + qualityLabel(q) + ")…");
-        MusicDirect.fetch(line(), song.songmid, q, (sourceName, url, err) -> {
+        // Voyage 官方接口需要 name/singer/albumId 参与上游匹配, 洛雪/笒音会忽略它们
+        MusicDirect.fetch(line(), song.songmid, q, song.name, song.singer, song.albumId,
+                (sourceName, url, err) -> {
             if (!loading) return; // 已被超时/新点击接管
             if (url != null && !TextUtils.isEmpty(url)) {
                 lastSourceName = sourceName;
@@ -482,6 +492,14 @@ public class MusicPlayer {
             if (line() == MusicDirect.LINE_CENYIN) {
                 loading = false;
                 notifyError((err == null ? "笒音" : err) + " — 可切到「洛雪」或「Voyage」线路");
+                return;
+            }
+            // v27.16: Voyage 在 MusicDirect.voyageTry 内部已经把 master→hires→flac→320k→128k
+            // 全部试过一遍, 外层若再降档就是 5×5=25 次请求 —— 这正是"加载很慢"的主因。
+            // 所以 Voyage 失败即直接报错, 不再重复降档。
+            if (line() == MusicDirect.LINE_VOYAGE) {
+                loading = false;
+                notifyError("Voyage 该曲目各档位均无可用地址 — 可切到「洛雪」线路");
                 return;
             }
             // 线路内降音质重试; 全档失败才报错(不自动跨线路 —— 用户选定哪条就是哪条)

@@ -21,9 +21,13 @@ import okhttp3.Response;
  * 线路实测(2026-11):
  *   LINE_LUOXUE  洛雪   c.wwwweb.top      POST {source,musicId,quality}  flac/320k/128k 全通
  *   LINE_CENYIN  笒音   mcp.nianxinxz.com GET  wy.php?id=&level=         lossless/320k 通
- *   LINE_VOYAGE  Voyage yy.zddyr.top      GET  /lx/api/?source=wy&songmid=&quality=
- *                128k/320k/flac/hires/master/atmos 六档全通, master 实为 24bit FLAC 明文
- *                (实测首 4 字节 fLaC), 不需要 ekey 解密链 —— 直接把后端吐的 url 交给 ExoPlayer。
+ *   LINE_VOYAGE  Voyage yy.zddyr.top      GET  /web/api/play.php?id=&quality=&name=&singer=...
+ *                ★ v27.16 换接口: 原来调的 /lx/api/ 是站内「内部转发层」, 直连恒返回
+ *                  503 queue-full(队列满载, 即便间隔 20 秒也一样), 并不是线路故障。
+ *                  官方网页版走的是 /web/api/play.php, 实测 0.5~0.8 秒返回 200:
+ *                  {"code":200,"data":{"url":"https://m701.music.126.net/...flac","quality":"flac"}}
+ *                  返回的 master/atmos 是明文 FLAC(实测首 4 字节 fLaC), 不需要 ekey 解密。
+ *                ★ 老 id 会 500: 网易旧 id(如 186016)在该后端取链失败, 需用 search 拿到的新 id。
  * 任一条线路失败只报该线路的错误, 由用户决定切不切线路。
  */
 public final class MusicDirect {
@@ -42,8 +46,8 @@ public final class MusicDirect {
     /** 线路说明(UI 副标题)。 */
     public static final String[] DESCS = {"flac 无损 · 稳定", "lossless 母带 · 更快", "24bit 母带 · 全档位"};
 
-    /** Voyage 后端域名, 主用挂了切备用。 */
-    private static final String[] VOYAGE_HOSTS = {"yy.zddyr.top", "zrcdy.dpdns.org"};
+    /** Voyage 官方网页版 API 基址(取链入口, 不是 /lx/api 内部层)。 */
+    private static final String VOYAGE_API = "https://yy.zddyr.top/web/api/play.php";
     public interface Cb {
         /** url 非空即成功; 否则 err 说明原因。 */
         void onResult(String sourceName, String url, String err);
@@ -58,12 +62,24 @@ public final class MusicDirect {
     private MusicDirect() {
     }
 
-    /** 按指定线路取链。line 越界时自动收敛到 0。 */
-    public static void fetch(int line, final String songmid, final String quality, final Cb cb) {
+    /** 按指定线路取链(不带歌曲元信息, 兼容旧调用)。line 越界时自动收敛到 0。 */
+    public static void fetch(int line, String songmid, String quality, Cb cb) {
+        fetch(line, songmid, quality, null, null, null, cb);
+    }
+
+    /**
+     * 按指定线路取链。
+     *
+     * @param name    歌名   —— Voyage 后端取链需要(name/singer 会参与上游匹配)
+     * @param singer  歌手
+     * @param albumId 专辑 id —— Voyage 的后端某些平台需要
+     */
+    public static void fetch(int line, final String songmid, final String quality,
+                             final String name, final String singer, final String albumId,
+                             final Cb cb) {
         final int ep = (line < 0 || line >= NAMES.length) ? LINE_LUOXUE : line;
         if (ep == LINE_VOYAGE) {
-            // Voyage 后端是公开中转站, 限流时退避重试后再判定失败
-            voyageTry(songmid, quality, 0, false, cb);
+            voyageTry(songmid, quality, name, singer, albumId, 0, cb);
             return;
         }
         try {
@@ -128,40 +144,50 @@ public final class MusicDirect {
     }
 
     /**
-     * Voyage 线路: GET /lx/api/?source=wy&songmid=&quality=
-     * 返回 {"code":200,"url":"http://m8.music.126.net/....flac"}。
-     * 母带(master/atmos)是明文 FLAC, 不是 ekey 加密流, 拿到 url 就能直接播/下。
+     * Voyage 线路: GET /web/api/play.php?source=wy&id=&quality=&name=&singer=&albumName=...
+     * 这是官方网页版(星海音乐)用的真实取链入口, 返回
+     * {"code":200,"data":{"url":"https://m701.music.126.net/...","lyric":"","cover":"","quality":"flac"}}。
      *
-     * 后端是公开中转站, 有总体 QPS 限制: 短时间密集请求会返回 503, 这属于「过一会儿就好」,
-     * 不该让用户以为这条线路坏了 —— 500/503 全局退避 3 秒后对同一域名重试一次再判定失败。
-     * 备用域名只提供版本检查接口, /lx/api/ 恒 410, 所以取链重试仍走主域名。
+     * v27.16 之前调的是 /lx/api/, 那是站内「内部转发层」: 直连恒返回
+     * 503 {"code":503,"msg":"当前请求量过大"} + X-Limit-Reason: queue-full,
+     * 间隔 20 秒也一样, 因为额度被前端 play.php 占掉了 —— 不是线路坏了, 是入口找错了。
+     *
+     * @param qIdx 音质档位下标: 失败时向下一档降级重试(高解析档位对冷门曲目更容易 404)
      */
     private static void voyageTry(final String songmid, final String quality,
-                                  final int hostIdx, final boolean retried, final Cb cb) {
-        if (hostIdx >= VOYAGE_HOSTS.length) {
+                                  final String name, final String singer, final String albumId,
+                                  final int qIdx, final Cb cb) {
+        // v27.16: flac 优先 —— master/hires 对不少曲目上游无资源(500), 放前面会白等。
+        final String[] qs = {"flac", "320k", "hires", "master", "128k"};
+        if (qIdx >= qs.length) {
             main(() -> cb.onResult(NAMES[LINE_VOYAGE], null,
-                    NAMES[LINE_VOYAGE] + " 取链失败(接口限流或暂不可用，稍后重试)"));
+                    NAMES[LINE_VOYAGE] + " 该曲目无可用音质(可切洛雪线路)"));
             return;
         }
+        final String q = voyageQuality(qs[qIdx]);
         try {
-            String url = "https://" + VOYAGE_HOSTS[hostIdx] + "/lx/api/?source=wy"
-                    + "&songmid=" + android.net.Uri.encode(songmid)
-                    + "&quality=" + android.net.Uri.encode(voyageQuality(quality))
-                    + "&name=&singer=&interval=";
+            String url = VOYAGE_API
+                    + "?source=wy"
+                    + "&id=" + android.net.Uri.encode(songmid)
+                    + "&quality=" + android.net.Uri.encode(q)
+                    + "&name=" + android.net.Uri.encode(name == null ? "" : name)
+                    + "&singer=" + android.net.Uri.encode(singer == null ? "" : singer)
+                    + "&albumName=&interval=&hash="
+                    + "&albumId=" + android.net.Uri.encode(albumId == null ? "" : albumId)
+                    + "&urlId=" + android.net.Uri.encode(songmid)
+                    + "&copyrightId=";
             Request req = new Request.Builder()
                     .url(url)
                     .header("User-Agent", UA)
+                    .header("Referer", "https://yy.zddyr.top/web/")
+                    .header("Accept", "application/json")
                     .get()
                     .build();
             http.newCall(req).enqueue(new okhttp3.Callback() {
                 @Override
                 public void onFailure(Call call, java.io.IOException e) {
-                    Log.w(TAG, "Voyage@" + VOYAGE_HOSTS[hostIdx] + " fail: " + e.getMessage());
-                    if (!retried) {
-                        backoff(() -> voyageTry(songmid, quality, hostIdx, true, cb));
-                    } else {
-                        voyageTry(songmid, quality, hostIdx + 1, false, cb);
-                    }
+                    Log.w(TAG, "Voyage@" + q + " fail: " + e.getMessage());
+                    voyageTry(songmid, quality, name, singer, albumId, qIdx + 1, cb);
                 }
 
                 @Override
@@ -169,7 +195,10 @@ public final class MusicDirect {
                     String bodyStr = resp.body() != null ? resp.body().string() : "";
                     String u = null;
                     try {
-                        u = optUrl(new JSONObject(bodyStr), "url");
+                        JSONObject d = new JSONObject(bodyStr);
+                        JSONObject data = d.optJSONObject("data");
+                        if (data != null) u = optUrl(data, "url");
+                        if (u == null) u = optUrl(d, "url");
                     } catch (Throwable ignored) {
                     }
                     if (u != null) {
@@ -177,25 +206,16 @@ public final class MusicDirect {
                         main(() -> cb.onResult(NAMES[LINE_VOYAGE], fUrl, null));
                         return;
                     }
-                    Log.w(TAG, "Voyage no-url " + resp.code() + " "
+                    Log.w(TAG, "Voyage no-url " + resp.code() + " q=" + q + " "
                             + bodyStr.substring(0, Math.min(120, bodyStr.length())));
-                    boolean throttled = resp.code() == 503 || resp.code() == 502 || resp.code() == 429;
-                    if (throttled && !retried) {
-                        backoff(() -> voyageTry(songmid, quality, hostIdx, true, cb));
-                    } else {
-                        voyageTry(songmid, quality, hostIdx + 1, false, cb);
-                    }
+                    // 500(老 id/资源缺失) 与 无 url 一律降档重试; 503/429 是限流, 同样降档(别空等)
+                    voyageTry(songmid, quality, name, singer, albumId, qIdx + 1, cb);
                 }
             });
         } catch (Throwable t) {
             Log.w(TAG, "Voyage err", t);
-            voyageTry(songmid, quality, hostIdx + 1, false, cb);
+            voyageTry(songmid, quality, name, singer, albumId, qIdx + 1, cb);
         }
-    }
-
-    /** 限流退避: 3 秒后重试, 避免把中转站的 QPS 限制误报成线路故障。 */
-    private static void backoff(Runnable r) {
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(r, 3000);
     }
 
     /** Voyage 后端音质档位与本地一致(128k/320k/flac/hires/master), 不认识的档位退回 flac。 */

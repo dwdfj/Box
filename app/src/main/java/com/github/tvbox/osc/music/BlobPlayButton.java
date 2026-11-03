@@ -19,6 +19,11 @@ import android.view.animation.LinearInterpolator;
  * 2) blob 增加径向渐变高光 + 边缘提亮, 看起来是"一坨会流动的水", 不是纯色圆;
  * 3) 游动由三层正弦谐波叠加(3/5/7 阶), 播放时快、暂停时慢呼吸;
  * 4) 进度环带发光头, 随歌曲进度递增(这就是用户问的"环绕播放按键的特效")。
+ *
+ * v27.16 新增「液态波浪环」: 在进度环和 blob 之间再套一圈不规则闭合波环 ——
+ * 就是老大发的参考图里那个「外沿有起伏、粗细不均匀、不是规整圆」的环。
+ * 它不带进度信息, 只负责律动; 暂停时波形收敛到几乎成一根细线(参考图静止状态)。
+ * 层次: 最外层进度环(信息) → 液态波浪环(律动) → blob 本体 + 中心符号(手感)。
  */
 public class BlobPlayButton extends View {
     private static final int C_A = 0xFF7AA8FF; // 雾蓝
@@ -31,7 +36,10 @@ public class BlobPlayButton extends View {
     private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint headGlow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glyphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** v27.16: 液态波浪环。 */
+    private final Paint waveRingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path blob = new Path();
+    private final Path waveRing = new Path();
     private final RectF ringRect = new RectF();
 
     private final ValueAnimator wave;
@@ -56,6 +64,9 @@ public class BlobPlayButton extends View {
         headGlow.setStyle(Paint.Style.FILL);
         headGlow.setColor(0x66FFFFFF);
         glyphPaint.setColor(0xFFFFFFFF);
+        waveRingPaint.setStyle(Paint.Style.STROKE);
+        waveRingPaint.setColor(0x667AA8FF);
+        waveRingPaint.setStrokeCap(Paint.Cap.ROUND);
         wave = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2));
         wave.setDuration(9000);
         wave.setRepeatCount(ValueAnimator.INFINITE);
@@ -88,6 +99,7 @@ public class BlobPlayButton extends View {
         ringBgPaint.setStrokeWidth(ringW);
         ringPaint.setStrokeWidth(ringW);
         rimPaint.setStrokeWidth(Math.max(1f, min * 0.008f));
+        waveRingPaint.setStrokeWidth(Math.max(2f, min * 0.014f));
         ringPaint.setShader(new android.graphics.SweepGradient(
                 w / 2f, h / 2f, C_A, C_B));
         // blob 主体: 斜向渐变
@@ -121,6 +133,29 @@ public class BlobPlayButton extends View {
             headGlow.setShader(null);
             c.drawCircle(hx, hy, ringW * 0.62f, glyphPaint);
         }
+        // --- v27.16 液态波浪环 (进度环与 blob 之间) ---
+        // 参考图那个「外沿起伏、粗细不均」的闭合波环: 用不同阶数的谐波叠出
+        // 内外不规则的环带, 靠 path 描边形成宽度变化。暂停时振幅收敛到 0.004(几乎成细线)。
+        float wR = ringR * 0.885f;
+        float amp = playing ? 1f : 0.10f; // 播放时明显、暂停时收敛
+        waveRing.reset();
+        int M = 120;
+        for (int i = 0; i <= M; i++) {
+            double th = i * Math.PI * 2 / M;
+            float wob = 1f
+                    + amp * (0.030f * (float) Math.sin(4 * th + 1.6f * phase)
+                    + 0.019f * (float) Math.sin(6 * th - 2.1f * phase)
+                    + 0.011f * (float) Math.sin(9 * th + 0.9f * phase));
+            float rr = wR * wob;
+            float x = cx + (float) Math.cos(th) * rr;
+            float y = cy + (float) Math.sin(th) * rr;
+            if (i == 0) waveRing.moveTo(x, y);
+            else waveRing.lineTo(x, y);
+        }
+        waveRing.close();
+        waveRingPaint.setAlpha(playing ? 0x99 : 0x40);
+        c.drawPath(waveRing, waveRingPaint);
+
         // --- blob 本体 (内圈, 与环留白) ---
         float R = ringR * 0.74f;
         blob.reset();

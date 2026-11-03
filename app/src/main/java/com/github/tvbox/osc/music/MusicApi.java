@@ -26,6 +26,7 @@ public class MusicApi {
         public String name;
         public String singer;
         public String album;
+        public String albumId;   // 专辑 id, Voyage 官方接口需要
         public String cover;     // 专辑/歌曲封面
         public long durationMs;
     }
@@ -70,10 +71,18 @@ public class MusicApi {
                         }
                         return out;
                     }
-                }, cb);
+                }, new Callback<List<Song>>() {
+                    @Override
+                    public void onResult(String error, List<Song> data) {
+                        if (error != null || data == null) {
+                            cb.onResult(error, data);
+                            return;
+                        }
+                        // v27.16: 搜索接口不带 picUrl, 补一次封面再回给 UI
+                        fillCovers(data, cb);
+                    }
+                });
     }
-
-    // ---------------- 榜单(音乐厅第一组) ----------------
 
     public static void topLists(final Callback<List<Sheet>> cb) {
         get("https://music.163.com/api/toplist/detail", new Parser<List<Sheet>>() {
@@ -151,7 +160,88 @@ public class MusicApi {
                         }
                         return out;
                     }
-                }, cb);
+                }, new Callback<List<Song>>() {
+                    @Override
+                    public void onResult(String error, List<Song> data) {
+                        if (error != null || data == null) {
+                            cb.onResult(error, data);
+                            return;
+                        }
+                        // v27.16: 歌单详情同样缺 picUrl, 补一次封面
+                        fillCovers(data, cb);
+                    }
+                });
+    }
+
+    /**
+     * 小贾影视仓 v27.16: 批量补封面。
+     *
+     * 根因: 搜索/歌单用的 /api/search/get/web 与 /api/playlist/detail 只返回 album.picId,
+     * **不返回 picUrl**(实测周杰伦搜出 30 首, picUrl 有值的 0 首), 于是 song.cover 全是空字符串,
+     * 界面上就是一片没有封面的黑块。
+     *
+     * 而 /api/song/detail 会完整返回 album.picUrl(https://p2.music.126.net/...jpg)。
+     * 这里按 100 个 id 一批补一次, 只补空 cover 的歌, 全都有封面时不发请求。
+     */
+    public static void fillCovers(final List<Song> songs, final Callback<List<Song>> cb) {
+        if (songs == null) {
+            cb.onResult(null, songs);
+            return;
+        }
+        final StringBuilder ids = new StringBuilder("[");
+        int need = 0;
+        for (Song s : songs) {
+            if (s == null || s.songmid == null) continue;
+            if (s.cover != null && !s.cover.isEmpty()) continue;
+            if (need > 0) ids.append(",");
+            ids.append("\"").append(s.songmid).append("\"");
+            need++;
+        }
+        if (need == 0) {
+            cb.onResult(null, songs);
+            return;
+        }
+        ids.append("]");
+        postForm("https://music.163.com/api/song/detail",
+                "ids=" + enc(ids.toString()) + "&csrf_token=",
+                new Parser<List<Song>>() {
+                    @Override
+                    public List<Song> parse(org.json.JSONObject root) throws Exception {
+                        Map<String, org.json.JSONObject> byId = new HashMap<>();
+                        org.json.JSONArray arr = root.optJSONArray("songs");
+                        if (arr != null) {
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject s = arr.optJSONObject(i);
+                                if (s == null) continue;
+                                byId.put(String.valueOf(s.optLong("id")), s);
+                            }
+                        }
+                        for (Song song : songs) {
+                            if (song == null) continue;
+                            org.json.JSONObject d = byId.get(song.songmid);
+                            if (d == null) continue;
+                            org.json.JSONObject album = d.optJSONObject("album");
+                            if (album == null) continue;
+                            if (song.cover == null || song.cover.isEmpty()) {
+                                song.cover = album.optString("picUrl", "");
+                            }
+                            if (song.albumId == null || song.albumId.isEmpty()) {
+                                long aid = album.optLong("id", 0);
+                                song.albumId = aid == 0 ? "" : String.valueOf(aid);
+                            }
+                            if (song.album == null || song.album.isEmpty()) {
+                                song.album = album.optString("name", "");
+                            }
+                        }
+                        return songs;
+                    }
+                }, new Callback<List<Song>>() {
+                    @Override
+                    public void onResult(String error, List<Song> data) {
+                        // 补封面失败不该让整页失败: 原样回传, 由 UI 的占位图兜底
+                        cb.onResult(null, songs);
+                    }
+                });
     }
 
     // ---------------- 通用执行 ----------------

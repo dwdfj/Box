@@ -116,17 +116,21 @@ public class RotatingCoverView extends View {
         }
 
         // ③ 封面正圆(随角度转)
-        float coverR = min * 0.78f;
+        // v27.16 修: 原来按 min(bmpW,bmpH) 算缩放, 非正方形封面会「短边撑满、长边溢出」,
+        // 再被圆裁一刀后只剩中间一小块 —— 用户看到的就是「封面没铺满圆」。
+        // 改成 cover 模式: 取较长边为基准, 保证圆内每一处都被图覆盖, 只裁掉溢出的部分。
+        float coverR = min * 0.995f; // 铺满到黑胶底盘边缘, 外圈只留极细的黑胶描边
         if (shader != null && bitmap != null) {
-            float scale = (coverR * 2f) / Math.min(bitmap.getWidth(), bitmap.getHeight());
-            matrix.setScale(scale, scale);
-            // 先旋转再平移到中心: 旋转围绕画布中心
-            float dx = cx - bitmap.getWidth() * scale / 2f;
-            float dy = cy - bitmap.getHeight() * scale / 2f;
-            matrix.postRotate(angle, cx, cy);
-            matrix.postTranslate(dx, dy);
-            shader.setLocalMatrix(matrix);
-            c.drawCircle(cx, cy, coverR, coverPaint);
+            float bw = bitmap.getWidth(), bh = bitmap.getHeight();
+            if (bw > 0 && bh > 0) {
+                float scale = (coverR * 2f) / Math.min(bw, bh); // 短边刚好铺满圆直径
+                matrix.setScale(scale, scale);
+                // 把图中心对到圆心, 再绕圆心旋转
+                matrix.postTranslate(cx - bw * scale / 2f, cy - bh * scale / 2f);
+                matrix.postRotate(angle, cx, cy);
+                shader.setLocalMatrix(matrix);
+                c.drawCircle(cx, cy, coverR, coverPaint);
+            }
         } else {
             discPaint.setShader(null);
             discPaint.setColor(0xFF232936);
@@ -135,17 +139,21 @@ public class RotatingCoverView extends View {
                     0xFF1A1F2B, 0xFF0B0E15, Shader.TileMode.CLAMP));
         }
 
-        // ④ 黑胶纹圈: 封面外两圈细弧, 同样随角度转
+        // ④ 黑胶纹圈: 叠在封面之上, 做出唱片的纹路感(只在边缘留两圈, 不挡中心)
         c.save();
         c.rotate(angle, cx, cy);
-        c.drawCircle(cx, cy, min * 0.885f, ringPaint);
-        c.drawCircle(cx, cy, min * 0.94f, ringPaint);
+        ringPaint.setColor(0x1A000000);
+        c.drawCircle(cx, cy, min * 0.90f, ringPaint);
+        c.drawCircle(cx, cy, min * 0.955f, ringPaint);
+        ringPaint.setColor(0x22FFFFFF);
+        c.drawCircle(cx, cy, min * 0.90f, ringPaint);
+        c.drawCircle(cx, cy, min * 0.955f, ringPaint);
         c.restore();
 
-        // ⑤ 中心轴孔
-        c.drawCircle(cx, cy, min * 0.075f, holePaint);
+        // ⑤ 中心轴孔(v27.16: 缩小, 别在圆形封面上挖太大一块)
+        c.drawCircle(cx, cy, min * 0.055f, holePaint);
         Paint highlight = new Paint(Paint.ANTI_ALIAS_FLAG);
         highlight.setColor(0x33FFFFFF);
-        c.drawCircle(cx, cy - min * 0.012f, min * 0.028f, highlight);
+        c.drawCircle(cx, cy - min * 0.010f, min * 0.020f, highlight);
     }
 }

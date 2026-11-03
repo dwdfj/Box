@@ -28,6 +28,8 @@ import java.util.List;
 public class MusicNowActivity extends BaseActivity {
     private TextView nameView, singerView, qualityView, posView, durView, statusView;
     private TextView lineView, modeView, favView, downloadView;
+    /** v27.16: 模式图标下的标签(图标只放符号, 模式名放这里)。 */
+    private TextView modeLabel;
     private SeekBar progress;
     private com.github.tvbox.osc.music.RotatingCoverView disc;
     private View discArea;
@@ -113,6 +115,7 @@ public class MusicNowActivity extends BaseActivity {
         statusView = findViewById(R.id.musicNowStatus);
         lineView = findViewById(R.id.musicNowLine);
         modeView = findViewById(R.id.musicNowMode);
+        modeLabel = findViewById(R.id.musicNowModeLabel);
         favView = findViewById(R.id.musicNowFav);
         downloadView = findViewById(R.id.musicNowDownload);
         progress = findViewById(R.id.musicNowProgress);
@@ -158,10 +161,10 @@ public class MusicNowActivity extends BaseActivity {
             }
         });
 
-        // 播放模式
+        // 播放模式(v27.16: 图标 + 下方标签, 标签才是模式名)
         modeView.setOnClickListener(v -> {
             String m = p.cycleRepeatMode();
-            modeView.setText(m);
+            if (modeLabel != null) modeLabel.setText(m);
             statusView.setText("播放模式: " + m);
         });
 
@@ -177,7 +180,7 @@ public class MusicNowActivity extends BaseActivity {
             MusicApi.Song cur = p.current();
             if (cur == null) return;
             boolean fav = p.toggleFavorite(cur);
-            favView.setText(fav ? "♥ 已收藏" : "♡ 收藏");
+            favView.setText(fav ? "♥" : "♡");
             statusView.setText(fav ? "已加入收藏" : "已取消收藏");
         });
 
@@ -197,7 +200,7 @@ public class MusicNowActivity extends BaseActivity {
                 @Override
                 public void onDone(String path) {
                     ui(() -> {
-                        downloadView.setText("✓ 已下载");
+                        downloadView.setText("✓");
                         downloadView.setEnabled(true);
                         statusView.setText("已保存: " + path);
                     });
@@ -206,7 +209,7 @@ public class MusicNowActivity extends BaseActivity {
                 @Override
                 public void onFail(String err) {
                     ui(() -> {
-                        downloadView.setText("⇩ 下载");
+                        downloadView.setText("⇩");
                         downloadView.setEnabled(true);
                         statusView.setText("下载失败: " + err);
                     });
@@ -221,17 +224,22 @@ public class MusicNowActivity extends BaseActivity {
             statusView.setText("线路已切到 " + name + "，正在用新线路重取…");
         });
 
-        // 音质
+        // 音质切换(v27.16: 全屏页顶栏的音质胶囊, 点一下切下一档, 立即用新档位重取当前曲)
         qualityView.setOnClickListener(v -> {
             String q = p.cycleQuality();
             qualityView.setText(MusicPlayer.qualityLabel(q));
-            statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q) + "，下次点歌生效");
+            MusicApi.Song cur = p.current();
+            if (cur != null) {
+                p.playQueue(p.queue(), Math.max(0, p.queue().indexOf(cur)));
+                statusView.setText("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
+            } else {
+                statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
+            }
         });
 
         refreshModeAndFav();
         lineView.setText(p.lineName());
         qualityView.setText(MusicPlayer.qualityLabel(p.preferredQuality()));
-        modeView.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
 
         MusicApi.Song cur = p.current();
         if (cur != null) {
@@ -245,10 +253,10 @@ public class MusicNowActivity extends BaseActivity {
 
     private void refreshModeAndFav() {
         MusicPlayer p = MusicPlayer.get();
-        if (modeView != null) modeView.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
+        if (modeLabel != null) modeLabel.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
         if (favView != null) {
             MusicApi.Song cur = p.current();
-            favView.setText(cur != null && p.isFavorite(cur) ? "♥ 已收藏" : "♡ 收藏");
+            favView.setText(cur != null && p.isFavorite(cur) ? "♥" : "♡");
         }
     }
 
@@ -270,14 +278,17 @@ public class MusicNowActivity extends BaseActivity {
         singerView.setText(s.singer + (s.album == null || s.album.isEmpty() ? "" : " · " + s.album));
         qualityView.setText(q == null ? "" : MusicPlayer.qualityLabel(q));
         if (src != null && !src.isEmpty()) lineView.setText(src);
-        if (s.cover != null && !s.cover.isEmpty()) {
-            loadDisc(s.cover);
-        }
+        // v27.16: 无论有没有封面都画 —— 没封面时用歌名首字渐变图, 不留空盘
+        loadDisc(s.cover, s.name);
     }
 
-    /** v27.15: 圆形旋转封面要 Bitmap(拿不到原图就给黑胶空盘)。 */
-    private void loadDisc(String url) {
+    /** v27.15: 圆形旋转封面要 Bitmap。v27.16: 拿不到原图时给首字渐变图兜底。 */
+    private void loadDisc(String url, String name) {
         if (disc == null) return;
+        if (url == null || url.isEmpty()) {
+            disc.setBitmap(com.github.tvbox.osc.music.CoverFallback.render(name, 512));
+            return;
+        }
         Glide.with(mContext)
                 .asBitmap()
                 .load(url)
@@ -286,6 +297,11 @@ public class MusicNowActivity extends BaseActivity {
                     public void onResourceReady(@androidx.annotation.NonNull android.graphics.Bitmap resource,
                                                 com.bumptech.glide.request.transition.Transition<? super android.graphics.Bitmap> transition) {
                         disc.setBitmap(resource);
+                    }
+
+                    @Override
+                    public void onLoadFailed(android.graphics.drawable.Drawable errorDrawable) {
+                        disc.setBitmap(com.github.tvbox.osc.music.CoverFallback.render(name, 512));
                     }
 
                     @Override

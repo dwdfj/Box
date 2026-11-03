@@ -121,10 +121,8 @@ public class MusicListActivity extends BaseActivity {
                 paneDesc.setText(err != null ? String.valueOf(err)
                         : (songs.isEmpty() ? "歌单为空" : "共 " + songs.size() + " 首 · 点歌即播"));
                 if (!songs.isEmpty()) {
-                    String cover = songs.get(0).cover;
-                    if (cover != null && !cover.isEmpty()) {
-                        Glide.with(mContext).load(cover).into(paneCover);
-                    }
+                    com.github.tvbox.osc.music.CoverFallback.load(
+                            paneCover, songs.get(0).cover, songs.get(0).name);
                 }
                 setStatus(err != null ? "加载失败: " + err
                         : (songs.isEmpty() ? "歌单为空" : songs.size() + " 首 · 播放全部或点歌"));
