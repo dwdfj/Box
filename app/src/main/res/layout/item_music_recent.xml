@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.12: 最近播放横滑条目(方封面 + 歌名) -->
+<!-- 小贾影视仓 v27.15: 最近播放横滑条目放大 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="@dimen/vs_200"
+    android:layout_width="@dimen/vs_240"
     android:layout_height="wrap_content"
+    android:layout_marginRight="@dimen/vs_20"
     android:descendantFocusability="blocksDescendants"
     android:focusable="true"
     android:orientation="vertical">
 
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/itemRecentCover"
-        android:layout_width="@dimen/vs_200"
-        android:layout_height="@dimen/vs_200"
+        android:layout_width="@dimen/vs_240"
+        android:layout_height="@dimen/vs_240"
         android:scaleType="centerCrop"
         app:shapeAppearanceOverlay="@style/XjRounded20" />
 
@@ -19,17 +20,17 @@
         android:id="@+id/itemRecentName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/vs_10"
+        android:layout_marginTop="@dimen/vs_12"
         android:singleLine="true"
         android:textColor="@color/color_FFFFFF"
-        android:textSize="@dimen/ts_24" />
+        android:textSize="@dimen/ts_28" />
 
     <TextView
         android:id="@+id/itemRecentSinger"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/vs_2"
+        android:layout_marginTop="@dimen/vs_4"
         android:singleLine="true"
         android:textColor="@color/music_sub"
-        android:textSize="@dimen/ts_20" />
+        android:textSize="@dimen/ts_24" />
 </LinearLayout>

@@ -533,21 +533,34 @@ public class MusicPlayer {
         }
     }
 
-    private void notifyStatus(String s) {
+    /**
+     * v27.15: 所有回调兜底切主线程 —— 取链回调来自 OkHttp 线程, 曾经直接 setText 崩过
+     * (CalledFromWrongThread: Only the original thread that created a view hierarchy can touch its views)。
+     * 监听器注册在 Activity 里, 一律保证在主线程被调用。
+     */
+    private void notifyStatus(final String s) {
         Log.d(TAG, s);
-        for (Listener l : listeners) l.onStatus(s);
+        main.post(() -> {
+            for (Listener l : listeners) l.onStatus(s);
+        });
     }
 
-    private void notifyError(String s) {
+    private void notifyError(final String s) {
         Log.w(TAG, s);
-        for (Listener l : listeners) l.onError(s);
+        main.post(() -> {
+            for (Listener l : listeners) l.onError(s);
+        });
     }
 
-    private void notifyPlaying(MusicApi.Song song, String sourceName, String quality) {
-        for (Listener l : listeners) l.onPlaying(song, sourceName, quality);
+    private void notifyPlaying(final MusicApi.Song song, final String sourceName, final String quality) {
+        main.post(() -> {
+            for (Listener l : listeners) l.onPlaying(song, sourceName, quality);
+        });
     }
 
     private void notifyPaused() {
-        for (Listener l : listeners) l.onPaused();
+        main.post(() -> {
+            for (Listener l : listeners) l.onPaused();
+        });
     }
 }

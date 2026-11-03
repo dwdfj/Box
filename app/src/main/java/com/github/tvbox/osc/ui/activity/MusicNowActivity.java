@@ -29,8 +29,8 @@ public class MusicNowActivity extends BaseActivity {
     private TextView nameView, singerView, qualityView, posView, durView, statusView;
     private TextView lineView, modeView, favView, downloadView;
     private SeekBar progress;
-    private ImageView cover;
-    private View discArea, discRing;
+    private com.github.tvbox.osc.music.RotatingCoverView disc;
+    private View discArea;
     private LyricView lyricView;
     private BlobPlayButton blob;
 
@@ -38,6 +38,12 @@ public class MusicNowActivity extends BaseActivity {
     private boolean ticking = false;
     private boolean lyricMode = false;
     private boolean dragging = false;
+
+    /** 统一切主线程改 UI —— 下载/取链回调都在后台线程, 直接 setText 会崩。 */
+    private void ui(Runnable r) {
+        if (Looper.myLooper() == Looper.getMainLooper()) r.run();
+        else main.post(r);
+    }
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -52,6 +58,7 @@ public class MusicNowActivity extends BaseActivity {
                 blob.setProgress((float) pos / dur);
             }
             blob.setPlaying(p.isPlaying());
+            if (disc != null) disc.setPlaying(p.isPlaying()); // v27.15: 播放时封面转, 暂停停住
             if (lyricMode) lyricView.setProgress(pos);
             main.postDelayed(this, 300);
         }
@@ -109,9 +116,8 @@ public class MusicNowActivity extends BaseActivity {
         favView = findViewById(R.id.musicNowFav);
         downloadView = findViewById(R.id.musicNowDownload);
         progress = findViewById(R.id.musicNowProgress);
-        cover = findViewById(R.id.musicNowCover);
+        disc = findViewById(R.id.musicDiscRing);
         discArea = findViewById(R.id.musicDiscArea);
-        discRing = findViewById(R.id.musicDiscRing);
         lyricView = findViewById(R.id.musicLyric);
         blob = findViewById(R.id.musicBlobPlay);
 
@@ -184,21 +190,26 @@ public class MusicNowActivity extends BaseActivity {
             MusicDownloader.download(cur, p.preferredQuality(), new MusicDownloader.Cb() {
                 @Override
                 public void onProgress(float f) {
-                    downloadView.setText("⇩ " + (int) (f * 100) + "%");
+                    // v27.15: 回调在下载线程, 必须切回主线程才能碰 View(否则 CalledFromWrongThread 闪退)
+                    ui(() -> downloadView.setText("⇩ " + (int) (f * 100) + "%"));
                 }
 
                 @Override
                 public void onDone(String path) {
-                    downloadView.setText("✓ 已下载");
-                    downloadView.setEnabled(true);
-                    statusView.setText("已保存: " + path);
+                    ui(() -> {
+                        downloadView.setText("✓ 已下载");
+                        downloadView.setEnabled(true);
+                        statusView.setText("已保存: " + path);
+                    });
                 }
 
                 @Override
                 public void onFail(String err) {
-                    downloadView.setText("⇩ 下载");
-                    downloadView.setEnabled(true);
-                    statusView.setText("下载失败: " + err);
+                    ui(() -> {
+                        downloadView.setText("⇩ 下载");
+                        downloadView.setEnabled(true);
+                        statusView.setText("下载失败: " + err);
+                    });
                 }
             });
         });
@@ -260,8 +271,28 @@ public class MusicNowActivity extends BaseActivity {
         qualityView.setText(q == null ? "" : MusicPlayer.qualityLabel(q));
         if (src != null && !src.isEmpty()) lineView.setText(src);
         if (s.cover != null && !s.cover.isEmpty()) {
-            Glide.with(mContext).load(s.cover).into(cover);
+            loadDisc(s.cover);
         }
+    }
+
+    /** v27.15: 圆形旋转封面要 Bitmap(拿不到原图就给黑胶空盘)。 */
+    private void loadDisc(String url) {
+        if (disc == null) return;
+        Glide.with(mContext)
+                .asBitmap()
+                .load(url)
+                .into(new com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
+                    @Override
+                    public void onResourceReady(@androidx.annotation.NonNull android.graphics.Bitmap resource,
+                                                com.bumptech.glide.request.transition.Transition<? super android.graphics.Bitmap> transition) {
+                        disc.setBitmap(resource);
+                    }
+
+                    @Override
+                    public void onLoadCleared(android.graphics.drawable.Drawable placeholder) {
+                        disc.setBitmap(null);
+                    }
+                });
     }
 
     @Override

@@ -111,6 +111,12 @@
     <dimen name="vs_38">38mm</dimen>
     <dimen name="vs_42">42mm</dimen>
     <dimen name="vs_96">96mm</dimen>
+    <!-- 小贾影视仓 v27.15: 音乐首页封面卡由 280 放大到 320 -->
+    <dimen name="vs_320">320mm</dimen>
+    <!-- 小贾影视仓 v27.15: 灵动条内圈封面 92 -->
+    <dimen name="vs_92">92mm</dimen>
+    <!-- 小贾影视仓 v27.15: 歌单详情页头图 220 -->
+    <dimen name="vs_220">220mm</dimen>
     <dimen name="vs_520">520mm</dimen>
     <dimen name="vs_760">760mm</dimen>
     <dimen name="vs_1180">1180mm</dimen>

@@ -108,6 +108,13 @@ public class MusicActivity extends BaseActivity {
         rv.setAdapter(rowsAdapter);
 
         findViewById(R.id.musicBack).setOnClickListener(v -> finish());
+        // v27.15: 线路胶囊旁的音乐胶囊 —— 已在音乐首页, 点它回到「首页」tab 并聚焦内容区
+        findViewById(R.id.musicEnterBtn).setOnClickListener(v -> {
+            setMode(false);
+            RecyclerView rowsRv = findViewById(R.id.musicRows);
+            rowsRv.requestFocus();
+            if (rowsAdapter != null && rowsAdapter.getItemCount() > 0) rowsRv.scrollToPosition(0);
+        });
         sourceBtn.setOnClickListener(v -> LineDialog.show(this, name -> {
             sourceBtn.setText(name);
             setStatus("线路已切到 " + name);
@@ -331,6 +338,7 @@ public class MusicActivity extends BaseActivity {
         }
 
         void bind() {
+            if (adapter == null || banners.isEmpty()) return;
             adapter.notifyDataSetChanged();
         }
     }
