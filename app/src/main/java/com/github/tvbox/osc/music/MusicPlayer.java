@@ -48,6 +48,8 @@ public class MusicPlayer {
     private final List<String> readyKeys = new ArrayList<>();
     private int sourceIdx = 0;
     private int qualityIdx = 0;
+    private String lastQuality = "320k"; // v27.9: 实际生效的音质(直连/JS 两条链各自维护)
+    private String lastSourceName; // v27.9: 取链来源名(直连=null → 显示"直连")
     private MusicApi.Song current;
     private final java.util.concurrent.CopyOnWriteArrayList<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean loading = false;
@@ -149,7 +151,7 @@ public class MusicPlayer {
         } else {
             player.play();
             if (current != null)
-                notifyPlaying(current, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
+                notifyPlaying(current, currentSourceName(), lastQuality);
         }
     }
 
@@ -160,24 +162,51 @@ public class MusicPlayer {
         }
         loading = true;
         qualityIdx = 0;
-        runtime(); // v27.9 修复: 必须先构造 runtime(装载音源), 否则 sourceKeys 为空 → 恒报"无可用音源"
-        attempt(song, true, 0);
+        runtime(); // JS 音源后台装载(作为兜底)
+        notifyStatus("已点「" + song.name + "」，取链中…");
+        attemptDirect(song, 0);
+    }
+
+    /** v27.9 换方案: 优先直连 HTTP 取链端点链(数据面实测可用), 全败再回落 JS 音源运行时。 */
+    private static final String[] DIRECT_Q = {"320k", "128k", "flac"};
+
+    private void attemptDirect(final MusicApi.Song song, final int qIdx) {
+        qualityIdx = Math.min(qIdx, QUALITY_FALLBACK.length - 1);
+        lastQuality = DIRECT_Q[qIdx];
+        lastSourceName = null; // 直连
+        notifyStatus("取链中(直连 · " + DIRECT_Q[qIdx] + ")…");
+        MusicDirect.fetch(song.songmid, DIRECT_Q[qIdx], (url, err) -> {
+            if (!loading) return; // 已被超时/新点击接管
+            if (url != null && !TextUtils.isEmpty(url)) {
+                startPlay(song, url);
+                return;
+            }
+            if (qIdx + 1 < QUALITY_FALLBACK.length) {
+                attemptDirect(song, qIdx + 1);
+                return;
+            }
+            notifyStatus("直连失败，尝试内置音源…");
+            attemptJs(song, 0, 0);
+        });
     }
 
     private void attempt(final MusicApi.Song song, final boolean allowFallback) {
-        attempt(song, allowFallback, 0);
+        attemptDirect(song, 0);
     }
 
-    private void attempt(final MusicApi.Song song, final boolean allowFallback, final int waitCnt) {
+    private void attemptJs(final MusicApi.Song song, final int qIdx, final int waitCnt) {
+        qualityIdx = qIdx;
+        lastQuality = QUALITY_FALLBACK[qIdx];
+        lastSourceName = currentSourceName();
         // v27.9: runtime() 里 loadSource 是 post 到 JS 线程的, env 未装好前等待重试(最多 ~7s)
         if (runtime().getSources().isEmpty()) {
             if (waitCnt < 24) {
                 notifyStatus("音源启动中…(" + waitCnt + ")");
-                main.postDelayed(() -> attempt(song, allowFallback, waitCnt + 1), 300);
+                main.postDelayed(() -> attemptJs(song, qIdx, waitCnt + 1), 300);
                 return;
             }
             loading = false;
-            notifyError("音源加载失败，请点「源」切换重试");
+            notifyError("取链失败: 直连与内置音源均不可用，请点「源」切换重试");
             return;
         }
         final String key = currentSourceKey();
@@ -190,22 +219,20 @@ public class MusicPlayer {
         if (!runtime().getSources().containsKey(key)) {
             if (waitCnt < 24) {
                 notifyStatus("音源装载中…");
-                main.postDelayed(() -> attempt(song, allowFallback, waitCnt + 1), 300);
+                main.postDelayed(() -> attemptJs(song, qIdx, waitCnt + 1), 300);
                 return;
             }
             loading = false;
             notifyError("音源未就绪，请稍后重试");
             return;
         }
-        notifyStatus("取链中(" + currentSourceName() + " " + QUALITY_FALLBACK[qualityIdx] + ")…");
+        notifyStatus("取链中(音源 " + currentSourceName() + " " + QUALITY_FALLBACK[qualityIdx] + ")…");
         runtime().getMusicUrl(key, "wy", MusicApi.musicInfoFor(song), QUALITY_FALLBACK[qualityIdx],
                 (srcKey, error, url, ekey, format) -> {
                     loading = false;
                     if (error != null || TextUtils.isEmpty(url)) {
-                        if (allowFallback && qualityIdx < QUALITY_FALLBACK.length - 1) {
-                            qualityIdx++;
-                            loading = true;
-                            attempt(song, true);
+                        if (qualityIdx < QUALITY_FALLBACK.length - 1) {
+                            attemptJs(song, qualityIdx + 1, 0);
                         } else {
                             notifyError("取链失败: " + (error == null ? "空地址" : error) + "，可切「音源」重试");
                         }
@@ -217,6 +244,7 @@ public class MusicPlayer {
 
     private void startPlay(MusicApi.Song song, String url) {
         try {
+            loading = false; // v27.9: 取链结束, 恢复可再次点歌
             if (player == null) {
                 // v27.5: 带 UA 的 HttpDataSource(很多音乐直链校验 UA, 默认 ExoPlayerLib UA 会被 403)
                 androidx.media3.datasource.DefaultHttpDataSource.Factory httpFactory =
@@ -241,9 +269,10 @@ public class MusicPlayer {
             player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
             player.prepare();
             player.play();
-            notifyStatus("播放中 · " + currentSourceName() + " · " + QUALITY_FALLBACK[qualityIdx]);
-            notifyPlaying(song, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
+            notifyStatus("播放中 · " + (lastSourceName == null ? "直连" : lastSourceName) + " · " + lastQuality);
+            notifyPlaying(song, lastSourceName == null ? "直连" : lastSourceName, lastQuality);
         } catch (Throwable t) {
+            loading = false;
             notifyError("播放失败: " + t.getMessage());
         }
     }

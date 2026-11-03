@@ -75,7 +75,8 @@ public class MusicActivity extends BaseActivity {
 
         RecyclerView nav = findViewById(R.id.musicNav);
         navAdapter = new NavAdapter();
-        nav.setLayoutManager(new LinearLayoutManager(this));
+        // v27.9: 导航改顶部横向标签页(上下布局)
+        nav.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         nav.setAdapter(navAdapter);
 
         RecyclerView rv = findViewById(R.id.musicRows);
@@ -243,7 +244,7 @@ public class MusicActivity extends BaseActivity {
             h.name.setTextColor(sel ? 0xFFFFFFFF : 0xB3FFFFFF);
             h.name.setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             h.dot.setVisibility(sel ? View.VISIBLE : View.INVISIBLE);
-            h.itemView.setNextFocusRightId(R.id.musicRows);
+            h.itemView.setNextFocusDownId(R.id.musicRows); // v27.9: 横向标签, 焦点下移进内容区
         }
 
         @Override
