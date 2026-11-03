@@ -44,13 +44,20 @@ public final class BarBind implements MusicPlayer.Listener {
 
     public void bind(android.app.Activity activity) {
         MusicPlayer p = MusicPlayer.get();
-        p.setListener(this);
+        p.addListener(this); // v27.8: 多监听器, 不再独占槽位
         playPause.setOnClickListener(v -> p.toggle());
         MusicApi.Song cur = p.current();
         if (cur != null) {
             show(cur, "", "");
             if (!p.isPlaying()) onPaused();
         }
+    }
+
+    /** v27.8: 页面销毁时解除监听, 防止 Activity 泄漏。 */
+    public void unbind() {
+        MusicPlayer.get().removeListener(this);
+        bar.removeCallbacks(progressTick);
+        stopSpin(false);
     }
 
     @Override
@@ -76,6 +83,7 @@ public final class BarBind implements MusicPlayer.Listener {
 
     @Override
     public void onError(String text) {
+        bar.setVisibility(View.VISIBLE);
         name.setText(text);
         stopSpin(false);
         bar.removeCallbacks(progressTick);

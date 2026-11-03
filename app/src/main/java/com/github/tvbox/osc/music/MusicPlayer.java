@@ -49,12 +49,17 @@ public class MusicPlayer {
     private int sourceIdx = 0;
     private int qualityIdx = 0;
     private MusicApi.Song current;
-    private Listener listener;
+    private final java.util.concurrent.CopyOnWriteArrayList<Listener> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean loading = false;
     private boolean sourcesReady = false;
 
-    public void setListener(Listener l) {
-        listener = l;
+    /** v27.8: 多监听器 —— 此前单槽位被 BarBind 独占, 页面收不到任何状态/错误(点击无反馈根因)。 */
+    public void addListener(Listener l) {
+        if (l != null) listeners.addIfAbsent(l);
+    }
+
+    public void removeListener(Listener l) {
+        listeners.remove(l);
     }
 
     public LxRuntime runtime() {
@@ -140,11 +145,11 @@ public class MusicPlayer {
         if (player == null) return;
         if (player.isPlaying()) {
             player.pause();
-            if (listener != null) listener.onPaused();
+            notifyPaused();
         } else {
             player.play();
-            if (listener != null && current != null)
-                listener.onPlaying(current, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
+            if (current != null)
+                notifyPlaying(current, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
         }
     }
 
@@ -210,8 +215,7 @@ public class MusicPlayer {
             player.prepare();
             player.play();
             notifyStatus("播放中 · " + currentSourceName() + " · " + QUALITY_FALLBACK[qualityIdx]);
-            if (listener != null)
-                listener.onPlaying(song, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
+            notifyPlaying(song, currentSourceName(), QUALITY_FALLBACK[qualityIdx]);
         } catch (Throwable t) {
             notifyError("播放失败: " + t.getMessage());
         }
@@ -219,11 +223,19 @@ public class MusicPlayer {
 
     private void notifyStatus(String s) {
         Log.d(TAG, s);
-        if (listener != null) listener.onStatus(s);
+        for (Listener l : listeners) l.onStatus(s);
     }
 
     private void notifyError(String s) {
         Log.w(TAG, s);
-        if (listener != null) listener.onError(s);
+        for (Listener l : listeners) l.onError(s);
+    }
+
+    private void notifyPlaying(MusicApi.Song song, String sourceName, String quality) {
+        for (Listener l : listeners) l.onPlaying(song, sourceName, quality);
+    }
+
+    private void notifyPaused() {
+        for (Listener l : listeners) l.onPaused();
     }
 }

@@ -42,6 +42,14 @@ public class MusicListActivity extends BaseActivity {
     private ImageView paneCover;
     private BarBind bar;
 
+    /** v27.8: 页面自身监听器, 取链/播放/错误全部上屏。 */
+    private final MusicPlayer.Listener pageListener = new MusicPlayer.Listener() {
+        @Override public void onStatus(String s) { setStatus(s); }
+        @Override public void onPlaying(MusicApi.Song s, String src, String q) { setStatus("▶ " + s.name + " · " + src + " · " + q); adapter.notifyDataSetChanged(); }
+        @Override public void onPaused() { setStatus("已暂停"); }
+        @Override public void onError(String s) { setStatus(s); }
+    };
+
     @Override
     protected int getLayoutResID() {
         return R.layout.activity_music_list;
@@ -49,6 +57,7 @@ public class MusicListActivity extends BaseActivity {
 
     @Override
     protected void init() {
+        MusicPlayer.get().addListener(pageListener);
         titleView = findViewById(R.id.musicListTitle);
         statusView = findViewById(R.id.musicListStatus);
         sourceBtn = findViewById(R.id.musicListSource);
@@ -63,7 +72,7 @@ public class MusicListActivity extends BaseActivity {
         findViewById(R.id.musicListBack).setOnClickListener(v -> finish());
         sourceBtn.setOnClickListener(v -> {
             String name = MusicPlayer.get().nextSource();
-            sourceBtn.setText(name + " ▾");
+            sourceBtn.setText("源"); // v27.8: 圆形按钮只放图标字, 源名进状态行
             setStatus("已切换音源: " + name + "，重新点歌即可");
         });
         findViewById(R.id.musicPlayAll).setOnClickListener(v -> {
@@ -110,7 +119,14 @@ public class MusicListActivity extends BaseActivity {
                         : (songs.isEmpty() ? "歌单为空" : songs.size() + " 首 · 播放全部或点歌"));
             });
         }
-        sourceBtn.post(() -> sourceBtn.setText(MusicPlayer.get().currentSourceName() + " ▾"));
+        sourceBtn.post(() -> sourceBtn.setText("源"));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (bar != null) bar.unbind();
+        MusicPlayer.get().removeListener(pageListener);
     }
 
     private void doSearch(String kw) {

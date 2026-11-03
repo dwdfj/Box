@@ -53,6 +53,14 @@ public class MusicActivity extends BaseActivity {
     private BarBind bar;
     private int navSel = 0;
 
+    /** v27.8: 页面自身监听器 —— 取链/播放/错误全部上屏(此前被 BarBind 独占, 点击无任何反馈)。 */
+    private final MusicPlayer.Listener pageListener = new MusicPlayer.Listener() {
+        @Override public void onStatus(String s) { setStatus(s); }
+        @Override public void onPlaying(MusicApi.Song s, String src, String q) { setStatus("▶ " + s.name + " · " + src + " · " + q); }
+        @Override public void onPaused() { setStatus("已暂停"); }
+        @Override public void onError(String s) { setStatus(s); }
+    };
+
     @Override
     protected int getLayoutResID() {
         return R.layout.activity_music;
@@ -60,6 +68,7 @@ public class MusicActivity extends BaseActivity {
 
     @Override
     protected void init() {
+        MusicPlayer.get().addListener(pageListener);
         statusView = findViewById(R.id.musicStatus);
         sourceBtn = findViewById(R.id.musicSourceBtn);
         paneTitle = findViewById(R.id.musicPaneTitle);
@@ -98,6 +107,13 @@ public class MusicActivity extends BaseActivity {
 
         updateSourceLabel();
         loadHall();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (bar != null) bar.unbind();
+        MusicPlayer.get().removeListener(pageListener);
     }
 
     private void loadHall() {
