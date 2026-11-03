@@ -162,6 +162,10 @@ public class DetailActivity extends BaseActivity {
     public static final int BROADCAST_ACTION_PLAYPAUSE = 1;
     public static final int BROADCAST_ACTION_NEXT = 2;
 
+    // 小贾影视仓 fix: 跨 Activity 传递 VodInfo 用静态持有者, 避免长剧集 seriesMap 序列化后超 1MB Binder 上限
+    // 导致 TransactionTooLargeException。PlayActivity 读取时优先用 Intent 里的 VodInfo, 取不到再回退到这里。
+    public static volatile VodInfo sVodInfo = null;
+
     private ImageView tvPlayUrl;
     /**
      * Home键广播,用于触发后台服务
@@ -195,13 +199,21 @@ public class DetailActivity extends BaseActivity {
     }
 
     /**
-     * 小贾影视仓 v24.5: autoPlay 直达模式下本页只是拉详情数据的中转页,
-     * 启用半透明+无动画主题 —— 拉取期间底层列表保持可见, 数据一到立刻跳播放页。
-     * 彻底消灭"点封面后旧详情页(小窗形态)闪一下"。
+     * 小贾影视仓 v26.8: 【点封面闪一下搜索界面的真因】
+     * 原来本页在 autoPlay 模式下走 passThroughWindow() —— 半透明窗口 + 内容 GONE,
+     * 拉数据期间窗口没有任何像素, 就把**下层 Activity** 原样透出来。首页最上面正好是
+     * 通栏搜索框 + 分类胶囊, 所以观感是"点封面后闪一下搜索界面"。
+     * 现在反过来: 窗口不透明(铺深色底) + 进场第一帧就画骨架页(detailSkeleton),
+     * 底下是什么都透不出来。数据到手仍然直接切播放页。
      */
     @Override
     protected boolean passThroughWindow() {
-        return autoPlay;
+        return false;
+    }
+
+    @Override
+    protected boolean opaqueNoWindowAnim() {
+        return true;
     }
 
     @Override
@@ -596,7 +608,9 @@ public class DetailActivity extends BaseActivity {
             //保存历史
             insertVod(firstsourceKey, vodInfo);
             bundle.putString("sourceKey", sourceKey);
-            bundle.putSerializable("VodInfo", vodInfo);
+            // 小贾影视仓 fix: 长剧集 VodInfo(seriesMap 巨大) 序列化后常超 1MB Binder 上限,
+            // 跨 Activity 直传会 TransactionTooLargeException。preview 是进程内 fragment(无 Binder 限制)照常塞 bundle;
+            // 真正跨进程跳转 PlayActivity 改用静态持有者 sVodInfo 传递, Intent 只带 sourceKey。
             if (showPreview) {
                 if (previewVodInfo == null) {
                     try {
@@ -623,6 +637,7 @@ public class DetailActivity extends BaseActivity {
                 }
                 playFragment.setData(bundle);
             } else {
+                sVodInfo = vodInfo;
                 jumpActivity(PlayActivity.class, bundle);
             }
         }
@@ -779,6 +794,7 @@ public class DetailActivity extends BaseActivity {
                         // v25: 直达模式下要显示"没找到数据"必须先把 llLayout 放回来(LoadSir 依附其上),
                         // 但只能在这一帧做, 之后不再走 showSuccess 把旧小窗画出来。
                         if (autoPlay) {
+                            hideSkeleton();
                             if (llLayout != null) llLayout.setVisibility(View.VISIBLE);
                             setLoadSir(llLayout);
                         }
@@ -890,6 +906,7 @@ public class DetailActivity extends BaseActivity {
                     // v25: 同上 —— 直达模式失败兜底才恢复 llLayout 并挂 LoadSir,
                     // 避免成功路径上 showSuccess() 把旧横屏小窗画一帧。
                     if (autoPlay) {
+                        hideSkeleton();
                         if (llLayout != null) llLayout.setVisibility(View.VISIBLE);
                         setLoadSir(llLayout);
                     }
@@ -923,7 +940,75 @@ public class DetailActivity extends BaseActivity {
             Bundle bundle = intent.getExtras();
             // v23.8: 默认 true —— 所有封面入口都直达播放页; 个别入口想停留详情页可显式传 false
             autoPlay = bundle.getBoolean("autoPlay", true);
+            if (autoPlay) {
+                // 小贾影视仓 v27.15: 点封面**真·直达**播放页。
+                // 旧版是"本页拉完详情再跳" —— 拉取那 1~3 秒里本页必须画点东西(骨架/黑底),
+                // 用户看到的就是"先闪一个『XX 正在打开…』的中间页"。现在本页不拉数据、不画一帧,
+                // 直接把 id 丢给 PlayActivity, 由播放页自己拉详情并起播:
+                // 全程只有"首页 → 播放页(带加载提示) → 画面"三步, 中间页彻底消失。
+                handoffToPlay(bundle);
+                return;
+            }
+            showSkeleton(bundle);
             loadDetail(bundle.getString("id", null), bundle.getString("sourceKey", ""));
+        }
+    }
+
+    /**
+     * 小贾影视仓 v27.15: 把"取详情"的活交给 PlayActivity 自己干, 本页只做一次瞬时转交。
+     * 转交后立刻 finish() 且不加动画, 系统通常连一帧都不会画本页。
+     */
+    private void handoffToPlay(Bundle bundle) {
+        try {
+            Intent i = new Intent(this, PlayActivity.class);
+            i.putExtra("sourceKey", bundle.getString("sourceKey", ""));
+            i.putExtra("directPlay", true);
+            i.putExtra("directId", bundle.getString("id", ""));
+            i.putExtra("directName", bundle.getString("title", ""));
+            i.putExtra("directPic", bundle.getString("pic", ""));
+            startActivity(i);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        finish();
+        overridePendingTransition(0, 0);
+    }
+
+    /**
+     * 小贾影视仓 v26.8: 直达播放的进场骨架。
+     * 封面用 Glide 强制解码到 24×24 再铺满全屏 —— 等于超低分辨率放大, 天然就是虚化效果,
+     * 不需要引入 RenderScript/BlurTransformation; 叠一层深色遮罩后只作为氛围底。
+     */
+    private void showSkeleton(Bundle bundle) {
+        try {
+            View skel = findViewById(R.id.detailSkeleton);
+            if (skel == null) return;
+            skel.setVisibility(View.VISIBLE);
+            TextView title = findViewById(R.id.skelTitle);
+            String name = bundle == null ? null : bundle.getString("title", "");
+            if (title != null && !TextUtils.isEmpty(name)) {
+                title.setText(name);
+            } else if (title != null) {
+                title.setVisibility(View.GONE);
+            }
+            String pic = bundle == null ? null : bundle.getString("pic", "");
+            View bg = findViewById(R.id.skelBg);
+            if (bg instanceof ImageView && !TextUtils.isEmpty(pic)) {
+                com.bumptech.glide.Glide.with(this)
+                        .load(pic)
+                        .override(24, 24)
+                        .centerCrop()
+                        .into((ImageView) bg);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void hideSkeleton() {
+        try {
+            View skel = findViewById(R.id.detailSkeleton);
+            if (skel != null) skel.setVisibility(View.GONE);
+        } catch (Throwable ignored) {
         }
     }
 

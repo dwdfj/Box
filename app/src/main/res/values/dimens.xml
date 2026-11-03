@@ -67,6 +67,8 @@
     <dimen name="vs_90">90mm</dimen>
     <!-- 小贾影视仓 v23.7 补定义: 这两个被引用但从未定义, 直接导致 aapt "resource dimen/... not found" 构建失败 -->
     <dimen name="vs_88">88mm</dimen>
+    <!-- 小贾影视仓 v26: 横屏控制条按钮放大(vs_64 -> vs_86)时被引用, 同样没定义 -->
+    <dimen name="vs_86">86mm</dimen>
     <dimen name="vs_95">95mm</dimen>
     <dimen name="vs_100">100mm</dimen>
     <dimen name="vs_110">110mm</dimen>
@@ -126,4 +128,18 @@
     <dimen name="vs_507">507mm</dimen>
     <dimen name="vs_660">660mm</dimen>
     <dimen name="vs_700">700mm</dimen>
+
+    <!-- 小贾影视仓 v26.3: 播放控制条改两行布局新增维度
+         vs_126 x vs_104 = 按钮尺寸(原 vs_150 x vs_120 缩小, 两行各 7 个可同屏);
+         vs_78 / vs_68 = 图标高度; vs_84 = 时间钮宽; vs_48 = 弹幕图标。
+         教训: 重构布局引入新 dimens 时必须同步定义, 否则 aapt 资源链接失败,
+               且旧产物会留在 outputs 被误当新包签名(见 _build.ps1 防护)。 -->
+    <dimen name="vs_48">48mm</dimen>
+    <dimen name="vs_68">68mm</dimen>
+    <dimen name="vs_78">78mm</dimen>
+    <dimen name="vs_84">84mm</dimen>
+    <dimen name="vs_104">104mm</dimen>
+    <dimen name="vs_126">126mm</dimen>
+    <!-- v26.4: 播放页标题行三个图标钮(全屏/投屏/收藏)放大 -->
+    <dimen name="vs_132">132mm</dimen>
 </resources>

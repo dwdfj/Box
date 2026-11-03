@@ -1,17 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23.3: 竖屏半屏播放(对齐 AVBox 竖屏播放器)。
-     上半区 = 视频(高度按屏宽×9/16 动态换算, 16:9 正好铺满不留黑边);
-     下半区 = 卡片式信息流(标题行+操作图标 / 来源·年份胶囊 / 简介卡 / 线路胶囊 / 选集胶囊),
-     每张卡片深色圆角 + 左右留边距, 卡片之间留间距。整区可上下滚动。 -->
+<!-- 小贾影视仓 v26.8: 竖屏播放页「整片贴合」版。
+     ── 上一版的问题(用户: "竖屏分配太丑了") ──
+     视频 16:9 只占 25% 屏高, 下面 4 张浮动圆角卡片占 46%, 最底部 28% 整片空着
+     (卡片都是 wrap_content, 内容不够长时剩下的一整块就是壁纸/空白)。
+     ── 这一版 ──
+     ① 视频区仍是「屏宽 × 9/16」贴顶 —— 画面宽度已经顶满, 再高只能裁画面,
+        所以尺寸不动, 但外框改成纯黑直角, 与下方信息区一条直线咬合, 不再悬浮。
+     ② 下方不再是 4 张卡片, 而是一整张**纯色信息面板**(自视频下沿铺到屏幕底),
+        面板内用间距和细分隔分块。没有"卡片浮在壁纸上"的割裂感, 也不存在底部空洞。
+     ③ 选集改成「4 列等宽网格」并 weight=1 吃掉面板剩余高度:
+        36 集正好 9 行铺满; 集数多时网格内部滚动, 集数少时空白落在面板底色上(不是壁纸上)。
+     ④ 线路、简介收在网格下方贴底, 简介默认 2 行可展开。
+     所有 id 与 v23.x 一致, PlayActivity 无需改引用。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/color_32364E_40"
+    android:background="#0B0C10"
     android:orientation="vertical">
 
-    <!-- 上半: 视频画面(高度由 Java 按「屏高一半」换算, 兜底 vs_1400) -->
+    <!-- 上半: 视频画面(高度由 Java 按「屏宽×9/16」换算, 兜底 vs_1400) -->
     <FrameLayout
         android:id="@+id/videoContainer"
         android:layout_width="match_parent"
@@ -29,14 +38,12 @@
             android:layout_height="match_parent"
             android:visibility="gone" />
 
-        <ProgressBar
+        <!-- v27.30: 加载动画从「系统转圈」换成自绘的律动条(LoadingAnimView), 起播等待时不再是转圈 -->
+        <com.github.tvbox.osc.widget.LoadingAnimView
             android:id="@+id/play_loading"
-            android:layout_width="@dimen/vs_70"
-            android:layout_height="@dimen/vs_70"
-            android:layout_gravity="center"
-            android:indeterminateBehavior="repeat"
-            android:indeterminateDrawable="@drawable/anim_loading"
-            android:indeterminateOnly="true" />
+            android:layout_width="@dimen/vs_200"
+            android:layout_height="@dimen/vs_60"
+            android:layout_gravity="center" />
 
         <ImageView
             android:id="@+id/play_load_error"
@@ -61,108 +68,193 @@
             android:textSize="@dimen/ts_24" />
     </FrameLayout>
 
-    <!-- 下半: 卡片式播放信息区 -->
-    <ScrollView
+    <!-- 下半: 整张纯色信息面板(不是卡片堆), 从视频下沿铺到屏幕底 -->
+    <LinearLayout
         android:id="@+id/infoScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:scrollbars="none">
+        android:background="#12141A"
+        android:orientation="vertical">
 
         <LinearLayout
             android:id="@+id/infoContainer"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:paddingLeft="@dimen/vs_24"
-            android:paddingTop="@dimen/vs_24"
-            android:paddingRight="@dimen/vs_24"
-            android:paddingBottom="@dimen/vs_40">
+            android:paddingLeft="@dimen/vs_40"
+            android:paddingTop="@dimen/vs_28"
+            android:paddingRight="@dimen/vs_40">
 
-            <!-- ① 卡片: 片名 + 操作图标(音乐/投屏/收藏) -->
+            <!-- ① 标题行: 片名 + 全屏 / 投屏 / 收藏 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/shape_play_card"
-                android:orientation="vertical"
-                android:padding="@dimen/vs_28">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/play_title"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="片名"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_38"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/play_title"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:text="片名"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_38"
-                        android:textStyle="bold" />
+                <ImageView
+                    android:id="@+id/btn_play_fullscreen"
+                    android:layout_width="@dimen/vs_96"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_marginStart="@dimen/vs_16"
+                    android:layout_marginLeft="@dimen/vs_16"
+                    android:background="@drawable/shape_play_card_icon"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="@dimen/vs_22"
+                    android:src="@drawable/v_fullscreen" />
 
-                    <!-- 小贾影视仓 v23.8: 原 btn_play_music 是个没有任何绑定的死按钮(hm_up_down 图标),
-                         现改为「横屏全屏」入口 —— 用户反馈"我没发现放大按键, 点击变成横向全屏",
-                         放在标题行比藏在底部控制条里好找得多。 -->
-                    <ImageView
-                        android:id="@+id/btn_play_fullscreen"
-                        android:layout_width="@dimen/vs_72"
-                        android:layout_height="@dimen/vs_72"
-                        android:layout_marginStart="@dimen/vs_16"
-                        android:layout_marginLeft="@dimen/vs_16"
-                        android:background="@drawable/shape_play_card_icon"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:padding="@dimen/vs_16"
-                        android:src="@drawable/v_fullscreen" />
+                <ImageView
+                    android:id="@+id/btn_play_cast"
+                    android:layout_width="@dimen/vs_96"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_marginStart="@dimen/vs_14"
+                    android:layout_marginLeft="@dimen/vs_14"
+                    android:background="@drawable/shape_play_card_icon"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="@dimen/vs_22"
+                    android:src="@drawable/hm_live" />
 
-                    <ImageView
-                        android:id="@+id/btn_play_cast"
-                        android:layout_width="@dimen/vs_72"
-                        android:layout_height="@dimen/vs_72"
-                        android:layout_marginStart="@dimen/vs_16"
-                        android:layout_marginLeft="@dimen/vs_16"
-                        android:background="@drawable/shape_play_card_icon"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:padding="@dimen/vs_16"
-                        android:src="@drawable/hm_live" />
-
-                    <ImageView
-                        android:id="@+id/btn_play_collect"
-                        android:layout_width="@dimen/vs_72"
-                        android:layout_height="@dimen/vs_72"
-                        android:layout_marginStart="@dimen/vs_16"
-                        android:layout_marginLeft="@dimen/vs_16"
-                        android:background="@drawable/shape_play_card_icon"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:padding="@dimen/vs_16"
-                        android:src="@drawable/hm_fav" />
-                </LinearLayout>
-
-                <!-- 来源 / 类型 / 年份 / 地区 胶囊行 -->
-                <LinearLayout
-                    android:id="@+id/play_meta_row"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/vs_20"
-                    android:orientation="horizontal" />
+                <ImageView
+                    android:id="@+id/btn_play_collect"
+                    android:layout_width="@dimen/vs_96"
+                    android:layout_height="@dimen/vs_96"
+                    android:layout_marginStart="@dimen/vs_14"
+                    android:layout_marginLeft="@dimen/vs_14"
+                    android:background="@drawable/shape_play_card_icon"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="@dimen/vs_22"
+                    android:src="@drawable/hm_fav" />
             </LinearLayout>
 
-            <!-- ② 卡片: 简介(默认 2 行, 可展开) -->
+            <!-- ② 来源 / 年份 / 类型 / 地区 胶囊行 -->
+            <LinearLayout
+                android:id="@+id/play_meta_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_16"
+                android:orientation="horizontal" />
+
+            <!-- ③ 选集标题行 -->
+            <LinearLayout
+                android:id="@+id/play_episode_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_28"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="选集"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_34"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/btn_episode_sort"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shape_play_card_icon"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingLeft="@dimen/vs_20"
+                    android:paddingRight="@dimen/vs_20"
+                    android:paddingTop="@dimen/vs_12"
+                    android:paddingBottom="@dimen/vs_12"
+                    android:text="↓ 倒序"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_24" />
+
+                <TextView
+                    android:id="@+id/btn_episode_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/vs_14"
+                    android:layout_marginLeft="@dimen/vs_14"
+                    android:background="@drawable/shape_play_card_icon"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingLeft="@dimen/vs_20"
+                    android:paddingRight="@dimen/vs_20"
+                    android:paddingTop="@dimen/vs_12"
+                    android:paddingBottom="@dimen/vs_12"
+                    android:text="⊞ 全部"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_24" />
+            </LinearLayout>
+
+            <!-- ④ 选集网格: 4 列等宽, weight=1 吃掉本面板剩余高度(集数多时内部滚动)。
+                 ⚠️ 条目必须用 match_parent 宽的 item_play_episode; 用 item_play_chip(wrap_content)
+                 配网格会排成参差不齐的一列碎块。 -->
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/play_episode_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="@dimen/vs_18"
+                android:layout_weight="1"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
+                app:tv_verticalSpacingWithMargins="@dimen/vs_16" />
+
+            <!-- ⑤ 线路: 标签 + 横滑胶囊 -->
+            <LinearLayout
+                android:id="@+id/play_line_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_22"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="线路"
+                    android:textColor="@color/color_FFFFFF_60"
+                    android:textSize="@dimen/ts_26" />
+
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/play_line_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/vs_16"
+                    android:layout_marginLeft="@dimen/vs_16"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    app:tv_horizontalSpacingWithMargins="@dimen/vs_14"
+                    app:tv_selectedItemIsCentered="false" />
+            </LinearLayout>
+
+            <!-- ⑥ 简介: 默认 2 行, 可展开 -->
             <LinearLayout
                 android:id="@+id/play_des_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_20"
-                android:background="@drawable/shape_play_card"
+                android:layout_marginTop="@dimen/vs_18"
                 android:orientation="vertical"
-                android:padding="@dimen/vs_28">
+                android:paddingBottom="@dimen/vs_20">
 
                 <TextView
                     android:id="@+id/play_des"
@@ -171,134 +263,25 @@
                     android:ellipsize="end"
                     android:lineSpacingExtra="@dimen/vs_6"
                     android:maxLines="2"
-                    android:textColor="@color/color_FFFFFF_80"
-                    android:textSize="@dimen/ts_28"
+                    android:textColor="@color/color_FFFFFF_60"
+                    android:textSize="@dimen/ts_26"
                     tools:text="影片以当代为背景，讲述了一个有抱负的男青年在个人事业发展中历经沧桑…" />
 
                 <TextView
                     android:id="@+id/play_des_toggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end"
                     android:layout_marginTop="@dimen/vs_8"
                     android:clickable="true"
                     android:focusable="true"
+                    android:paddingTop="@dimen/vs_6"
+                    android:paddingBottom="@dimen/vs_6"
                     android:text="展开"
-                    android:textColor="@color/color_FFFFFF_60"
-                    android:textSize="@dimen/ts_26"
+                    android:textColor="@color/color_FFFFFF_40"
+                    android:textSize="@dimen/ts_24"
                     android:visibility="gone"
                     tools:visibility="visible" />
             </LinearLayout>
-
-            <!-- ③ 卡片: 线路 -->
-            <LinearLayout
-                android:id="@+id/play_line_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_20"
-                android:background="@drawable/shape_play_card"
-                android:orientation="vertical"
-                android:padding="@dimen/vs_28">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="线路"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30"
-                    android:textStyle="bold" />
-
-                <com.owen.tvrecyclerview.widget.TvRecyclerView
-                    android:id="@+id/play_line_list"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/vs_16"
-                    android:clipChildren="false"
-                    android:clipToPadding="false"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16"
-                    app:tv_selectedItemIsCentered="false" />
-            </LinearLayout>
-
-            <!-- ④ 卡片: 选集(带倒序/全部) -->
-            <LinearLayout
-                android:id="@+id/play_episode_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_20"
-                android:background="@drawable/shape_play_card"
-                android:orientation="vertical"
-                android:padding="@dimen/vs_28">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="选集"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_30"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/btn_episode_sort"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/shape_play_card_icon"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20"
-                        android:paddingTop="@dimen/vs_10"
-                        android:paddingBottom="@dimen/vs_10"
-                        android:text="↓ 倒序"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
-
-                    <TextView
-                        android:id="@+id/btn_episode_all"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/vs_16"
-                        android:layout_marginLeft="@dimen/vs_16"
-                        android:background="@drawable/shape_play_card_icon"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20"
-                        android:paddingTop="@dimen/vs_10"
-                        android:paddingBottom="@dimen/vs_10"
-                        android:text="⊞ 全部"
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
-                </LinearLayout>
-
-                <!-- 小贾影视仓 v25: 选集由「3列网格」改为「横向单行滚动」——
-                     网格竖排时用户要跨行比对集数才看得出顺向, 改成一行横排后
-                     第1集→第N集 从左到右连续可读。固定单行高度, 不再随集数撑高卡片。 -->
-                <com.owen.tvrecyclerview.widget.TvRecyclerView
-                    android:id="@+id/play_episode_list"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_110"
-                    android:layout_marginTop="@dimen/vs_16"
-                    android:clipChildren="false"
-                    android:clipToPadding="false"
-                    app:tv_horizontalSpacingWithMargins="@dimen/vs_16" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/play_info_tip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_24"
-                android:gravity="center"
-                android:text="轻触画面显示控制 · 双击暂停"
-                android:textColor="@color/color_FFFFFF_40"
-                android:textSize="@dimen/ts_24" />
         </LinearLayout>
-    </ScrollView>
+    </LinearLayout>
 </LinearLayout>

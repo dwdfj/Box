@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23 竖屏: 由"左搜索面板(vs_420) + 中热词(vs_260) + 右结果区"的横排三段式,
-     改为"上搜索面板 + 中热词 + 下结果区"的竖排。三者靠可见性切换:
-     初始态 llSearchPanel/llWord 显示 + llLayout 里历史区显示; 出结果后前两者 GONE, 结果网格铺满。 -->
+<!-- 小贾影视仓 v23 竖屏: "上搜索面板 + 中热词 + 下结果区" 的竖排结构。
+     v27.18: 用户反馈"顶部『全局搜索』按钮太大, 动不动就误点; 整页字太小"。
+       - 输入框提到最上面(最常用), 高度 vs_110 -> vs_120, 字号 ts_30 -> ts_36;
+       - 「全局搜索 / 远程搜索 / 删除」三个功能性按钮统一下移到底部一行,
+         其中"远程搜索 / 删除"原本挤在自定义键盘里(第 1 行两格), 现在从键盘剥离;
+       - 热门搜索 / 搜索历史标题 ts_26 -> ts_34, 词条 vs_30 -> vs_34。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -11,108 +14,145 @@
     <LinearLayout
         android:id="@+id/llSearchPanel"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_1100"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="@dimen/vs_40">
+        android:paddingLeft="@dimen/vs_40"
+        android:paddingTop="@dimen/vs_40"
+        android:paddingRight="@dimen/vs_40"
+        android:paddingBottom="@dimen/vs_20">
 
+        <!-- 输入框 + 搜索源勾选图标 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/vs_5"
-            android:gravity="center_vertical"
-            android:orientation="vertical">
-            	
+            android:layout_height="@dimen/vs_120"
+            android:orientation="horizontal">
+
+            <com.github.tvbox.osc.ui.tv.widget.CustomEditText
+                android:id="@+id/etSearch"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_120"
+                android:layout_marginEnd="@dimen/vs_10"
+                android:layout_marginRight="@dimen/vs_10"
+                android:layout_weight="1"
+                android:background="@drawable/input_search"
+                android:hint="@string/act_search_txt"
+                android:imeOptions="actionDone"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingLeft="@dimen/vs_24"
+                android:paddingRight="@dimen/vs_24"
+                android:singleLine="true"
+                android:textColor="@android:color/white"
+                android:textColorHint="#70FFFFFF"
+                android:textSize="@dimen/ts_36" />
+
+            <ImageView
+                android:id="@+id/tvSearchCheckbox"
+                android:layout_width="@dimen/vs_120"
+                android:layout_height="@dimen/vs_120"
+                android:layout_gravity="center"
+                android:layout_margin="@dimen/vs_2"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:padding="@dimen/vs_12"
+                android:src="@drawable/icon_filter" />
+
+        </LinearLayout>
+
+        <!-- 搜索 / 清空 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_120"
+            android:layout_marginTop="@dimen/vs_12"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSearch"
+                android:layout_width="0mm"
+                android:layout_height="@dimen/vs_120"
+                android:layout_weight="1"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/act_search"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_36"
+                android:textStyle="bold" />
+
+            <Space
+                android:layout_width="@dimen/vs_14"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/tvClear"
+                android:layout_width="0mm"
+                android:layout_height="@dimen/vs_120"
+                android:layout_weight="1"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/act_search_clr"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_36" />
+        </LinearLayout>
+
+        <!-- 自定义键盘(A-Z / 0-9), 高度按 6 行算: 6 * (96 + 8) ≈ 624 -->
+        <com.github.tvbox.osc.ui.tv.widget.SearchKeyboard
+            android:id="@+id/keyBoardRoot"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_640"
+            android:layout_marginTop="@dimen/vs_8" />
+
+        <!-- 底部功能行: 全局搜索 / 远程搜索 / 删除
+             从顶部整条挪下来 —— 顶部那个大按钮离输入框太近, 一点就误触。 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/vs_120"
+            android:layout_marginTop="@dimen/vs_16"
+            android:orientation="horizontal">
+
             <TextView
                 android:id="@+id/filterBtn"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_110"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_120"
                 android:layout_weight="1"
                 android:background="@drawable/shape_user_focus"
                 android:ellipsize="end"
                 android:focusable="true"
                 android:gravity="center"
+                android:paddingLeft="@dimen/vs_10"
+                android:paddingRight="@dimen/vs_10"
+                android:singleLine="true"
                 android:text="@string/global_search"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_30" />
+                android:textSize="@dimen/ts_34" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_110"
-                android:layout_marginTop="@dimen/vs_10"
-                android:orientation="horizontal">
-                	
-                <com.github.tvbox.osc.ui.tv.widget.CustomEditText
-                    android:id="@+id/etSearch"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_110"
-                    android:layout_marginEnd="@dimen/vs_10"
-                    android:layout_marginRight="@dimen/vs_10"
-                    android:layout_weight="1"
-                    android:background="@drawable/input_search"
-                    android:hint="@string/act_search_txt"
-                    android:inputType="text"
-                    android:singleLine="true"
-                    android:imeOptions="actionDone"
-                    android:maxLines="1"
-                    android:paddingLeft="@dimen/vs_10"
-                    android:paddingRight="@dimen/vs_10"
-                    android:textColor="@android:color/white"
-                    android:textColorHint="#70FFFFFF"
-                    android:textSize="@dimen/ts_30" />
+            <TextView
+                android:id="@+id/tvRemoteKey"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_120"
+                android:layout_marginLeft="@dimen/vs_14"
+                android:layout_weight="1"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/act_search_rem"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_34" />
 
-                <ImageView
-                    android:id="@+id/tvSearchCheckbox"
-                    android:layout_width="@dimen/vs_110"
-                    android:layout_height="@dimen/vs_110"
-                    android:layout_gravity="center"
-                    android:layout_margin="@dimen/vs_2"
-                    android:background="@drawable/shape_user_focus"
-                    android:focusable="true"
-                    android:padding="@dimen/vs_5"
-                    android:src="@drawable/icon_filter" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_110"
-                android:layout_marginTop="@dimen/vs_10"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tvSearch"
-                    android:layout_width="0mm"
-                    android:layout_height="@dimen/vs_110"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_user_focus"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="@string/act_search"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
-
-                <Space
-                    android:layout_width="@dimen/vs_10"
-                    android:layout_height="wrap_content" />
-
-                <TextView
-                    android:id="@+id/tvClear"
-                    android:layout_width="0mm"
-                    android:layout_height="@dimen/vs_110"
-                    android:layout_weight="1"
-                    android:background="@drawable/shape_user_focus"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="@string/act_search_clr"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_30" />
-            </LinearLayout>
+            <TextView
+                android:id="@+id/tvDelKey"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_120"
+                android:layout_marginLeft="@dimen/vs_14"
+                android:layout_weight="1"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/act_search_del"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_34" />
         </LinearLayout>
-
-        <com.github.tvbox.osc.ui.tv.widget.SearchKeyboard
-            android:id="@+id/keyBoardRoot"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
 
         <LinearLayout
             android:id="@+id/remoteRoot"
@@ -129,7 +169,7 @@
                 android:gravity="center_horizontal"
                 android:lineSpacingMultiplier="1.4"
                 android:textColor="@android:color/white"
-                android:textSize="@dimen/ts_20" />
+                android:textSize="@dimen/ts_26" />
 
             <ImageView
                 android:id="@+id/ivQRCode"
@@ -146,20 +186,21 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingLeft="@dimen/vs_40"
-        android:paddingTop="@dimen/vs_10"
+        android:paddingTop="@dimen/vs_16"
         android:paddingRight="@dimen/vs_40"
         android:paddingBottom="@dimen/vs_10">
 
-        <TextView           
+        <TextView
             android:id="@+id/mHotSearch_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="@dimen/vs_10"
+            android:layout_marginBottom="@dimen/vs_14"
             android:text="@string/act_search_trend"
             android:textAlignment="viewStart"
             android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_26" />
+            android:textSize="@dimen/ts_34"
+            android:textStyle="bold" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridViewWord"
@@ -167,22 +208,22 @@
             android:layout_height="@dimen/vs_280"
             android:clipChildren="false"
             android:clipToPadding="false"
-            app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
+            app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
             app:tv_selectedItemIsCentered="true"
-            app:tv_verticalSpacingWithMargins="@dimen/vs_5" />
+            app:tv_verticalSpacingWithMargins="@dimen/vs_10" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/llLayout"
         android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_0"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingLeft="@dimen/vs_40"
-            android:paddingTop="@dimen/vs_20"
-            android:paddingRight="@dimen/vs_40"
-            android:paddingBottom="@dimen/vs_20">
-        
+        android:layout_height="@dimen/vs_0"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/vs_40"
+        android:paddingTop="@dimen/vs_20"
+        android:paddingRight="@dimen/vs_40"
+        android:paddingBottom="@dimen/vs_20">
+
         <RelativeLayout
             android:id="@+id/search_tips"
             android:layout_width="match_parent"
@@ -190,26 +231,27 @@
             android:layout_below="@+id/ll_search_layout">
 
             <TextView
-                android:textColor="@android:color/white"
                 android:id="@+id/title_history"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="@dimen/vs_20"
-                android:textSize="@dimen/ts_26"
-                android:text="搜索历史" />
+                android:text="搜索历史"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_34"
+                android:textStyle="bold" />
 
-            <ImageView                
+            <ImageView
                 android:id="@+id/clear_history"
-                android:layout_width="@dimen/vs_90"
-                android:layout_height="@dimen/vs_90"
-                android:gravity="center"
+                android:layout_width="@dimen/vs_96"
+                android:layout_height="@dimen/vs_96"
+                android:layout_alignParentRight="true"
+                android:layout_marginRight="@dimen/vs_20"
                 android:background="@drawable/shape_user_focus"
                 android:focusable="true"
                 android:focusableInTouchMode="false"
-                android:padding="@dimen/vs_5"
-                android:layout_marginRight="@dimen/vs_20"              
-                android:src="@drawable/icon_delete"
-                android:layout_alignParentRight="true" />
+                android:gravity="center"
+                android:padding="@dimen/vs_12"
+                android:src="@drawable/icon_delete" />
         </RelativeLayout>
 
         <com.yang.flowlayoutlibrary.FlowLayout
@@ -219,17 +261,16 @@
             android:layout_marginLeft="@dimen/vs_20"
             android:layout_marginTop="@dimen/vs_20"
             android:layout_marginRight="@dimen/vs_20"
-            app:backgroundResource="@drawable/shape_user_focus"
+            app:backgroundResource="@drawable/shape_chip_select_pill"
             app:horizontalSpacing="@dimen/vs_20"
             app:itemColor="@android:color/white"
-            app:itemSize="@dimen/vs_30"
-            app:textPaddingH="@dimen/vs_20"
-            app:textPaddingV="@dimen/vs_10"
-            app:verticalSpacing="@dimen/vs_20" />        
+            app:itemSize="@dimen/vs_34"
+            app:textPaddingH="@dimen/vs_26"
+            app:textPaddingV="@dimen/vs_14"
+            app:verticalSpacing="@dimen/vs_20" />
 
-        <!-- 小贾影视仓 v23.3 搜索结果: 去掉横屏遗留的「左侧竖排来源列 + 右侧结果」两段式。
-             竖屏下左侧那条来源列会吃掉 1/4 屏宽, 把结果挤成细面条(见 v23.2 实测),
-             故改为: 顶部一行可横滑的「来源胶囊」(全部 + 各来源) + 下方三列竖版海报铺满。 -->
+        <!-- 小贾影视仓 v23.3 搜索结果: 顶部一行可横滑的「来源胶囊」(全部 + 各来源) + 下方三列竖版海报铺满。
+             v27.18: 胶囊改用 shape_chip_select_pill, 当前筛选的源会显示紫底白边, 点了哪个一目了然。 -->
         <LinearLayout
             android:id="@+id/llSourceBar"
             android:layout_width="match_parent"

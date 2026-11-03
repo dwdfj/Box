@@ -49,6 +49,9 @@ public class SourcePanelDialog extends BaseDialog {
 
         /** 小贾影视仓 v21: 加载本地 .py 单源(弹出系统文件选择器) */
         void onPickLocalPy();
+
+        /** 小贾影视仓 v27.22: 长按本地 py 站点 —— 删除该 py(文件和记录一起清) */
+        void onDeletePy(SourceBean site);
     }
 
     private OnSourcePanelAction action;
@@ -105,9 +108,10 @@ public class SourcePanelDialog extends BaseDialog {
 
         // ---------- 右列: 站点(自适应宫格, 同旧站点选择器 1~3 列) ----------
         TvRecyclerView siteList = findViewById(R.id.panelSiteList);
-        int spanCount = (int) Math.floor(sites.size() / 10.0);
-        if (spanCount <= 1) spanCount = 1;
-        if (spanCount >= 3) spanCount = 3;
+        // 小贾影视仓 v27.22: 列数收紧。旧版按站点数 10 个一列最多铺 3 列, 右列宽度只有 ~700 设计单位,
+        // 3 列时每格 ≈230 —— 「[短剧] qimao(本地py)」这类长名字被截成「[短剧] qi…」, 用户看不到全名。
+        // 现在 18 站以内单列(整行都是名字), 更多才两列; 长名字最多两行显示。
+        int spanCount = sites.size() <= 18 ? 1 : 2;
         siteList.setLayoutManager(new V7GridLayoutManager(context, spanCount));
         SelectDialogAdapter<SourceBean> siteAdapter = new SelectDialogAdapter<>(
                 new SelectDialogAdapter.SelectDialogInterface<SourceBean>() {
@@ -137,6 +141,34 @@ public class SourcePanelDialog extends BaseDialog {
         if (siteSelect < 0 || siteSelect >= sites.size()) siteSelect = 0;
         siteAdapter.setData(sites, siteSelect);
         siteList.setAdapter(siteAdapter);
+        // 小贾影视仓 v27.22: 长按本地 py 站点 = 删除(先弹确认框, 由 HomeActivity 执行)。
+        // 之前 py 只能加载不能删, 加载错了就一直挂在站点列表最前面。
+        boolean hasLocalPy = false;
+        for (SourceBean sb : sites) {
+            if (sb != null && sb.getKey() != null && sb.getKey().startsWith("py_local_")) {
+                hasLocalPy = true;
+                break;
+            }
+        }
+        final boolean canDeletePy = hasLocalPy;
+        siteAdapter.setOnItemLongClick(new SelectDialogAdapter.OnItemLongClick<SourceBean>() {
+            @Override
+            public boolean onLongClick(SourceBean value, int pos) {
+                if (value == null || value.getKey() == null
+                        || !value.getKey().startsWith("py_local_")) {
+                    return false;   // 线路自带的站点不支持删
+                }
+                if (action != null) {
+                    dismiss();
+                    action.onDeletePy(value);
+                }
+                return true;
+            }
+        });
+        if (canDeletePy) {
+            android.widget.TextView siteTitle = findViewById(R.id.panelSiteTitle);
+            if (siteTitle != null) siteTitle.setText("站点（长按 py 可删除）");
+        }
         siteList.setSelectedPosition(siteSelect);
         siteList.setSelection(siteSelect);
         final int fsiteSelect = siteSelect;
@@ -200,6 +232,22 @@ public class SourcePanelDialog extends BaseDialog {
 
     public void setOnSourcePanelAction(OnSourcePanelAction action) {
         this.action = action;
+    }
+
+    @Override
+    public void show() {
+        super.show();
+        // 小贾影视仓 v27.18: 面板必须拿到"确定高度", 否则内部 0dp/weight 的列表没有可分配空间。
+        // Theme.Dialog 默认高度是 WRAP_CONTENT, 之前 ConstraintLayout 的 0dp 双向约束链
+        // 在 wrap 窗口里算出来是 0 —— 表现就是"线路一列空的, 什么也选不了"。
+        try {
+            android.view.Window w = getWindow();
+            if (w != null) {
+                w.setLayout(android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                        android.view.WindowManager.LayoutParams.MATCH_PARENT);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     @Override

@@ -7,7 +7,7 @@
     android:layout_height="wrap_content"
     android:background="@drawable/shape_thumb_radius"
     android:focusable="true"
-    android:focusableInTouchMode="true"
+    android:focusableInTouchMode="false"
     android:padding="@dimen/vs_1">
 
     <FrameLayout

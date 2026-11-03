@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.0 Aurora: 首页分类胶囊（推荐 / 电影 / 剧集 …）。
+     圆角 20mm 是写死值，在 vs_90 高的 chip 上小于半高 → 出来是"圆角矩形"而非胶囊；
+     改用 vs_45(= 半高) 才是标准胶囊，与搜索框、标题胶囊的形状语言统一。
+     聚焦态：紫 55% 实底 + 2mm 浅紫边（不用纯白边，白边在浅色壁纸上会糊）。
+     静默态：全透明，只留文字，让分类行尽量轻，不与顶部抢视线。 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="20mm"/>
-            <solid android:color="?attr/color_theme_50"/>
-	    <!--添加选中外边框-->
-	    <stroke android:width="2mm" android:color="@android:color/white" />
+            <corners android:radius="@dimen/vs_45" />
+            <solid android:color="#8C8B6BFF" />
+            <stroke android:width="2mm" android:color="@color/color_aurora_accent_hi" />
         </shape>
     </item>
     <item android:state_focused="false">
         <shape>
-            <corners android:radius="20mm"/>
-            <solid android:color="@android:color/transparent"/>
+            <corners android:radius="@dimen/vs_45" />
+            <solid android:color="@android:color/transparent" />
         </shape>
     </item>
 </selector>

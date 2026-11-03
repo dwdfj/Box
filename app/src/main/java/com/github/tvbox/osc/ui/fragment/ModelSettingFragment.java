@@ -125,7 +125,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvPlay = findViewById(R.id.tvPlay);
         tvPlay.setText(PlayerHelper.getPlayerName(Hawk.get(HawkConfig.PLAY_TYPE, 0)));
         tvVideoPurifyText = findViewById(R.id.tvVideoPurifyText);
-        tvVideoPurifyText.setText(Hawk.get(HawkConfig.VIDEO_PURIFY, true) ? "开启" : "关闭");
+        tvVideoPurifyText.setText(Hawk.get(HawkConfig.VIDEO_PURIFY, false) ? "开启" : "关闭");
         // System Section
         tvLocale = findViewById(R.id.tvLocale);
         tvLocale.setText(getLocaleView(Hawk.get(HawkConfig.HOME_LOCALE, 0)));
@@ -444,6 +444,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 FastClickCheckUtil.check(v);
                 int defaultPos = Hawk.get(HawkConfig.PLAY_TYPE, 0);
                 ArrayList<Integer> players = new ArrayList<>();
+                players.add(4);   // 智能: 按站点+流类型实测自动选 IJK / Exo
                 players.add(0);
                 players.add(1);
                 players.add(2);
@@ -498,8 +499,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
         // toggle purify video -------------------------------------
         findViewById(R.id.llVideoPurify).setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
-            Hawk.put(HawkConfig.VIDEO_PURIFY, !Hawk.get(HawkConfig.VIDEO_PURIFY, true));
-            tvVideoPurifyText.setText(Hawk.get(HawkConfig.VIDEO_PURIFY, true) ? "开启" : "关闭");
+            Hawk.put(HawkConfig.VIDEO_PURIFY, !Hawk.get(HawkConfig.VIDEO_PURIFY, false));
+            tvVideoPurifyText.setText(Hawk.get(HawkConfig.VIDEO_PURIFY, false) ? "开启" : "关闭");
         });
 
         // 3. SYSTEM Configuration -------------------------------------------------------------- //

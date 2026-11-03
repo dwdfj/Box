@@ -4,8 +4,9 @@
     <item android:state_focused="true">
         <shape>
             <corners android:radius="14px" />
-            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
-            <solid android:color="?attr/color_theme_40" />
+            <!-- v27.28: 焦点边由白改主题紫, 与选集/线路胶囊的"紫色=当前项"保持一致 -->
+            <stroke android:width="3mm" android:color="#8B6BFF" />
+            <solid android:color="#4D8B6BFF" />
         </shape>
     </item>
     <item android:state_focused="false">
@@ -13,7 +14,7 @@
             <corners android:radius="14px" />
             <solid android:color="#36ffffff"/>
             <!-- v24.0 冰晶蓝玻璃: 冰蓝细描边 -->
-            <stroke android:width="1mm" android:color="#66E8B34B" />
+            <stroke android:width="1mm" android:color="#4D8B6BFF" />
         </shape>
     </item>
 </selector>

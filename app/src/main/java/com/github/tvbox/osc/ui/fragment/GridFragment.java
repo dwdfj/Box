@@ -280,6 +280,7 @@ public class GridFragment extends BaseLazyFragment {
                     bundle.putString("id", video.id);
                     bundle.putString("sourceKey", video.sourceKey);
                     bundle.putString("title", video.name);
+                    bundle.putString("pic", video.pic);
                     if( video.tag !=null && (video.tag.equals("folder") || video.tag.equals("cover"))){
                         focusedView = view;
                         if(("12".indexOf(getUITag()) != -1)){
@@ -289,11 +290,9 @@ public class GridFragment extends BaseLazyFragment {
                         }
                     } else {
                         if (video.id == null || video.id.isEmpty() || video.id.startsWith("msearch:")) {
-                            if(Hawk.get(HawkConfig.FAST_SEARCH_MODE, false) && enableFastSearch()){
-                                jumpActivity(FastSearchActivity.class, bundle);
-                            }else {
-                                jumpActivity(SearchActivity.class, bundle);
-                            }
+                            // 小贾影视仓 v27.28: 不再跳搜索页(用户反复反馈"点封面先闪一下搜索页"),
+                            // 改为按片名静默搜索当前站点, 命中直接进详情。
+                            com.github.tvbox.osc.util.SilentOpen.openByName(getActivity(), video.sourceKey, video.name);
                         } else {
                             jumpActivity(DetailActivity.class, bundle);
                         }
@@ -313,6 +312,7 @@ public class GridFragment extends BaseLazyFragment {
                     bundle.putString("id", video.id);
                     bundle.putString("sourceKey", video.sourceKey);
                     bundle.putString("title", video.name);
+                    bundle.putString("pic", video.pic);
                     jumpActivity(FastSearchActivity.class, bundle);
                 }
                 return true;

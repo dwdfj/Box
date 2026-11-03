@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.28: 选集网格条目 —— 焦点态 = 主题紫实底 + 白描边。
+     用户原话: "选项移动时要像图中紫色那样, 移动到哪个哪个是紫色"。
+     旧版这里只有静默灰底, 焦点移过去看不出落在哪一集。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#8B6BFF" />
+            <stroke android:width="@dimen/vs_2" android:color="@color/color_FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_16" />
+            <solid android:color="#1AFFFFFF" />
+        </shape>
+    </item>
+</selector>
