@@ -32,6 +32,18 @@ public class pyLoader implements IPyLoader {
         spiders.clear();
     }
 
+    // 小贾影视仓 v26: 单个 py 源失效 —— 重新加载本地 .py / 压缩包后必须丢掉旧实例,
+    // 否则 PythonLoader 里那份永久缓存会让新代码根本不生效。
+    @Override
+    public void invalidate(String key) {
+        if (key == null) return;
+        spiders.remove(key);
+        try {
+            pythonLoader.invalidate(key);
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Override
     public void setConfig(String jsonStr) {
         if (jsonStr != null && !jsonStr.equals(lastConfig)) {

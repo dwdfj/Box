@@ -19,6 +19,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Rational;
 import android.view.KeyEvent;
@@ -52,6 +53,7 @@ import androidx.media3.common.text.Cue;
 import androidx.recyclerview.widget.DiffUtil;
 
 import com.github.catvod.crawler.Spider;
+import androidx.recyclerview.widget.RecyclerView;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.App;
@@ -88,12 +90,14 @@ import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.ui.dialog.SubtitleDialog;
 import com.github.tvbox.osc.util.AdBlocker;
 import com.github.tvbox.osc.util.DefaultConfig;
+import com.github.tvbox.osc.util.DetailCache;
 import com.github.tvbox.osc.util.FileUtils;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.HawkUtils;
 import com.github.tvbox.osc.util.LOG;
 import com.github.tvbox.osc.util.M3U8;
 import com.github.tvbox.osc.util.MD5;
+import com.github.tvbox.osc.util.PlayerAuto;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.PlayFailover;
 import com.github.tvbox.osc.util.SearchHelper;
@@ -159,12 +163,13 @@ import tv.danmaku.ijk.media.player.IMediaPlayer;
 import tv.danmaku.ijk.media.player.IjkTimedText;
 import xyz.doikki.videoplayer.player.AbstractPlayer;
 import xyz.doikki.videoplayer.player.ProgressManager;
+import xyz.doikki.videoplayer.player.VideoView;
 
 public class PlayActivity extends BaseActivity {
     private MyVideoView mVideoView;
     private TextView mPlayLoadTip;
     private ImageView mPlayLoadErr;
-    private ProgressBar mPlayLoading;
+    private android.view.View mPlayLoading;   // v27.30: 自绘 LoadingAnimView, 只当普通 View 用(显隐)
     private VodController mController;
     private SourceViewModel sourceViewModel;
     private Handler mHandler;
@@ -217,6 +222,94 @@ public class PlayActivity extends BaseActivity {
         initData();
         initDanmuView();
     }
+
+    // ===== 小贾影视仓 v27.15: 点封面直进播放页(本页自己拉详情) =====
+    // 之前 DetailActivity 先拉详情、画一屏"XX 正在打开…"再跳这里, 用户看到的就是中间那一屏。
+    // 现在 DetailActivity 只做瞬时转交, 详情在本页拉: 播放页先亮起来(加载提示), 数据到手直接起播。
+    private boolean directPlay = false;
+    private String directId = "";
+    private String directName = "";
+    private String directPic = "";
+
+    private final Runnable directDetailTimeout = new Runnable() {
+        @Override
+        public void run() {
+            if (directPlay) setTip("这个源响应太慢，返回换个源试试", false, true);
+        }
+    };
+
+    /** 详情回来后: 组装 VodInfo(含历史进度/线路) → 直接起播。 */
+    private final Observer<AbsXml> mObserverDirectDetail = new Observer<AbsXml>() {
+        @Override
+        public void onChanged(AbsXml absXml) {
+            if (!directPlay) return;
+            directPlay = false;
+            if (mHandler != null) mHandler.removeCallbacks(directDetailTimeout);
+            try {
+                if (absXml == null || absXml.movie == null || absXml.movie.videoList == null
+                        || absXml.movie.videoList.isEmpty()) {
+                    setTip("这个影片没拿到播放地址，返回换个源试试", false, true);
+                    return;
+                }
+                Movie.Video video = absXml.movie.videoList.get(0);
+                video.id = TextUtils.isEmpty(directId) ? video.id : directId;
+                if (TextUtils.isEmpty(video.name)) {
+                    video.name = TextUtils.isEmpty(directName) ? "片名" : directName;
+                }
+                VodInfo info = new VodInfo();
+                info.setVideo(video);
+                info.sourceKey = TextUtils.isEmpty(video.sourceKey) ? sourceKey : video.sourceKey;
+                if (info.seriesMap == null || info.seriesMap.isEmpty()) {
+                    setTip("这个源没有返回可播放的剧集，返回换个源试试", false, true);
+                    return;
+                }
+                // 续播: 有历史记录就回到上次的线路/集数
+                VodInfo rec = RoomDataManger.getVodInfo(info.sourceKey, info.id);
+                if (rec != null) {
+                    info.playIndex = Math.max(rec.playIndex, 0);
+                    info.playGroup = Math.max(rec.playGroup, 0);
+                    info.playGroupCount = Math.max(rec.playGroupCount, 0);
+                    info.playFlag = rec.playFlag;
+                    info.playerCfg = rec.playerCfg;
+                } else {
+                    info.playIndex = 0;
+                    info.playGroup = 0;
+                    info.playFlag = null;
+                    info.playerCfg = "";
+                }
+                info.reverseSort = false;
+                if (info.playFlag == null || !info.seriesMap.containsKey(info.playFlag)) {
+                    info.playFlag = info.seriesMap.keySet().iterator().next();
+                }
+                List<VodInfo.VodSeries> cur = info.seriesMap.get(info.playFlag);
+                if (cur != null && !cur.isEmpty()) {
+                    // 历史进度越界(源改过剧集数/换过线路)就退回第 1 集, 别让 getplayIndex() 越界崩
+                    int total = cur.size();
+                    int g = Math.max(info.playGroup, 0);
+                    int gc = Math.max(info.playGroupCount, 0);
+                    if (gc <= 0 || g * gc + Math.max(info.playIndex, 0) >= total) {
+                        info.playGroup = 0;
+                        info.playGroupCount = 0;
+                        info.playIndex = Math.max(info.playIndex, 0) < total ? Math.max(info.playIndex, 0) : 0;
+                    }
+                }
+
+                mVodInfo = info;
+                sourceKey = info.sourceKey;
+                sourceBean = ApiConfig.get().getSource(sourceKey);
+                if (sourceBean == null) {
+                    setTip("线路配置已失效，返回重选线路", false, true);
+                    return;
+                }
+                if (playFailover != null) playFailover.resetAll();
+                initPlayerCfg();
+                play(false);
+            } catch (Throwable th) {
+                th.printStackTrace();
+                setTip("播放地址解析失败，返回换个源试试", false, true);
+            }
+        }
+    };
 
     /**
      * 小贾影视仓 v23.3: 旋转屏幕时重排布局。
@@ -301,24 +394,154 @@ public class PlayActivity extends BaseActivity {
         }
     }
     /**
-     * 小贾影视仓 v23.5: 竖屏半屏播放 —— 上半区视频高度 = **屏幕高度的一半**。
-     * v23.2~v23.4 用的是「屏宽 × 9/16」(≈ 屏高 25%), 用户反馈太小、和 AVBox 的"一半比例"不符,
-     * 这里改为直接取屏高 50%; 16:9 画面在容器内居中留黑边(播放器自有 scale 模式适配)。
-     * 换算走 AutoSize mm 体系: 1mm = 屏宽/1280 px, 故 mm 值 = 屏高px / (屏宽px/1280)。
+     * 小贾影视仓 v26.6: 竖屏视频区高度 = 屏宽 × 9/16(固定)。
+     *
+     * <p>两条必须讲清的账:
+     * <p>① **为什么横屏会变成"画面缩在中间、上下黑边、底部透出壁纸"**(用户截图):
+     * 旧实现不分方向, 一律按屏高算出一个固定 px 高度, 并且用 root.post 延迟执行 ——
+     * 它比 applyOrientationLayout(横屏设 MATCH_PARENT) 更晚落地, 于是横屏刚铺满又被压回
+     * "竖屏高度", 画面缩成中间一条, 下面的空隙露出 window 壁纸。现在横屏直接 return, 不再插手。
+     *
+     * <p>② **为什么"内容一多, 画面就变小"**:
+     * v26.4 用的是 target = 屏高 - 信息区高度, 再夹在某段区间里。信息区(简介 3 行 + 选集网格)
+     * 越占地方, 视频就被压得越小, 最少压到 16:9 下限 —— 用户看到的正是"改完更小"。
+     * 而且 16:9 片源在竖屏里, 画面能有多大**只由屏宽决定**(高 = 宽 × 9/16), 把容器拉高
+     * 只会多出上下黑边, 并不会让画面变大。所以这里固定成 16:9: 画面顶格、上下不留黑边,
+     * 省下来的高度全部交给下方信息区, 底部自然不再空。
      */
     private void applyPortraitVideoHeight() {
         try {
-            android.view.View videoContainer = findViewById(R.id.videoContainer);
+            final android.view.View videoContainer = findViewById(R.id.videoContainer);
             if (videoContainer == null) return;
-            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-            int screenH = dm.heightPixels;
-            if (screenH <= 0) return;
-            // 视频区高度 = 屏高一半
-            int targetPx = Math.round(screenH * 0.5f);
+            if (getResources().getConfiguration().orientation
+                    != android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+                return;   // 横屏交给 applyOrientationLayout(MATCH_PARENT)
+            }
+            int screenW = getResources().getDisplayMetrics().widthPixels;
+            int screenH = getResources().getDisplayMetrics().heightPixels;
+            if (screenW <= 0) return;
+            int videoH = Math.round(screenW * 9f / 16f);
+            // 小贾影视仓 v27.22: 竖屏播放区 = 画面(屏宽×9/16) + 控制栏实际高度。
+            // 旧版容器就按 16:9 算, 控制栏(两行按钮 + 进度条 ≈ 360px)直接盖住画面下 2/3,
+            // 图标被压扁、文字被裁(用户截图)。现在把控制栏的高度单独留出来:
+            // 画面顶到容器最上沿, 下面那条纯黑区域正好装载控制栏, 两者不重叠。
+            int ctrlH = measureControlBarHeight(screenW);
+            if (ctrlH <= 0) ctrlH = (int) me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 430f);
+            int target = videoH + ctrlH;
+            int maxH = Math.round(screenH * 0.46f);
+            if (target > maxH) target = Math.max(videoH, maxH);
+            // v27.27: 整块播放区下移 160px(按 1216 屏宽折算成 13.16% 屏宽, 其它机型等比)。
+            // 容器高度不变, 只把上边距让出来 —— 画面/控制栏/弹幕都在容器内部, 跟着一起平移,
+            // 不需要再给 alignVideoCenterOverlay 补偏移; 下方信息面板相应少 160px。
+            int topGap = Math.round(screenW * 0.1316f);
+            setVideoTopGap(videoContainer, topGap);
+            setVideoHeight(videoContainer, target);
+            if (mVideoView != null) {
+                // v27.25: 画面区高度锁死给播放器, 由它将画面按片源比例铺满这块区域
+                // (2.4:1 电影画幅不再上下留黑边, 左右裁掉的部分由父容器裁切)。
+                // 只锁尺寸不动 scaleType, 用户点「缩放」仍可切回 16:9/默认/原始。
+                mVideoView.setPortraitRegion(videoH);
+            }
+            applyDanmakuRegion(videoH);
+            alignVideoCenterOverlay(videoH);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * 小贾影视仓 v27.22: 量出控制栏底部的真实高度(设计单位按屏宽换算)。
+     * 直接 measure 比「等布局完成再取 getHeight」可靠 —— 首次进页面时控制栏还没 layout,
+     * getHeight() 是 0, 会导致容器又退回 16:9。
+     */
+    private int measureControlBarHeight(int widthPx) {
+        try {
+            android.view.View bc = findViewById(R.id.bottom_container);
+            if (bc == null) return 0;
+            int wSpec = android.view.View.MeasureSpec.makeMeasureSpec(widthPx,
+                    android.view.View.MeasureSpec.EXACTLY);
+            int hSpec = android.view.View.MeasureSpec.makeMeasureSpec(0,
+                    android.view.View.MeasureSpec.UNSPECIFIED);
+            bc.measure(wSpec, hSpec);
+            int h = bc.getMeasuredHeight();
+            return h > 0 ? h : 0;
+        } catch (Throwable th) {
+            return 0;
+        }
+    }
+
+    /**
+     * 小贾影视仓 v27.22: 加载圈 / 错误图标 / 提示文字要对准「画面中心」, 不是容器中心。
+     * 容器变高之后, 容器中心已经落到控制栏那条黑条里了 —— 提示文字会压在进度条上(用户截图)。
+     */
+    private void alignVideoCenterOverlay(int videoH) {
+        try {
+            int half = videoH / 2;
+            android.widget.FrameLayout.LayoutParams lp;
+            android.view.View tip = findViewById(R.id.play_load_tip);
+            if (tip != null) {
+                lp = (android.widget.FrameLayout.LayoutParams) tip.getLayoutParams();
+                lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+                lp.topMargin = half + (int) me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 60f);
+                tip.setLayoutParams(lp);
+            }
+            android.view.View err = findViewById(R.id.play_load_error);
+            if (err != null) {
+                lp = (android.widget.FrameLayout.LayoutParams) err.getLayoutParams();
+                lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+                lp.topMargin = Math.max(0, half - (int) me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 40f));
+                err.setLayoutParams(lp);
+            }
+            android.view.View loading = findViewById(R.id.play_loading);
+            if (loading != null) {
+                lp = (android.widget.FrameLayout.LayoutParams) loading.getLayoutParams();
+                lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+                lp.topMargin = Math.max(0, half - (int) me.jessyan.autosize.utils.AutoSizeUtils.mm2px(this, 35f));
+                loading.setLayoutParams(lp);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * 小贾影视仓 v27.25: 弹幕层只盖「画面区」, 不要压到下方控制栏那条黑条上
+     * (否则弹幕会飘在进度条/按钮中间)。heightPx<=0 表示恢复整块容器(横屏)。
+     */
+    private void applyDanmakuRegion(int heightPx) {
+        try {
+            android.view.View danmaku = findViewById(R.id.danmaku);
+            if (danmaku == null) return;
+            android.view.ViewGroup.LayoutParams lp = danmaku.getLayoutParams();
+            if (lp == null) return;
+            int h = heightPx > 0 ? heightPx : android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+            if (lp.height != h) {
+                lp.height = h;
+                danmaku.setLayoutParams(lp);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void setVideoHeight(android.view.View videoContainer, int heightPx) {
+        try {
             android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
-            if (lp != null) {
-                lp.height = targetPx;
+            if (lp != null && lp.height != heightPx) {
+                lp.height = heightPx;
                 videoContainer.setLayoutParams(lp);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 小贾影视仓 v27.27: 竖屏播放区整体下移(上边距); 横屏必须复位成 0, 否则全屏时顶部留一条空带。 */
+    private void setVideoTopGap(android.view.View videoContainer, int gapPx) {
+        try {
+            android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
+            if (lp instanceof android.widget.LinearLayout.LayoutParams) {
+                android.widget.LinearLayout.LayoutParams llp = (android.widget.LinearLayout.LayoutParams) lp;
+                if (llp.topMargin != gapPx) {
+                    llp.topMargin = gapPx;
+                    videoContainer.setLayoutParams(llp);
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -343,12 +566,20 @@ public class PlayActivity extends BaseActivity {
                 if (infoScroll != null) infoScroll.setVisibility(View.GONE);
                 android.view.View videoContainer = findViewById(R.id.videoContainer);
                 if (videoContainer != null) {
+                    setVideoTopGap(videoContainer, 0);   // v27.27: 桌面下移只对竖屏, 横屏全屏必须复位
                     android.view.ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
                     if (lp != null) {
                         lp.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
                         videoContainer.setLayoutParams(lp);
                     }
                 }
+                // 横屏铺满后不留黑条, 画面对齐方式恢复默认(居中)
+                if (mVideoView != null) {
+                    mVideoView.setPortraitRegion(0);   // v27.25: 解除竖屏画面区限制
+                    mVideoView.setRenderGravity(android.view.Gravity.CENTER);
+                }
+                applyDanmakuRegion(0);
+                alignVideoCenterOverlay(getResources().getDisplayMetrics().heightPixels);
             }
         } catch (Throwable ignored) {
         }
@@ -374,11 +605,12 @@ public class PlayActivity extends BaseActivity {
         mPlayLineList.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
         mPlayLineList.setAdapter(mLineAdapter);
 
-        // 选集: 横向单行滚动(v25) —— 用户反馈"3 列网格看不出顺向, 竖着数格子容易读错"。
-        // 改成一行横排(和上方"线路"胶囊一致)后, 第1集→第2集→…→第N集 从左到右一眼连续,
-        // 不需要跨行去比对集数大小。数据侧仍由 naturalSortSeries() 保证物理升序。
-        mEpisodeAdapter = new PlayChipAdapter();
-        mPlayEpisodeList.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
+        // 选集: v26.8 起为「4 列等宽网格」—— 网格条目用 match_parent 宽, 等宽对齐,
+        // weight=1 吃掉面板剩余高度(36 集正好 9 行铺满一屏)。集数多时网格内部滚动。
+        // 顺序仍是 第1集→第N集 从左到右、从上到下连续可读; 倒序时显示层整体反向(见 bindEpisodeList)。
+        // 数据侧仍由 naturalSortSeries() 保证物理升序。
+        mEpisodeAdapter = new PlayChipAdapter(R.layout.item_play_episode, true);
+        mPlayEpisodeList.setLayoutManager(new V7GridLayoutManager(this, 4));
         mPlayEpisodeList.setAdapter(mEpisodeAdapter);
 
         // 简介展开/收起
@@ -423,8 +655,12 @@ public class PlayActivity extends BaseActivity {
         mEpisodeAdapter.setOnItemClickListener((adapter, view, position) -> {
             int p = position;
             if (p < 0 || mVodInfo == null) return;
-            if (p == mVodInfo.getplayIndex()) return;
-            mVodInfo.playIndex = p;
+            java.util.List<String> data = mEpisodeAdapter.getData();
+            if (data == null || p >= data.size()) return;
+            // 小贾影视仓 v26.3: 倒序时列表是显示层反转, 点击位要换算回 seriesMap 里的真实下标
+            int realIdx = mVodInfo.reverseSort ? (data.size() - 1 - p) : p;
+            if (realIdx == mVodInfo.getplayIndex()) return;
+            mVodInfo.playIndex = realIdx;
             mVodInfo.playGroup = 0;
             mVodInfo.playGroupCount = 0;
             mEpisodeAdapter.setSelectedIndex(p);
@@ -576,11 +812,6 @@ public class PlayActivity extends BaseActivity {
             return;
         }
         mPlayEpisodeCard.setVisibility(View.VISIBLE);
-        // 小贾影视仓 v23.5: 剧集一律**顺向排列**(第1集在最前)。
-        // 旧版留了「↓ 倒序」开关, 但 bindEpisodeList 从未真正反转数据、currentEpisodeChipIndex 却按
-        // "已反转"换算选中位, 两者自相矛盾会点错集; 用户要求"顺向排列即可", 故这里直接锁死正向。
-        mVodInfo.reverseSort = false;
-        if (mBtnEpisodeSort != null) mBtnEpisodeSort.setVisibility(View.GONE);
         // 小贾影视仓 v23.8: 按集数**物理自然排序**(1,2,…,10), 修复"剧集又变的杂乱, 不是按顺序"。
         // 根因: ①历史记录里 reverseSort=true 时列表曾被 DetailActivity 物理反转过, 这里以前只改
         // 标志位不还原顺序; ②部分源本身就乱序返回(10集排在2集前面), VodInfo 里那个
@@ -591,8 +822,65 @@ public class PlayActivity extends BaseActivity {
         for (VodInfo.VodSeries v : list) {
             names.add(v.name == null ? "" : v.name);
         }
+        // 小贾影视仓 v26.3: 「↓ 倒序」开关真正生效。
+        // v23.5 曾因"bindEpisodeList 从未真正反转数据、currentEpisodeChipIndex 却按已反转
+        // 换算选中位, 两者自相矛盾会点错集"而把 reverseSort 锁死 false 并隐藏按钮。
+        // 现在 seriesMap 物理列表始终保持升序, 倒序只反转**显示层** names;
+        // 点击选集时按显示位换算回真实下标(见选集点击监听), play() 仍按物理下标取地址,
+        // 地址与高亮不会错位。当前集位置由 currentEpisodeChipIndex() 统一换算。
+        if (mVodInfo.reverseSort) {
+            java.util.Collections.reverse(names);
+        }
         mEpisodeAdapter.setNewData(names);
         mEpisodeAdapter.setSelectedIndex(currentEpisodeChipIndex());
+        applyEpisodeListHeight(names.size());
+        // 倒序按钮: 仅 1 集时反转无意义(隐藏), 其余显示并回显当前顺序状态
+        if (mBtnEpisodeSort != null) {
+            mBtnEpisodeSort.setVisibility(names.size() > 1 ? View.VISIBLE : View.GONE);
+            mBtnEpisodeSort.setText(mVodInfo.reverseSort ? "↑ 正序" : "↓ 倒序");
+        }
+    }
+
+    /**
+     * 小贾影视仓 v27.1: 选集网格高度按**实际行数**收口(竖屏)。
+     *
+     * <p>旧版 play_episode_list 是 weight=1 —— 它会吃掉面板剩下的全部高度。电影只有 2 个
+     * 版本("普通话/粤语")时, 就变成"两粒胶囊 + 一大片空白 + 贴底的线路/简介",
+     * 也就是用户截图里说的"上下分离严重, 空余大量地方"。
+     *
+     * <p>现在: 行数 = ceil(集数 / 4), 夹在 1~3 行之间 ——
+     * 少集数时网格只有一两行, 线路/简介紧跟其后; 集数多时固定 3 行, 网格内部滚动。
+     * 剩余高度留在整块面板末尾(纯色底), 不再是"内容被撕成两半"。
+     */
+    private void applyEpisodeListHeight(int count) {
+        try {
+            if (mPlayEpisodeList == null) return;
+            if (getResources().getConfiguration().orientation
+                    != android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+                return;   // 横屏信息区整体隐藏, 不参与测量
+            }
+            int rows = (count + 3) / 4;
+            if (rows < 1) rows = 1;
+            if (rows > 3) rows = 3;
+            // 直接读 XML 里同一份 dimen(vs_110 / vs_16), 保证与 item_play_episode 完全等高;
+            // 不用 mm2px 现算 —— v24.4 已经踩过"mm2px 与 @dimen(XXmm) 不等值"导致尺寸漂移的坑。
+            int itemH = getResources().getDimensionPixelSize(R.dimen.vs_110);
+            int gap = getResources().getDimensionPixelSize(R.dimen.vs_16);
+            int h = rows * itemH + (rows - 1) * gap;
+            ViewGroup.LayoutParams lp = mPlayEpisodeList.getLayoutParams();
+            if (lp == null) return;
+            boolean changed = lp.height != h;
+            lp.height = h;
+            if (lp instanceof LinearLayout.LayoutParams) {
+                LinearLayout.LayoutParams llp = (LinearLayout.LayoutParams) lp;
+                if (llp.weight != 0) {
+                    llp.weight = 0;   // weight 会覆盖显式高度, 必须清零
+                    changed = true;
+                }
+            }
+            if (changed) mPlayEpisodeList.setLayoutParams(lp);
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -818,6 +1106,27 @@ public class PlayActivity extends BaseActivity {
         });
         mVideoView.setVideoController(mController);
         mVideoView.setmHandler(mHandler);
+        // v27.31: 智能内核要拿到「真实起播耗时」和「真失败」两个信号。
+        // PREPARED(解出流信息) 比 PLAYING 更贴近用户感知的"出画面"; ERROR 直接记为失败。
+        mVideoView.addOnStateChangeListener(new VideoView.SimpleOnStateChangeListener() {
+            @Override
+            public void onPlayStateChanged(int playState) {
+                if (playState == VideoView.STATE_PREPARED) {
+                    if (!kernelFramed && kernelInUse != 0) {
+                        kernelFramed = true;
+                        PlayerAuto.recordSuccess(sourceKey, kernelUrl, kernelInUse,
+                                SystemClock.elapsedRealtime() - kernelStartAt);
+                        cancelKernelWatch();
+                    }
+                } else if (playState == VideoView.STATE_ERROR) {
+                    if (kernelInUse != 0) {
+                        PlayerAuto.recordFail(sourceKey, kernelUrl, kernelInUse,
+                                SystemClock.elapsedRealtime() - kernelStartAt);
+                        cancelKernelWatch();
+                    }
+                }
+            }
+        });
     }
 
     //设置字幕
@@ -1240,7 +1549,57 @@ public class PlayActivity extends BaseActivity {
             if (mVideoView != null) position = mVideoView.getCurrentPosition();
         } catch (Throwable ignored) {
         }
-        new CastDialog(this, videoURL, title, position).show();
+        // v26.6: 多数线路播放时用的是**本机中转**(127.0.0.1:9978/proxy?...) —— 这个地址只有手机自己认识,
+        // 电视/盒子拉不到, 表现就是"投屏点了没反应 / 设备选了但电视不播"。投屏前换成局域网 IP。
+        new CastDialog(this, toLanUrl(videoURL), title, position).show();
+    }
+
+    /** 把本机回环地址换成当前 Wi-Fi 的局域网 IPv4; 拿不到就原样返回。 */
+    private String toLanUrl(String url) {
+        try {
+            if (url == null) return null;
+            if (!url.contains("127.0.0.1") && !url.contains("localhost") && !url.contains("0.0.0.0")) {
+                return url;
+            }
+            String ip = lanIpv4();
+            if (ip == null) return url;
+            return url.replace("127.0.0.1", ip).replace("localhost", ip).replace("0.0.0.0", ip);
+        } catch (Throwable t) {
+            return url;
+        }
+    }
+
+    private String lanIpv4() {
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> nis =
+                    java.net.NetworkInterface.getNetworkInterfaces();
+            while (nis != null && nis.hasMoreElements()) {
+                java.net.NetworkInterface ni = nis.nextElement();
+                if (ni == null || !ni.isUp() || ni.isLoopback()) continue;
+                String nm = ni.getName() == null ? "" : ni.getName();
+                if (nm.startsWith("tun") || nm.startsWith("ppp")) continue;   // 跳过 VPN
+                java.util.Enumeration<java.net.InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    java.net.InetAddress a = addrs.nextElement();
+                    if (a == null || a.isLoopbackAddress() || a instanceof java.net.Inet6Address) continue;
+                    String h = a.getHostAddress();
+                    if (h == null) continue;
+                    if (h.startsWith("192.168.") || h.startsWith("10.")) return h;
+                    if (h.startsWith("172.")) {
+                        int dot = h.indexOf('.', 4);
+                        if (dot > 4) {
+                            try {
+                                int second = Integer.parseInt(h.substring(4, dot));
+                                if (second >= 16 && second <= 31) return h;
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     void openMyVideo() {
@@ -1271,6 +1630,11 @@ public class PlayActivity extends BaseActivity {
     }
 
     void errorWithRetry(String err, boolean finish) {
+        // v27.16: 重试用尽仍失败 → 清掉本片详情缓存(里面可能是过期播放地址), 下次进来重新拉
+        try {
+            if (mVodInfo != null) DetailCache.invalidate(mVodInfo.sourceKey, mVodInfo.id);
+        } catch (Throwable ignored) {
+        }
         if (!autoRetry()) {
             runOnUiThread(new Runnable() {
                 @Override
@@ -1311,7 +1675,10 @@ public class PlayActivity extends BaseActivity {
     }
 
     void playUrl(String url, HashMap<String, String> headers) {
-        if (!Hawk.get(HawkConfig.VIDEO_PURIFY, true)) {
+        // v27.30: 「去广告(m3u8 净化)」默认关闭 —— 它会在每次起播前**先完整下载一遍 m3u8**,
+        // 遇到跳转流还要再下一次, 等于给每次播放凭空加 1~2 个网络往返(0.3~3 秒)。
+        // 这就是同样线路下我们比 OK影视 起播慢的主因之一。需要去广告可在设置里手动打开。
+        if (!Hawk.get(HawkConfig.VIDEO_PURIFY, false)) {
             startPlayUrl(url, headers);
             return;
         }
@@ -1425,6 +1792,112 @@ public class PlayActivity extends BaseActivity {
                 });
     }
 
+    // ============================ v27.31 智能内核(IJK / Exo 自动) ============================
+
+    private int kernelInUse = 0;        // 本次真正在跑的内核: 1=IJK, 2=Exo, 0=未参与
+    private long kernelStartAt = 0L;    // setUrl 的时刻
+    private boolean kernelFramed = false;   // 已经开始出画面(收到 PREPARED)
+    private int forcedKernel = 0;       // 一次性强制内核(自动换核用, 用完即清)
+    private long forcedKernelAt = 0L;
+    private boolean kernelSwitched = false;  // 本次起播是否已经自动换过一次核
+    private Runnable kernelTimeoutTask;
+    private String kernelUrl;
+    private HashMap<String, String> kernelHeaders;
+
+    /**
+     * 该用哪条内核。规则：
+     * ①自动换核(forcedKernel)优先, 只对本次起播生效;
+     * ②设置里选「智能」→ 按站点+流类型实测结果选;
+     * ③老版本留在影片配置里的 pl=1/2 不算「用户手动」, 同样走智能;
+     * ④系统播放器/外部播放器(0/10/11/12)是用户明确指定, 不插手。
+     */
+    private int resolveKernel(String url) {
+        int pl;
+        try {
+            pl = mVodPlayerCfg.getInt("pl");
+        } catch (Throwable th) {
+            pl = 1;
+        }
+        int forced = takeForcedKernel();
+        if (forced > 0) return forced;
+        boolean manual = false;
+        try {
+            manual = mVodPlayerCfg.optInt("plx", 0) == 1;   // 控制条里手动选过内核
+        } catch (Throwable ignored) {
+        }
+        if (pl == 0 || pl >= 10) return pl;
+        if (PlayerAuto.isAuto(pl)) return PlayerAuto.pick(sourceKey, url);
+        if (!manual && PlayerAuto.isAuto(Hawk.get(HawkConfig.PLAY_TYPE, 1))) {
+            return PlayerAuto.pick(sourceKey, url);
+        }
+        return pl;
+    }
+
+    private int takeForcedKernel() {
+        if (forcedKernel <= 0) return 0;
+        int k = forcedKernel;
+        forcedKernel = 0;
+        // 20 秒内没用上就当过期, 免得影响下一次正常起播
+        if (SystemClock.elapsedRealtime() - forcedKernelAt > 20000L) return 0;
+        return k > 0 ? k : 0;
+    }
+
+    /** 起播计时 + 超时兜底：超过 N 秒还没出画面 → 换另一条内核重试一次 */
+    private void beginKernelWatch(int kernel, String url, HashMap<String, String> headers) {
+        cancelKernelWatch();
+        if (kernel != 1 && kernel != 2) {
+            kernelInUse = 0;
+            return;
+        }
+        kernelInUse = kernel;
+        kernelUrl = url;
+        kernelHeaders = headers;
+        kernelStartAt = SystemClock.elapsedRealtime();
+        kernelFramed = false;
+        final int k = kernel;
+        kernelTimeoutTask = new Runnable() {
+            @Override
+            public void run() {
+                if (kernelFramed || kernelInUse != k) return;
+                PlayerAuto.recordFail(sourceKey, kernelUrl, k, SystemClock.elapsedRealtime() - kernelStartAt);
+                if (!autoKernelOn()) return;   // 用户手选的内核: 不擅自改
+                autoSwitchKernel("这条线路用 " + PlayerHelper.getPlayerName(k) + " 起播超时，已自动换 "
+                        + PlayerHelper.getPlayerName(k == 1 ? 2 : 1) + " 重试");
+            }
+        };
+        // m3u8 还要拉索引+首个分片, 给宽一点; 直链文件慢就是真慢
+        long timeout = PlayerAuto.urlType(url) == PlayerAuto.T_HLS ? 15000L : 10000L;
+        if (mHandler != null) mHandler.postDelayed(kernelTimeoutTask, timeout);
+    }
+
+    private void cancelKernelWatch() {
+        if (mHandler != null && kernelTimeoutTask != null) mHandler.removeCallbacks(kernelTimeoutTask);
+        kernelTimeoutTask = null;
+    }
+
+    private boolean autoKernelOn() {
+        try {
+            int pl = mVodPlayerCfg.getInt("pl");
+            if (PlayerAuto.isAuto(pl)) return true;
+            return mVodPlayerCfg.optInt("plx", 0) != 1
+                    && PlayerAuto.isAuto(Hawk.get(HawkConfig.PLAY_TYPE, 1));
+        } catch (Throwable th) {
+            return false;
+        }
+    }
+
+    /** 自动换核：只换本次起播, 不改用户保存的设置; 每次起播最多换一次, 避免来回弹 */
+    private void autoSwitchKernel(String tip) {
+        if (kernelSwitched || kernelInUse == 0) return;
+        kernelSwitched = true;
+        int other = kernelInUse == 1 ? 2 : 1;
+        forcedKernel = other;
+        forcedKernelAt = SystemClock.elapsedRealtime();
+        cancelKernelWatch();
+        if (!TextUtils.isEmpty(tip)) setTip(tip, true, false);
+        startPlayUrl(kernelUrl, kernelHeaders);
+    }
+
     void startPlayUrl(String url, HashMap<String, String> headers) {
         final String finalUrl = url;
         runOnUiThread(new Runnable() {
@@ -1469,12 +1942,17 @@ public class PlayActivity extends BaseActivity {
                             e.printStackTrace();
                         }
                         hideTip();
+                        int kernel = resolveKernel(url);
                         if (url.startsWith("data:application/dash+xml;base64,")) {
+                            kernel = 2;
                             PlayerHelper.updateCfg(mVideoView, mVodPlayerCfg, 2);
                             App.getInstance().setDashData(url.split("base64,")[1]);
                             url = ControlManager.get().getAddress(true) + "dash/proxy.mpd";
                         } else if (url.contains(".mpd") || url.contains("type=mpd")) {
+                            kernel = 2;
                             PlayerHelper.updateCfg(mVideoView, mVodPlayerCfg, 2);
+                        } else if (kernel == 1 || kernel == 2) {
+                            PlayerHelper.updateCfg(mVideoView, mVodPlayerCfg, kernel);
                         } else {
                             PlayerHelper.updateCfg(mVideoView, mVodPlayerCfg);
                         }
@@ -1485,6 +1963,7 @@ public class PlayActivity extends BaseActivity {
                             mVideoView.setUrl(url);
                         }
                         mVideoView.start();
+                        beginKernelWatch(kernel, url, headers);
                         mController.resetSpeed();
                     }
                 }
@@ -1574,6 +2053,8 @@ public class PlayActivity extends BaseActivity {
     private void initViewModel() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         sourceViewModel.playResult.observeForever(mObserverPlayResult);
+        // v27.15: 直连模式(封面直达)下详情由本页拉
+        sourceViewModel.detailResult.observe(this, mObserverDirectDetail);
     }
 
     private final Observer<JSONObject> mObserverPlayResult = new Observer<JSONObject>() {
@@ -1683,9 +2164,33 @@ public class PlayActivity extends BaseActivity {
         if (intent != null && intent.getExtras() != null) {
             Bundle bundle = intent.getExtras();
             mVodInfo = (VodInfo) bundle.getSerializable("VodInfo");
+            if (mVodInfo == null) {
+                // 小贾影视仓 fix: 大 VodInfo 经 DetailActivity.sVodInfo 静态持有者传入(规避 Binder 1MB 上限)。
+                // 其它入口(历史/收藏)仍走 bundle, 此处回退兼容。
+                mVodInfo = DetailActivity.sVodInfo;
+            }
             sourceKey = bundle.getString("sourceKey");
             sourceBean = ApiConfig.get().getSource(sourceKey);
             if (playFailover != null) playFailover.resetAll(); // v16: 换片清空换源候选
+            if (mVodInfo == null && bundle.getBoolean("directPlay", false)) {
+                // v27.15: 封面直达 —— 本页自己拉详情再起播
+                directPlay = true;
+                directId = bundle.getString("directId", "");
+                directName = bundle.getString("directName", "");
+                directPic = bundle.getString("directPic", "");
+                if (mPlayTitle != null && !TextUtils.isEmpty(directName)) mPlayTitle.setText(directName);
+                setTip("正在获取播放地址…", true, false);
+                try {
+                    sourceViewModel.getDetail(sourceKey, directId);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                    setTip("这个影片没拿到播放地址，返回换个源试试", false, true);
+                    directPlay = false;
+                }
+                if (mHandler != null) mHandler.postDelayed(directDetailTimeout, 20000);
+                return;
+            }
+            if (mVodInfo == null) return;   // 兜底: 无数据不 NPE
             initPlayerCfg();
             play(false);
         }
@@ -1902,6 +2407,7 @@ public class PlayActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        cancelKernelWatch();
         EventBus.getDefault().unregister(this);
         if(executorService!=null){
             executorService.shutdownNow();
@@ -1960,6 +2466,13 @@ public class PlayActivity extends BaseActivity {
             return;
         }
         mVodInfo.playIndex++;
+        // 小贾影视仓 fix: 部分源未初始化 playGroupCount(默认 0), 下面整除/取模会
+        // ArithmeticException: divide by zero(点"下一集"即崩)。兜底按"整组"处理。
+        if (mVodInfo.playGroupCount <= 0) {
+            java.util.List<VodInfo.VodSeries> cur =
+                    mVodInfo.seriesMap == null ? null : mVodInfo.seriesMap.get(mVodInfo.playFlag);
+            mVodInfo.playGroupCount = Math.max(1, cur == null ? 1 : cur.size());
+        }
         mVodInfo.playGroup += mVodInfo.playIndex / mVodInfo.playGroupCount;
         mVodInfo.playIndex = mVodInfo.playIndex % mVodInfo.playGroupCount;
         play(false);
@@ -1981,6 +2494,13 @@ public class PlayActivity extends BaseActivity {
             return;
         }
         if (mVodInfo.playIndex == 0) {
+            // 小贾影视仓 fix: playGroupCount<=0(未初始化)时 playGroupCount-1 会是 -1(非法索引),
+            // 兜底归 0。
+            if (mVodInfo.playGroupCount <= 0) {
+                java.util.List<VodInfo.VodSeries> cur =
+                        mVodInfo.seriesMap == null ? null : mVodInfo.seriesMap.get(mVodInfo.playFlag);
+                mVodInfo.playGroupCount = Math.max(1, cur == null ? 1 : cur.size());
+            }
             mVodInfo.playGroup--;
             mVodInfo.playIndex = mVodInfo.playGroupCount - 1;
         } else {
@@ -2014,8 +2534,17 @@ public class PlayActivity extends BaseActivity {
 
     void switchPlayer() {
         try {
-            int playerType = mVodPlayerCfg.getInt("pl") == 1 ? 2 : 1;
-            mVodPlayerCfg.put("pl", playerType);
+            // v27.31: 智能内核下不做「永久改配置」，只把另一条内核用在这次重试上。
+            // 原来这里会把 pl 写进影片配置并持久化, 等于一次失败就把用户锁死在某个内核上。
+            int cur = kernelInUse;
+            if (cur != 1 && cur != 2) cur = mVodPlayerCfg.getInt("pl") == 2 ? 2 : 1;
+            int other = cur == 1 ? 2 : 1;
+            if (autoKernelOn()) {
+                forcedKernel = other;
+                forcedKernelAt = SystemClock.elapsedRealtime();
+                return;
+            }
+            mVodPlayerCfg.put("pl", other);
             mController.setPlayerConfig(mVodPlayerCfg);
             mVodInfo.playerCfg = mVodPlayerCfg.toString();
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, mVodPlayerCfg));
@@ -2037,6 +2566,7 @@ public class PlayActivity extends BaseActivity {
     }
 
     public void play(boolean reset) {
+        kernelSwitched = false;     // v27.31: 每次起播允许自动换核一次
         VodInfo.VodSeries vs = mVodInfo.seriesMap.get(mVodInfo.playFlag).get(mVodInfo.getplayIndex());
         // 小贾影视仓 v23.3: 每次起播/换集后刷新下方卡片信息区(标题/线路/选集高亮)
         bindPlayInfo();

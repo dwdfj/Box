@@ -8,8 +8,8 @@
     android:ellipsize="marquee"
     android:focusable="true"
     android:marqueeRepeatLimit="marquee_forever"
-    android:padding="@dimen/vs_10"
+    android:padding="@dimen/vs_14"
     android:singleLine="true"
     android:textAlignment="viewStart"
     android:textColor="@color/color_FFFFFF"
-    android:textSize="@dimen/ts_26" />
+    android:textSize="@dimen/ts_34" />

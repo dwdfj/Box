@@ -76,7 +76,16 @@ public class ExoMediaPlayer extends AbstractPlayer implements Player.Listener {
             mTrackSelector = new DefaultTrackSelector(mAppContext);
         }
         if (mLoadControl == null) {
-            mLoadControl = new DefaultLoadControl();
+            // 小贾影视仓 v26.4: 起播更快 + 弱网抗卡顿。
+            // DefaultLoadControl 默认 50s/50s 缓冲窗口, 弱网/慢源上"首帧"要等很久(用户感知就是"点了半天不出来");
+            // 这里改为: 起播水位 15s、上限 50s、起播只需 1s 数据、断流后 2s 恢复, 目标缓冲 60MB。
+            // v27.30: 起播门槛 1s → 0.6s(OK影视 一级的壳子普遍用 0.5s), 断流恢复 2s → 1.5s,
+            // 首帧不再等满 1 秒才开始; 缓冲上限不变, 不会因此更容易卡。
+            mLoadControl = new DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(15000, 50000, 600, 1500)
+                    .setTargetBufferBytes(60 * 1024 * 1024)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build();
         }
         mTrackSelector.setParameters(mTrackSelector.getParameters().buildUpon().setPreferredTextLanguage(Locale.getDefault().getISO3Language()).setTunnelingEnabled(true));
         /*mMediaPlayer = new ExoPlayer.Builder(

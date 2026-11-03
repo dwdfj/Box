@@ -20,6 +20,7 @@ import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.LocaleHelper;
 import com.github.tvbox.osc.util.LOG;
 import com.github.tvbox.osc.util.OkGoHelper;
+import com.github.tvbox.osc.util.PlayerAuto;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.SubtitleHelper;
 import com.hjq.permissions.XXPermissions;
@@ -239,12 +240,92 @@ public class App extends MultiDexApplication {
         putDefault(HawkConfig.HOME_SEARCH_POSITION, false);  //按钮位置-搜索: true=上方, false=下方
         putDefault(HawkConfig.HOME_MENU_POSITION, true);     //按钮位置-设置: true=上方, false=下方
         putDefault(HawkConfig.HOME_REC, 1);                  //推荐: 0=豆瓣热播, 1=站点推荐, 2=观看历史
+        // 小贾影视仓 v26.3: 用户明确要求"首页推荐改成站点推荐"。
+        // putDefault 只在 key 不存在时生效 —— 旧包可能早已把 home_rec 持久化成 0(豆瓣)或
+        // 2(历史), 老用户升级后仍是旧模式, 改默认值对他们无效。这里做一次性迁移:
+        // 首次跑 v26.3 时强制切到 1(站点推荐), 之后用户仍可在设置里手动改, 迁移只跑一次。
+        if (!Hawk.get("home_rec_migrated_v263", false)) {
+            Hawk.put(HawkConfig.HOME_REC, 1);
+            Hawk.put("home_rec_migrated_v263", true);
+        }
+        // v26.6: 默认线路换到实测最快最稳的一条(见 _env/_pick.py 的三轮实测)。
+        // 老包 Hawk 里已经持久化了旧默认 http://itv666.cc/aowu/config.webp, 只改 strings.xml 不会生效,
+        // 所以做一次性迁移; 但**只覆盖"还在用旧内置默认"的用户**, 用户自己选过的线路不动。
+        try {
+            if (!Hawk.get("api_default_migrated_v266", false)) {
+                String cur = Hawk.get(HawkConfig.API_URL, "");
+                if (cur == null || cur.isEmpty() || cur.contains("itv666.cc/aowu")) {
+                    Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                }
+                Hawk.put("api_default_migrated_v266", true);
+            }
+        } catch (Throwable ignored) {
+        }
+        // v27.24: 代理域名迁移。v6.gh-proxy.org / ghproxy.monkeyray.net / ghfast.top 这三个 GitHub 反代
+        // 现在都拉不动了(实测 25~60 秒超时, 3/3 失败), 而默认线路正是走 v6.gh-proxy.org —— 冷启动一直等到
+        // 超时才走兜底, 用户感知就是"打开特别慢/转圈"。统一换到 445569.pages.dev(0.7~1.3 秒, 3/3 成功)。
+        // 只换域名、保留原路径, 所以用户自己选过的线路(南风 XC 等)也会被一并救回来。
+        // 顺带: hgyx 的配置已把站点整段 // 注释掉, 解析必失败, 选中它的用户回落到默认线路。
+        try {
+            if (!Hawk.get("api_proxy_migrated_v2724", false)) {
+                String cur = Hawk.get(HawkConfig.API_URL, "");
+                if (cur != null && !cur.isEmpty()) {
+                    // 换死掉的代理域名 + 中文域名转 punycode(okhttp 只认 ASCII 主机名)
+                    String fixed = com.github.tvbox.osc.util.LineUrl.migrate(cur);
+                    if (com.github.tvbox.osc.util.LineUrl.isDead(fixed)) fixed = getString(R.string.app_source);
+                    if (!fixed.equals(cur)) Hawk.put(HawkConfig.API_URL, fixed);
+                }
+                Hawk.put("api_proxy_migrated_v2724", true);
+            }
+        } catch (Throwable ignored) {
+        }
+        // v27.27: 默认线路换成「挺好的·46站」。老包 Hawk 里存的是旧默认(摸鱼 102 站的 my.json)，
+        // 只改 strings.xml 对已装用户不生效，所以做一次性迁移 —— 只搬"还在用旧内置默认"的人，
+        // 用户自己选过的其它线路一律不动。
+        try {
+            if (!Hawk.get("api_default_migrated_v2727", false)) {
+                String cur = Hawk.get(HawkConfig.API_URL, "");
+                if (cur == null || cur.isEmpty() || cur.contains("backups/my.json")) {
+                    Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                    Hawk.put(HawkConfig.HOME_API, "");   // 首页站属于上一条线路，换线路后让它重新选
+                }
+                Hawk.put("api_default_migrated_v2727", true);
+            }
+        } catch (Throwable ignored) {
+        }
+        // v27.28: 默认线路换成「嗷呜·78站」。只把上一版默认(挺好的 thdjk.json)搬过来，
+        // 用户自己选过的线路一律不动；换线路后清掉首页站记录，让新线路自己选第一个内容站。
+        try {
+            if (!Hawk.get("api_default_migrated_v2728", false)) {
+                String cur = Hawk.get(HawkConfig.API_URL, "");
+                if (cur != null && cur.contains("ztha.top/TVBox/thdjk.json")) {
+                    Hawk.put(HawkConfig.API_URL, getString(R.string.app_source));
+                    Hawk.put(HawkConfig.HOME_API, "");
+                }
+                Hawk.put("api_default_migrated_v2728", true);
+            }
+        } catch (Throwable ignored) {
+        }
         putDefault(HawkConfig.HOME_NUM, 4);                  //历史条数: 0=20条, 1=40条, 2=60条, 3=80条, 4=100条
         // 播放器选项
         putDefault(HawkConfig.SHOW_PREVIEW, true);           //窗口预览: true=开启, false=关闭
         putDefault(HawkConfig.PLAY_SCALE, 0);                //画面缩放: 0=默认, 1=16:9, 2=4:3, 3=填充, 4=原始, 5=裁剪
         putDefault(HawkConfig.BACKGROUND_PLAY_TYPE, 0);      //后台：0=关闭, 1=开启, 2=画中画
-        putDefault(HawkConfig.PLAY_TYPE, 1);                 //播放器: 0=系统, 1=IJK, 2=Exo, 10=MX, 11=Reex, 12=Kodi
+        // v27.31: 内核默认「智能」—— 按站点+流类型实测结果在 IJK / Exo 之间自动选更快的。
+        // 老用户迁移：只搬「还是旧默认 IJK」的人；手动选过 Exo/系统/外部播放器的一律不动。
+        try {
+            if (!Hawk.get("player_auto_migrated_v2731", false)) {
+                Object cur = Hawk.get(HawkConfig.PLAY_TYPE, 1);
+                if (cur instanceof Integer && (Integer) cur == 1) {
+                    Hawk.put(HawkConfig.PLAY_TYPE, PlayerAuto.TYPE_AUTO);
+                }
+                Hawk.put("player_auto_migrated_v2731", true);
+            }
+        } catch (Throwable ignored) {
+        }
+        putDefault(HawkConfig.PLAY_TYPE, PlayerAuto.TYPE_AUTO);  //播放器: 4=智能, 0=系统, 1=IJK, 2=Exo, 10=MX, 11=Reex, 12=Kodi
+        // v27.30: m3u8 去广告默认关闭 —— 开启时起播前要多下载 1~2 遍 m3u8, 等于每次播放多一个往返
+        putDefault(HawkConfig.VIDEO_PURIFY, false);
         putDefault(HawkConfig.IJK_CODEC, "硬解码");           //IJK解码: 软解码, 硬解码
         // 系统选项
         putDefault(HawkConfig.HOME_LOCALE, 0);               //语言: 0=中文, 1=英文

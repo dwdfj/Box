@@ -1770,6 +1770,141 @@
           }
         ]
       }
+    },
+    {
+      "key": "xjRuyi",
+      "name": "📺短剧·如意",
+      "type": 1,
+      "api": "https://cj.rycjapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      },
+      "ext": "{\"备用域名\": [\"https://cj.rytvapi.com/api.php/provide/vod\", \"https://bycj.rytvapi.com/api.php/provide/vod\"]}"
+    },
+    {
+      "key": "xjBaofeng",
+      "name": "📺短剧·暴风",
+      "type": 1,
+      "api": "https://bfzyapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      },
+      "ext": "{\"备用域名\": [\"http://bf.xoxowin86cisyap.com/api.php/provide/vod\"]}"
+    },
+    {
+      "key": "xjCitong",
+      "name": "📺短剧·刺桐",
+      "type": 1,
+      "api": "https://pg.cttv.vip/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      }
+    },
+    {
+      "key": "xjXingqiu",
+      "name": "📺短剧·星球",
+      "type": 1,
+      "api": "https://www.ysxq.cc/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      }
+    },
+    {
+      "key": "xjJisu",
+      "name": "📺短剧·极速",
+      "type": 1,
+      "api": "https://jszyapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      }
+    },
+    {
+      "key": "xjWujin",
+      "name": "📺短剧·无尽",
+      "type": 1,
+      "api": "https://api.wujinapi.me/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      },
+      "ext": "{\"备用域名\": [\"https://api.wujinapi.com/api.php/provide/vod\", \"https://api.wujinapi.cc/api.php/provide/vod\"]}"
+    },
+    {
+      "key": "xjXigua",
+      "name": "📺短剧·西瓜",
+      "type": 1,
+      "api": "https://caiji.xgzyapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      }
+    },
+    {
+      "key": "xjYouzhi",
+      "name": "📺短剧·优质",
+      "type": 1,
+      "api": "https://api.1080zyku.com/inc/api_mac10.php",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      },
+      "ext": "{\"备用域名\": [\"https://api.yzzy-api.com/inc/apijson.php\", \"https://api.yyzy-tv.vip/inc/apijson.php\"]}"
+    },
+    {
+      "key": "xjLiangzi",
+      "name": "📺短剧·量子",
+      "type": 1,
+      "api": "https://cj.lziapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      },
+      "ext": "{\"备用域名\": [\"https://cj.lzcaiji.com/api.php/provide/vod\"]}"
+    },
+    {
+      "key": "xjDytt",
+      "name": "📺短剧·电影天堂",
+      "type": 1,
+      "api": "https://caiji.dyttzyapi.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "timeout": 15,
+      "header": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+      }
     }
   ],
   "lives": [

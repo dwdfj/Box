@@ -369,7 +369,7 @@ public class RemoteServer extends NanoHTTPD {
     // 用户设备为 4KB 内存页(华为 HarmonyOS 4.x = AOSP12 基底; 小米13 默认 4KB),
     // 原始 4KB 对齐的 .so 本来就是正确形态, 不需要做任何 ELF 修补。
     // bump 该常量强制覆盖用户端已释放的旧包(无论之前是「无 .so 版」还是「16KB 修补版」)。
-    private static final String BUILTIN_FEIMAO_VER = "feimao_20261007_v4_origso";
+    private static final String BUILTIN_FEIMAO_VER = "feimao_20261103_v5_xjcms";
     private File mFeimaoDir = null;
     private boolean mFeimaoReady = false;
 

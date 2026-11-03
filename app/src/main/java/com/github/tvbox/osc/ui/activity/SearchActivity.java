@@ -304,6 +304,8 @@ public class SearchActivity extends BaseActivity {
                 String key = sourceKeyByName.get(name);
                 // 点"全部"或重复点当前来源 => 回到全部结果
                 currentFilterKey = (key == null || key.equals(currentFilterKey)) ? null : key;
+                // 小贾影视仓 v27.18: 选中的来源要有可见的高亮框
+                sourceAdapter.setSelectedPos(currentFilterKey == null ? 0 : position);
                 showFilteredResults();
             }
         });
@@ -408,14 +410,33 @@ public class SearchActivity extends BaseActivity {
         keyboard.setOnSearchKeyListener(new SearchKeyboard.OnSearchKeyListener() {
             @Override
             public void onSearchKey(int pos, String key) {
-                if (pos > 1) {
-                    String text = etSearch.getText().toString().trim();
-                    text += key;
-                    etSearch.setText(text);
-                    if (text.length() > 0) {
-                        loadRec(text);
-                    }
-                } else if (pos == 1) {
+                // 小贾影视仓 v27.18: 键盘只剩字符键(远程搜索/删除已移到底部按钮行), 直接追加
+                if (key == null) return;
+                String text = etSearch.getText().toString().trim();
+                text += key;
+                etSearch.setText(text);
+                if (text.length() > 0) {
+                    loadRec(text);
+                }
+            }
+        });
+        // 小贾影视仓 v27.18: 从键盘剥离出来的两个功能键
+        View tvRemoteKey = findViewById(R.id.tvRemoteKey);
+        if (tvRemoteKey != null) {
+            tvRemoteKey.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    FastClickCheckUtil.check(v);
+                    new RemoteDialog(mContext).show();
+                }
+            });
+        }
+        View tvDelKey = findViewById(R.id.tvDelKey);
+        if (tvDelKey != null) {
+            tvDelKey.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    FastClickCheckUtil.check(v);
                     String text = etSearch.getText().toString().trim();
                     if (text.length() > 0) {
                         text = text.substring(0, text.length() - 1);
@@ -423,18 +444,14 @@ public class SearchActivity extends BaseActivity {
                     }
                     if (text.length() > 0) {
                         loadRec(text);
-                    }
-                    if (text.length() == 0) {
+                    } else {
                         wordAdapter.setNewData(hots);
                         mGridViewWord.smoothScrollToPosition(0);
                         tHotSearchText.setText("热门搜索");
                     }
-                } else if (pos == 0) {
-                    RemoteDialog remoteDialog = new RemoteDialog(mContext);
-                    remoteDialog.show();
                 }
-            }
-        });
+            });
+        }
         setLoadSir(llLayout);
         this.sKey = (String) SettingsUtil.hkGet(HawkConfig.SEARCH_FILTER_KEY, "");
         String string;
@@ -873,6 +890,8 @@ public class SearchActivity extends BaseActivity {
         sourceKeyByName.clear();
         names.add(SRC_ALL);
         sourceKeyByName.put(SRC_ALL, null);
+        int sel = 0;
+        int idx = 1;
         for (String sk : searchResultMap.keySet()) {
             int n = searchResultMap.get(sk).size();
             // 小贾影视仓: 渠道显示中文源名
@@ -884,8 +903,12 @@ public class SearchActivity extends BaseActivity {
             display = display + " (" + n + ")";
             sourceKeyByName.put(display, sk);
             names.add(display);
+            if (sk.equals(currentFilterKey)) sel = idx;
+            idx++;
         }
         sourceAdapter.setNewData(names);
+        // 小贾影视仓 v27.18: 列表重建后把选中框恢复到当前筛选的源上
+        sourceAdapter.setSelectedPos(sel);
     }
 
     // 小贾影视仓: 根据当前选中的渠道显示结果(全部/单个渠道)

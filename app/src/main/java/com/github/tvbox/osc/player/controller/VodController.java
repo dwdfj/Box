@@ -49,6 +49,7 @@ import com.github.tvbox.osc.ui.adapter.SelectDialogAdapter;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
+import com.github.tvbox.osc.util.HawkUtils;
 import com.github.tvbox.osc.util.PlayerHelper;
 import com.github.tvbox.osc.util.ScreenUtils;
 import com.github.tvbox.osc.util.SubtitleHelper;
@@ -423,12 +424,14 @@ public class VodController extends BaseController {
         mAudioTrackBtn = findViewById(R.id.play_audio);
         mPlayerTimeStartBtn = findViewById(R.id.play_time_start);
         mPlayerTimeSkipBtn = findViewById(R.id.play_time_end);
-        mPlayerTimeStepBtn = findViewById(R.id.play_time_step);
-        mPlayerTimeResetBtn = findViewById(R.id.play_time_reset);
+        // 小贾影视仓 v26: 时间步进/时间重置/投屏/屏显 四个按钮已从控制条移除,
+        // 对应的 R.id 也随之不存在 —— 这四行 findViewById 必须删掉, 否则 javac 直接报
+        // "cannot find symbol" 编不过。字段本身保留(null), 各处用法已判空。
         mLandscapePortraitBtn = findViewById(R.id.landscape_portrait);
         mLvPortraitBtn = findViewById(R.id.lv_portrait);
         // 小贾影视仓 v23.3
         mQualityBtn = findViewById(R.id.play_quality);
+        // 小贾影视仓 v26: 投屏 —— 全 App 唯一的投屏入口, 不能删(之前误删过一次, 已恢复)
         mCastBtn = findViewById(R.id.play_cast);
 
         // parse container
@@ -449,7 +452,6 @@ public class VodController extends BaseController {
         mPlayLoadNetSpeedRightTop = findViewById(R.id.tv_play_load_net_speed_right_top);
         mTopRoot2 = findViewById(R.id.tv_top_r_container);
         seekTime = findViewById(R.id.tv_seek_time); //右上角进度时间显示
-        mScreendisplay = findViewById(R.id.screen_display); //增加屏显开关
 
         mLockView.setOnClickListener(new OnClickListener() {
             @Override
@@ -713,6 +715,7 @@ public class VodController extends BaseController {
                 try {
                     int defaultPos = mPlayerConfig.getInt("pl");
                     ArrayList<Integer> players = new ArrayList<>();
+                    players.add(4);   // 智能: 按站点+流类型实测自动选 IJK / Exo
                     players.add(0);  // System
                     players.add(1);  // IJK
                     players.add(2);  // Exo
@@ -735,6 +738,9 @@ public class VodController extends BaseController {
                                 dialog.cancel();
                                 int thisPlayType = players.get(pos);
                                 mPlayerConfig.put("pl", thisPlayType);
+                                // v27.31: 手动指定 IJK/Exo 打上标记, 全局「智能」下也不覆盖它;
+                                // 选「智能」则清掉标记, 交还给自动选择。
+                                mPlayerConfig.put("plx", (thisPlayType == 1 || thisPlayType == 2) ? 1 : 0);
                                 updatePlayerCfgView();
                                 listener.updatePlayerCfg();
                                 listener.replay(false);
@@ -768,24 +774,35 @@ public class VodController extends BaseController {
         mPlayerIJKBtn.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
+                FastClickCheckUtil.check(view);
                 try {
-                    String ijk = mPlayerConfig.getString("ijk");
-                    List<IJKCode> codecs = ApiConfig.get().getIjkCodes();
-                    for (int i = 0; i < codecs.size(); i++) {
-                        if (ijk.equals(codecs.get(i).getName())) {
-                            if (i >= codecs.size() - 1)
-                                ijk = codecs.get(0).getName();
-                            else {
-                                ijk = codecs.get(i + 1).getName();
+                    int plType = mPlayerConfig.getInt("pl");
+                    if (plType == 1) {
+                        // IJK: 依次循环解码器(硬解码 -> 软解码 -> …)
+                        String ijk = mPlayerConfig.getString("ijk");
+                        List<IJKCode> codecs = ApiConfig.get().getIjkCodes();
+                        for (int i = 0; i < codecs.size(); i++) {
+                            if (ijk.equals(codecs.get(i).getName())) {
+                                if (i >= codecs.size() - 1)
+                                    ijk = codecs.get(0).getName();
+                                else {
+                                    ijk = codecs.get(i + 1).getName();
+                                }
+                                break;
                             }
-                            break;
                         }
+                        mPlayerConfig.put("ijk", ijk);
+                        Toast.makeText(getContext(), "解码方式：" + ijk + "，正在重载…", Toast.LENGTH_SHORT).show();
+                    } else {
+                        // EXO: 硬解(MediaCodec) <-> 软解(nextlib FFmpeg 扩展渲染器)
+                        boolean toSoft = HawkUtils.getExoRenderer() != 1;
+                        Hawk.put(HawkConfig.EXO_RENDERER, toSoft ? 1 : 0);
+                        Hawk.put(HawkConfig.EXO_RENDERER_MODE, 1); // PREFER: 扩展优先, 仍保留硬解兜底
+                        Toast.makeText(getContext(), toSoft ? "已切换软解(FFmpeg)，正在重载…" : "已切换硬解，正在重载…", Toast.LENGTH_SHORT).show();
                     }
-                    mPlayerConfig.put("ijk", ijk);
                     updatePlayerCfgView();
                     listener.updatePlayerCfg();
                     listener.replay(false);
-                    // hideBottom();
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -847,36 +864,40 @@ public class VodController extends BaseController {
             }
         });
         //        增加播放页面片头片尾时间重置
-        mPlayerTimeResetBtn.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mHandler.removeCallbacks(mHideBottomRunnable);
-                mHandler.postDelayed(mHideBottomRunnable, 8000);
-                try {
-                    mPlayerConfig.put("et", 0);
-                    mPlayerConfig.put("st", 0);
-                    updatePlayerCfgView();
-                    listener.updatePlayerCfg();
-                } catch (JSONException e) {
-                    e.printStackTrace();
+        // 小贾影视仓 v26: 片头/片尾重置按钮已从布局移除(用户要求精简控制条) ——
+        // 对应 View 现在是 null, 所有绑定前必须判空, 否则一进播放页就 NPE。
+        if (mPlayerTimeResetBtn != null) {
+            mPlayerTimeResetBtn.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mHandler.removeCallbacks(mHideBottomRunnable);
+                    mHandler.postDelayed(mHideBottomRunnable, 8000);
+                    try {
+                        mPlayerConfig.put("et", 0);
+                        mPlayerConfig.put("st", 0);
+                        updatePlayerCfgView();
+                        listener.updatePlayerCfg();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        mPlayerTimeResetBtn.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-                try {
-                    mPlayerConfig.put("st", 110);
-                    mPlayerConfig.put("et", 150);
-                    updatePlayerCfgView();
-                    listener.updatePlayerCfg();
-                } catch (JSONException e) {
-                    e.printStackTrace();
+            });
+            mPlayerTimeResetBtn.setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    try {
+                        mPlayerConfig.put("st", 110);
+                        mPlayerConfig.put("et", 150);
+                        updatePlayerCfgView();
+                        listener.updatePlayerCfg();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    Toast.makeText(getContext(), "已预设片头片尾", Toast.LENGTH_SHORT).show();
+                    return true;
                 }
-                Toast.makeText(getContext(), "已预设片头片尾", Toast.LENGTH_SHORT).show();
-                return true;
-            }
-        });
+            });
+        }
         // Button : SKIP time start -----------------------------------------
         mPlayerTimeStartBtn.setOnClickListener(new OnClickListener() {
             @Override
@@ -958,27 +979,29 @@ public class VodController extends BaseController {
             }
         });
         // Button : SKIP time step -----------------------------------------
-        mPlayerTimeStepBtn.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                int step = Hawk.get(HawkConfig.PLAY_TIME_STEP, 5);
-                step += 5;
-                if (step > 30) {
-                    step = 5;
+        // 小贾影视仓 v26: 步进按钮已移除(精简控制条), 判空后再绑定
+        if (mPlayerTimeStepBtn != null) {
+            mPlayerTimeStepBtn.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    int step = Hawk.get(HawkConfig.PLAY_TIME_STEP, 5);
+                    step += 5;
+                    if (step > 30) {
+                        step = 5;
+                    }
+                    Hawk.put(HawkConfig.PLAY_TIME_STEP, step);
+                    updatePlayerCfgView();
                 }
-                Hawk.put(HawkConfig.PLAY_TIME_STEP, step);
-                updatePlayerCfgView();
-            }
-        });
-        // takagen99: Add long press to reset counter
-        mPlayerTimeStepBtn.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-                Hawk.put(HawkConfig.PLAY_TIME_STEP, 5);
-                updatePlayerCfgView();
-                return true;
-            }
-        });
+            });
+            mPlayerTimeStepBtn.setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View view) {
+                    Hawk.put(HawkConfig.PLAY_TIME_STEP, 5);
+                    updatePlayerCfgView();
+                    return true;
+                }
+            });
+        }
         mLandscapePortraitBtn.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -1017,15 +1040,19 @@ public class VodController extends BaseController {
 
         //屏显开关
         mTopRoot2.setVisibility(Hawk.get(HawkConfig.SCREEN_DISPLAY, GONE));
-        mScreendisplay.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mTopRoot2.setVisibility(mTopRoot2.getVisibility() == VISIBLE ? GONE : VISIBLE);
-                Hawk.put(HawkConfig.SCREEN_DISPLAY, mTopRoot2.getVisibility());
-                hideBottom();
-                //Toast.makeText(getContext(), "点击显示网速 播放进度 时间", Toast.LENGTH_SHORT).show();
-            }
-        });
+        // 小贾影视仓 v26: 屏显按钮已从控制条移除, View 为 null —— 判空后再绑定,
+        // 否则进播放页即 NPE(这个回调在 initView 里同步执行, 崩溃是必现的)。
+        if (mScreendisplay != null) {
+            mScreendisplay.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    mTopRoot2.setVisibility(mTopRoot2.getVisibility() == VISIBLE ? GONE : VISIBLE);
+                    Hawk.put(HawkConfig.SCREEN_DISPLAY, mTopRoot2.getVisibility());
+                    hideBottom();
+                    //Toast.makeText(getContext(), "点击显示网速 播放进度 时间", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
 
         mDanmuSetting.setOnClickListener(view -> {
             listener.showDanmuSetting();
@@ -1112,16 +1139,27 @@ public class VodController extends BaseController {
     }
 
     void updatePlayerCfgView() {
+        if (mPlayerConfig == null) return; // 防御: 配置未就绪时跳过, 避免 NPE(进播放页必崩的根因之一)
         try {
             int playerType = mPlayerConfig.getInt("pl");
             mPlayerTxt.setText(PlayerHelper.getPlayerName(playerType));
             mPlayerScaleTxt.setText(PlayerHelper.getScaleName(mPlayerConfig.getInt("sc")));
-            mPlayerIJKBtn.setText(mPlayerConfig.getString("ijk"));
-            mPlayerIJKBtn.setVisibility(playerType == 1 ? VISIBLE : GONE);
-            mFFwdTxt.setText("x" + mPlayerConfig.getDouble("sp"));
+            // v26.4: 硬解/软解按钮对两套引擎都显示 ——
+            //   IJK: 文本 = 当前解码器名(硬解码/软解码/…), 点击循环切换;
+            //   EXO: 文本 = 硬解/软解(对应 MediaCodec 硬解 / nextlib FFmpeg 软解扩展)。
+            // 旧代码 `playerType == 1 ? VISIBLE : GONE` 只在 IJK 下显示, 用户用 EXO 时按钮直接消失,
+            // 这就是"硬解软解功能怎么没了"的真实原因。
+            if (playerType == 1) {
+                mPlayerIJKBtn.setText(mPlayerConfig.getString("ijk"));
+            } else {
+                mPlayerIJKBtn.setText(HawkUtils.getExoRenderer() == 1 ? "软解" : "硬解");
+            }
+            mPlayerIJKBtn.setVisibility(VISIBLE);            mFFwdTxt.setText("x" + mPlayerConfig.getDouble("sp"));
             mPlayerTimeStartBtn.setText(PlayerUtils.stringForTime(mPlayerConfig.getInt("st") * 1000));
             mPlayerTimeSkipBtn.setText(PlayerUtils.stringForTime(mPlayerConfig.getInt("et") * 1000));
-            mPlayerTimeStepBtn.setText(Hawk.get(HawkConfig.PLAY_TIME_STEP, 5) + "s");
+            // 小贾影视仓 v26: 步进按钮已从布局移除(精简控制条), 此处必须判空, 否则进播放页必崩(NPE)。
+            if (mPlayerTimeStepBtn != null)
+                mPlayerTimeStepBtn.setText(Hawk.get(HawkConfig.PLAY_TIME_STEP, 5) + "s");
 //            mSubtitleBtn.setVisibility(playerType == 1 ? VISIBLE : GONE);
 //            mAudioTrackBtn.setVisibility(playerType == 1 ? VISIBLE : GONE);
         } catch (JSONException e) {

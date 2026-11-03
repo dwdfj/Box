@@ -21,7 +21,7 @@
 
     <!-- Alternative Themes -->
     <!-- 小贾影视仓 v24.0 冰晶蓝玻璃: 默认主题主色 霓虹品红#FF2BD6 → 冰晶蓝#3EC8F5(与壁纸冰蓝玻璃呼应) -->
-    <!-- 小贾影视仓 v24.2 鎏金: 默认主题主色 冰晶蓝#3EC8F5 → 鎏金#E8B34B(与金色壁纸呼应) -->
+    <!-- 小贾影视仓 v24.2 鎏金: 默认主题主色 冰晶蓝#3EC8F5 → 鎏金#8B6BFF(与金色壁纸呼应) -->
     <!-- 小贾影视仓 v24.5 详情中转页专用: 半透明+无窗口动画。
          点封面 → DetailActivity 只是拉详情数据的中转页(autoPlay 直达 PlayActivity),
          默认主题的进出场缩放动画让它以"小窗"形态闪现一下, 然后播放页又缩放进场
@@ -55,17 +55,21 @@
     <style name="XiaojiaOpaqueNoAnimStyle">
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowIsTranslucent">false</item>
-        <item name="android:windowBackground">@color/color_32364E</item>
+        <item name="android:windowBackground">@color/color_aurora_bg</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
+    <!-- 小贾影视仓 v27.0 「Aurora 极光」默认皮肤：
+         与启动图标同源 —— 墨黑底(#0B0C12) + 极光紫(#8B6BFF) + 玻璃高光。
+         前身是 v24.2 鎏金(金 #E8B34B + 深棕 #2B1F08)，那套在小屏上发闷、金描边显土，
+         本次整套替换：主色紫、底色墨黑、描边降透明度、圆角统一放大。 -->
     <style name="NetfxTheme" parent="AppTheme.NoActionBar">
-        <item name="color_theme">#E8B34B</item>
-        <item name="color_theme_80">#CCE8B34B</item>
-        <item name="color_theme_70">#B3E8B34B</item>
-        <item name="color_theme_60">#99E8B34B</item>
-        <item name="color_theme_50">#80E8B34B</item>
-        <item name="color_theme_40">#66E8B34B</item>
-        <item name="color_theme_dark_70">#B38F6414</item>
+        <item name="color_theme">#8B6BFF</item>
+        <item name="color_theme_80">#CC8B6BFF</item>
+        <item name="color_theme_70">#B38B6BFF</item>
+        <item name="color_theme_60">#998B6BFF</item>
+        <item name="color_theme_50">#808B6BFF</item>
+        <item name="color_theme_40">#668B6BFF</item>
+        <item name="color_theme_dark_70">#B34E33C0</item>
     </style>
     <style name="DoraeTheme" parent="AppTheme.NoActionBar">
         <item name="color_theme">#18A2E7</item>

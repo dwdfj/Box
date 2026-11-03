@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">小贾影视仓</string>
-    <string name="app_home">首页</string>
+    <string name="app_home">推荐</string>
+    <!-- v27.28: 与 values/strings.xml 保持一致(中文(默认)语言下 values-zh 会盖掉 values/)。
+         默认线路 = 嗷呜·78站(PNG 尾部 base64 配置); 失效时由 ApiConfig 自动接管。 -->
     <string name="app_source">http://itv666.cc/aowu/config.webp</string>
 
     // 小贾影视仓 v23.6: 投屏(DLNA) //
