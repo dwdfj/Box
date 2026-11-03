@@ -71,6 +71,7 @@ public class MusicPlayer {
     private static final String PREF = "xj_music_cfg";
     private int line = MusicDirect.LINE_LUOXUE;
     private int repeatMode = MODE_LOOP;
+    private int preferQ = 0;
     private boolean lineInited = false;
 
     /** 当前线路 id。 */
@@ -88,6 +89,7 @@ public class MusicPlayer {
         initCfg();
         if (l < 0 || l >= MusicDirect.NAMES.length) return lineName();
         line = l;
+        preferQ = 0; // 换线路后档位表变了, 回到该线路第一档
         saveCfg();
         MusicApi.Song cur = current;
         if (cur != null) {
@@ -130,6 +132,7 @@ public class MusicPlayer {
                     AppContextHolder.get().getSharedPreferences(PREF, 0);
             line = sp.getInt("line", MusicDirect.LINE_LUOXUE);
             repeatMode = sp.getInt("mode", MODE_LOOP);
+            preferQ = sp.getInt("q", 0);
         } catch (Throwable ignored) {
         }
     }
@@ -137,7 +140,7 @@ public class MusicPlayer {
     private void saveCfg() {
         try {
             AppContextHolder.get().getSharedPreferences(PREF, 0)
-                    .edit().putInt("line", line).putInt("mode", repeatMode).apply();
+                    .edit().putInt("line", line).putInt("mode", repeatMode).putInt("q", preferQ).apply();
         } catch (Throwable ignored) {
         }
     }
@@ -413,44 +416,72 @@ public class MusicPlayer {
         playAt(0);
     }
 
-    /** v27.10: 音质 flac 优先(端点已实测支持无损), 「音源」按钮循环切换偏好。 */
-    private static final String[] DIRECT_Q = {"flac", "320k", "128k"};
-    private int preferQ = 0;
+    /** v27.14: 音质档位按线路区分 —— Voyage 多两档母带, 洛雪三档, 笒音只有一档。 */
+    private static final String[] Q_LUOXUE = {"flac", "320k", "128k"};
+    private static final String[] Q_CENYIN = {"lossless"};
+    private static final String[] Q_VOYAGE = {"master", "hires", "flac", "320k", "128k"};
 
-    public String cycleQuality() {
-        preferQ = (preferQ + 1) % DIRECT_Q.length;
-        return DIRECT_Q[preferQ];
+    /** 当前线路可选的音质档位(降档重试也走这张表)。 */
+    private static String[] qualities() {
+        switch (MusicPlayer.get().line()) {
+            case MusicDirect.LINE_CENYIN:
+                return Q_CENYIN;
+            case MusicDirect.LINE_VOYAGE:
+                return Q_VOYAGE;
+            default:
+                return Q_LUOXUE;
+        }
     }
 
+    /** 循环切换音质偏好, 返回新档位(如 "master")。 */
+    public String cycleQuality() {
+        String[] qs = qualities();
+        preferQ = (preferQ + 1) % qs.length;
+        saveCfg();
+        return qs[preferQ];
+    }
+
+    /** 当前音质偏好; 换线路后档位表变了就收敛到该线路第一档。 */
     public String preferredQuality() {
-        return DIRECT_Q[preferQ];
+        String[] qs = qualities();
+        preferQ = Math.max(0, Math.min(preferQ, qs.length - 1));
+        return qs[preferQ];
+    }
+
+    /** UI 展示用的音质名 —— master/hires 显示成中文, 其余原样。 */
+    public static String qualityLabel(String q) {
+        if (q == null) return "";
+        if ("master".equals(q)) return "母带";
+        if ("hires".equals(q)) return "Hi-Res";
+        if ("lossless".equals(q)) return "无损";
+        return q;
     }
 
     private void attemptDirect(final MusicApi.Song song, final int i) {
-        if (i >= DIRECT_Q.length) {
+        final String[] qs = qualities();
+        if (i >= qs.length) {
             loading = false;
-            notifyError("「" + lineName() + "」线路取链失败(flac/320k/128k 均无)，可点「线路」换一条");
+            notifyError("「" + lineName() + "」线路取链失败(" + android.text.TextUtils.join("/", qs)
+                    + " 均无)，可点「线路」换一条");
             return;
         }
-        final int qSlot = (preferQ + i) % DIRECT_Q.length;
-        final String q = DIRECT_Q[qSlot];
+        final int qSlot = (preferQ + i) % qs.length;
+        final String q = qs[qSlot];
         qualityIdx = Math.min(i, QUALITY_FALLBACK.length - 1);
         lastQuality = q;
         lastSourceName = lineName();
-        notifyStatus("取链中(" + lineName() + " · " + q + ")…");
+        notifyStatus("取链中(" + lineName() + " · " + qualityLabel(q) + ")…");
         MusicDirect.fetch(line(), song.songmid, q, (sourceName, url, err) -> {
             if (!loading) return; // 已被超时/新点击接管
             if (url != null && !TextUtils.isEmpty(url)) {
                 lastSourceName = sourceName;
-                // 笒音恒为 lossless, 显示真实音质而不是用户选的那档
-                if (line() == MusicDirect.LINE_CENYIN) lastQuality = "lossless";
                 startPlay(song, url);
                 return;
             }
             // 笒音只有 lossless 一档, 降档没意义, 直接报错
             if (line() == MusicDirect.LINE_CENYIN) {
                 loading = false;
-                notifyError((err == null ? "笒音" : err) + " — 可切到「洛雪」线路");
+                notifyError((err == null ? "笒音" : err) + " — 可切到「洛雪」或「Voyage」线路");
                 return;
             }
             // 线路内降音质重试; 全档失败才报错(不自动跨线路 —— 用户选定哪条就是哪条)
@@ -493,7 +524,8 @@ public class MusicPlayer {
             player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
             player.prepare();
             player.play();
-            notifyStatus("播放中 · " + (lastSourceName == null ? lineName() : lastSourceName) + " · " + lastQuality);
+            notifyStatus("播放中 · " + (lastSourceName == null ? lineName() : lastSourceName)
+                    + " · " + qualityLabel(lastQuality));
             notifyPlaying(song, lastSourceName == null ? lineName() : lastSourceName, lastQuality);
         } catch (Throwable t) {
             loading = false;

@@ -213,13 +213,13 @@ public class MusicNowActivity extends BaseActivity {
         // 音质
         qualityView.setOnClickListener(v -> {
             String q = p.cycleQuality();
-            qualityView.setText(q);
-            statusView.setText("音质偏好已切至 " + q + "，下次点歌生效");
+            qualityView.setText(MusicPlayer.qualityLabel(q));
+            statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q) + "，下次点歌生效");
         });
 
         refreshModeAndFav();
         lineView.setText(p.lineName());
-        qualityView.setText(p.preferredQuality());
+        qualityView.setText(MusicPlayer.qualityLabel(p.preferredQuality()));
         modeView.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
 
         MusicApi.Song cur = p.current();
@@ -257,7 +257,7 @@ public class MusicNowActivity extends BaseActivity {
     private void bind(MusicApi.Song s, String src, String q) {
         nameView.setText(s.name);
         singerView.setText(s.singer + (s.album == null || s.album.isEmpty() ? "" : " · " + s.album));
-        qualityView.setText(q == null ? "" : q);
+        qualityView.setText(q == null ? "" : MusicPlayer.qualityLabel(q));
         if (src != null && !src.isEmpty()) lineView.setText(src);
         if (s.cover != null && !s.cover.isEmpty()) {
             Glide.with(mContext).load(s.cover).into(cover);
