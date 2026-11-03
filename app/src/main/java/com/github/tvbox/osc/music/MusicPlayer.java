@@ -55,6 +55,93 @@ public class MusicPlayer {
     private boolean loading = false;
     private boolean sourcesReady = false;
 
+    // ---- v27.12: 播放队列 + 最近播放 ----
+    private final List<MusicApi.Song> queue = new ArrayList<>();
+    private int queuePos = -1;
+    private static final String RECENT_PREF = "xj_music_recent";
+    private static final int RECENT_MAX = 50;
+
+    /** 用整张列表建队列并从 start 开始播。 */
+    public void playQueue(List<MusicApi.Song> songs, int start) {
+        if (songs == null || songs.isEmpty()) return;
+        queue.clear();
+        queue.addAll(songs);
+        queuePos = Math.max(0, Math.min(start, songs.size() - 1));
+        playAt(queuePos);
+    }
+
+    private void playAt(int pos) {
+        queuePos = pos;
+        MusicApi.Song s = queue.get(pos);
+        loading = true;
+        qualityIdx = 0;
+        runtime();
+        notifyStatus("已点「" + s.name + "」，取链中…");
+        attemptDirect(s, 0);
+    }
+
+    public boolean hasNext() {
+        return queuePos + 1 < queue.size();
+    }
+
+    public boolean hasPrev() {
+        return queuePos > 0;
+    }
+
+    public void playNext() {
+        if (hasNext()) playAt(queuePos + 1);
+    }
+
+    public void playPrev() {
+        if (hasPrev()) playAt(queuePos - 1);
+    }
+
+    /** 最近播放(SharedPreferences, 去重, 最前为新)。 */
+    public List<MusicApi.Song> recent() {
+        List<MusicApi.Song> out = new ArrayList<>();
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray(
+                    AppContextHolder.get().getSharedPreferences(RECENT_PREF, 0)
+                            .getString("list", "[]"));
+            for (int i = 0; i < arr.length() && i < RECENT_MAX; i++) {
+                org.json.JSONObject o = arr.getJSONObject(i);
+                MusicApi.Song s = new MusicApi.Song();
+                s.songmid = o.optString("id");
+                s.name = o.optString("n");
+                s.singer = o.optString("a");
+                s.album = o.optString("al");
+                s.cover = o.optString("c");
+                if (s.songmid != null && !s.songmid.isEmpty()) out.add(s);
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    private void addRecent(MusicApi.Song song) {
+        try {
+            List<MusicApi.Song> list = recent();
+            for (java.util.Iterator<MusicApi.Song> it = list.iterator(); it.hasNext(); ) {
+                if (song.songmid != null && song.songmid.equals(it.next().songmid)) it.remove();
+            }
+            list.add(0, song);
+            while (list.size() > RECENT_MAX) list.remove(list.size() - 1);
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (MusicApi.Song s : list) {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("id", s.songmid == null ? "" : s.songmid);
+                o.put("n", s.name == null ? "" : s.name);
+                o.put("a", s.singer == null ? "" : s.singer);
+                o.put("al", s.album == null ? "" : s.album);
+                o.put("c", s.cover == null ? "" : s.cover);
+                arr.put(o);
+            }
+            AppContextHolder.get().getSharedPreferences(RECENT_PREF, 0)
+                    .edit().putString("list", arr.toString()).apply();
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** v27.8: 多监听器 —— 此前单槽位被 BarBind 独占, 页面收不到任何状态/错误(点击无反馈根因)。 */
     public void addListener(Listener l) {
         if (l != null) listeners.addIfAbsent(l);
@@ -165,15 +252,11 @@ public class MusicPlayer {
     }
 
     public void play(final MusicApi.Song song) {
-        if (loading) {
-            notifyStatus("正在取链，请稍候…");
-            return;
-        }
-        loading = true;
-        qualityIdx = 0;
-        runtime(); // JS 音源后台装载(作为兜底)
-        notifyStatus("已点「" + song.name + "」，取链中…");
-        attemptDirect(song, 0);
+        // v27.12: 单曲点播 = 单元素队列
+        queue.clear();
+        queue.add(song);
+        queuePos = 0;
+        playAt(0);
     }
 
     /** v27.10: 音质 flac 优先(端点已实测支持无损), 「音源」按钮循环切换偏好。 */
@@ -279,15 +362,21 @@ public class MusicPlayer {
                 player = new ExoPlayer.Builder(AppContextHolder.get())
                         .setMediaSourceFactory(new androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpFactory))
                         .build();
-                // v27.5: 异步播放错误(403/解码失败等)此前完全静默
+                // v27.5: 异步播放错误(403/解码失败等)此前完全静默; v27.12: 播完自动下一首
                 player.addListener(new androidx.media3.common.Player.Listener() {
                     @Override
                     public void onPlayerError(androidx.media3.common.PlaybackException error) {
                         notifyError("播放出错: code=" + error.errorCode + " " + error.getMessage());
                     }
+
+                    @Override
+                    public void onPlaybackStateChanged(int state) {
+                        if (state == androidx.media3.common.Player.STATE_ENDED) main.post(MusicPlayer.this::playNext);
+                    }
                 });
             }
             current = song;
+            addRecent(song); // v27.12: 写入最近播放
             player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
             player.prepare();
             player.play();

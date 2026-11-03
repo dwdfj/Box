@@ -120,17 +120,40 @@
             android:textSize="@dimen/ts_22" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/musicNowPlay"
-        android:layout_width="@dimen/vs_140"
-        android:layout_height="@dimen/vs_140"
-        android:layout_marginTop="@dimen/vs_50"
-        android:background="@drawable/bg_music_accent_circle"
-        android:focusable="true"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/vs_40"
         android:gravity="center"
-        android:text="⏸"
-        android:textColor="@color/color_FFFFFF"
-        android:textSize="@dimen/ts_50" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/musicNowPrev"
+            android:layout_width="@dimen/vs_90"
+            android:layout_height="@dimen/vs_90"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="⏮"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_40" />
+
+        <com.github.tvbox.osc.music.BlobPlayButton
+            android:id="@+id/musicBlobPlay"
+            android:layout_width="@dimen/vs_160"
+            android:layout_height="@dimen/vs_160"
+            android:layout_marginLeft="@dimen/vs_40"
+            android:layout_marginRight="@dimen/vs_40" />
+
+        <TextView
+            android:id="@+id/musicNowNext"
+            android:layout_width="@dimen/vs_90"
+            android:layout_height="@dimen/vs_90"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="⏭"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_40" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/musicNowStatus"

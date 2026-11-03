@@ -197,15 +197,20 @@
                 android:textSize="@dimen/ts_24" />
         </LinearLayout>
 
+        <com.github.tvbox.osc.music.BlobPlayButton
+            android:id="@+id/musicBlobPlay"
+            android:layout_width="@dimen/vs_110"
+            android:layout_height="@dimen/vs_110" />
+
         <TextView
-            android:id="@+id/musicPlayPause"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/shape_top_icon_btn"
+            android:id="@+id/musicNextBtn"
+            android:layout_width="@dimen/vs_70"
+            android:layout_height="@dimen/vs_70"
+            android:layout_marginLeft="@dimen/vs_12"
             android:focusable="true"
-            android:padding="@dimen/vs_20"
-            android:text="⏸"
+            android:gravity="center"
+            android:text="⏭"
             android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_36" />
+            android:textSize="@dimen/ts_30" />
     </LinearLayout>
 </LinearLayout>

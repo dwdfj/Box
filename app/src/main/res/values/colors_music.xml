@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.5: 音乐模块专属色板(夜空渐变 + 粉紫强调, 音乐 App 设计语言) -->
+<!-- 小贾影视仓 v27.12: 音乐模块专属色板 V2(Voyage 风: 深夜蓝底 + 雾蓝×雾紫强调) -->
 <resources>
-    <color name="music_accent">#FF6E9C</color>
-    <color name="music_accent2">#8E6BFF</color>
-    <color name="music_bg_top">#141830</color>
-    <color name="music_bg_bottom">#0B0E1D</color>
+    <color name="music_accent">#7AA8FF</color>
+    <color name="music_accent2">#B07AFF</color>
+    <color name="music_bg_top">#131A2E</color>
+    <color name="music_bg_bottom">#0A0F1C</color>
     <color name="music_bar_bg">#F0161A2E</color>
     <color name="music_gold">#FFD54F</color>
     <color name="music_sub">#99FFFFFF</color>

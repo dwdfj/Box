@@ -1,11 +1,15 @@
 package com.github.tvbox.osc.ui.activity;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,28 +21,34 @@ import com.bumptech.glide.Glide;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.base.BaseActivity;
 import com.github.tvbox.osc.music.BarBind;
+import com.github.tvbox.osc.music.BlobPlayButton;
 import com.github.tvbox.osc.music.FocusScale;
 import com.github.tvbox.osc.music.MusicApi;
 import com.github.tvbox.osc.music.MusicPlayer;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 /**
- * 小贾影视仓 v27.7: 音乐厅(Voyage ListDetail 双栏 IA) ——
- * 左: 导航轨(音乐馆/排行榜/精品歌单, 对齐 Voyage MusicLibraryRoute/MusicChartsRoute/MusicPlaylistsRoute);
- * 右: 标题+搜索+Banner 横滑大图+分区横向封面墙。
- * 播放条: 封面旋转 + 粉紫细进度条(BarBind 驱动)。
+ * 小贾影视仓 v27.12: 音乐首页(Voyage 工具箱式) ——
+ * 问候语 + 大搜索胶囊 + 每日推荐卡 + 最近播放 + 官方榜单 + 精品歌单;
+ * 底部「首页/我的」悬浮胶囊 + 灵动条(Blob 液态播放钮 + 环形进度)。
  */
 public class MusicActivity extends BaseActivity {
     private static final int TYPE_BANNER_ROW = 0;
     private static final int TYPE_SECTION_ROW = 1;
+    private static final int TYPE_DAILY_ROW = 2;
+    private static final int TYPE_RECENT_ROW = 3;
+    private static final int TYPE_SONG_ROW = 4; // 我的 tab: 竖版最近播放列表
 
-    /** 外层行: banner 模式=整行大图; section 模式=标题+横向封面列表。 */
+    private static final String[] WEEK = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
+
     private static class Row {
         int type;
         String sectionTitle;
         List<MusicApi.Sheet> sheets;
+        List<MusicApi.Song> songs;
     }
 
     private final List<Row> rows = new ArrayList<>();
@@ -46,10 +56,11 @@ public class MusicActivity extends BaseActivity {
     private final List<MusicApi.Sheet> topListCache = new ArrayList<>();
     private final List<MusicApi.Sheet> hotSheetCache = new ArrayList<>();
     private RowsAdapter rowsAdapter;
-    private TextView statusView, sourceBtn;
+    private TextView statusView, sourceBtn, tabHome, tabMine;
     private BarBind bar;
+    private boolean mineMode = false;
 
-    /** v27.8: 页面自身监听器 —— 取链/播放/错误全部上屏(此前被 BarBind 独占, 点击无任何反馈)。 */
+    /** v27.8: 页面自身监听器 —— 取链/播放/错误全部上屏。 */
     private final MusicPlayer.Listener pageListener = new MusicPlayer.Listener() {
         @Override public void onStatus(String s) { setStatus(s); }
         @Override public void onPlaying(MusicApi.Song s, String src, String q) { setStatus("▶ " + s.name + " · " + src + " · " + q); }
@@ -67,6 +78,15 @@ public class MusicActivity extends BaseActivity {
         MusicPlayer.get().addListener(pageListener);
         statusView = findViewById(R.id.musicStatus);
         sourceBtn = findViewById(R.id.musicSourceBtn);
+        tabHome = findViewById(R.id.musicTabHome);
+        tabMine = findViewById(R.id.musicTabMine);
+
+        TextView greetSub = findViewById(R.id.musicGreetSub);
+        TextView greet = findViewById(R.id.musicPaneTitle);
+        Calendar c = Calendar.getInstance();
+        greetSub.setText((c.get(Calendar.MONTH) + 1) + "月" + c.get(Calendar.DAY_OF_MONTH) + "日 " + WEEK[c.get(Calendar.DAY_OF_WEEK) - 1]);
+        int h = c.get(Calendar.HOUR_OF_DAY);
+        greet.setText(h < 5 ? "夜深了" : h < 12 ? "早上好" : h < 18 ? "下午好" : "晚上好");
 
         RecyclerView rv = findViewById(R.id.musicRows);
         rowsAdapter = new RowsAdapter();
@@ -75,11 +95,13 @@ public class MusicActivity extends BaseActivity {
 
         findViewById(R.id.musicBack).setOnClickListener(v -> finish());
         sourceBtn.setOnClickListener(v -> {
-            // v27.10: 「音源」按钮 = 音质偏好循环(flac/320k/128k)
             String q = MusicPlayer.get().cycleQuality();
             sourceBtn.setText(q);
             setStatus("音质偏好已切至 " + q + "，下次点歌生效");
         });
+        tabHome.setOnClickListener(v -> setMode(false));
+        tabMine.setOnClickListener(v -> setMode(true));
+
         findViewById(R.id.musicSearchBtn).setOnClickListener(v -> doSearch());
         EditText input = findViewById(R.id.musicSearchInput);
         input.setOnEditorActionListener((v, actionId, event) -> {
@@ -92,12 +114,22 @@ public class MusicActivity extends BaseActivity {
                 findViewById(R.id.musicNowCover),
                 findViewById(R.id.musicNowName),
                 findViewById(R.id.musicNowInfo),
-                findViewById(R.id.musicPlayPause),
-                findViewById(R.id.musicProgress));
+                (BlobPlayButton) findViewById(R.id.musicBlobPlay),
+                findViewById(R.id.musicNextBtn));
         bar.bind(this);
 
         sourceBtn.setText(MusicPlayer.get().preferredQuality());
         loadHall();
+    }
+
+    private void setMode(boolean mine) {
+        if (mineMode == mine) return;
+        mineMode = mine;
+        tabHome.setBackgroundResource(mine ? android.R.color.transparent : R.drawable.bg_music_accent_btn);
+        tabMine.setBackgroundResource(mine ? R.drawable.bg_music_accent_btn : android.R.color.transparent);
+        tabMine.setTextColor(getResources().getColor(mine ? R.color.color_FFFFFF : R.color.music_sub));
+        tabHome.setTextColor(getResources().getColor(mine ? R.color.music_sub : R.color.color_FFFFFF));
+        rebuildRows();
     }
 
     @Override
@@ -128,16 +160,36 @@ public class MusicActivity extends BaseActivity {
         });
     }
 
-    /** v27.10: 单首页(照喵音乐) —— Banner + 官方榜单 + 精品歌单, 无标签页。 */
+    /** v27.12: 双模式重建 —— 首页(每日推荐+最近播放+榜单) / 我的(最近播放列表)。 */
     private void rebuildRows() {
         rows.clear();
         banners.clear();
-        if (!topListCache.isEmpty()) {
-            banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
-            rows.add(bannerRow());
-            rows.add(sectionRow("官方榜单", topListCache));
+        if (mineMode) {
+            List<MusicApi.Song> rec = MusicPlayer.get().recent();
+            if (!rec.isEmpty()) {
+                Row r = new Row();
+                r.type = TYPE_SONG_ROW;
+                r.songs = rec;
+                rows.add(r);
+            }
+        } else {
+            if (!topListCache.isEmpty()) {
+                banners.addAll(topListCache.subList(0, Math.min(4, topListCache.size())));
+                Row daily = new Row();
+                daily.type = TYPE_DAILY_ROW;
+                rows.add(daily);
+                List<MusicApi.Song> rec = MusicPlayer.get().recent();
+                if (!rec.isEmpty()) {
+                    Row rr = new Row();
+                    rr.type = TYPE_RECENT_ROW;
+                    rr.songs = rec;
+                    rows.add(rr);
+                }
+                rows.add(bannerRow());
+                rows.add(sectionRow("官方榜单", topListCache));
+            }
+            if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
         }
-        if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
         rowsAdapter.notifyDataSetChanged();
         if (!rows.isEmpty()) {
             ((ViewGroup) findViewById(R.id.musicRows)).scheduleLayoutAnimation();
@@ -193,20 +245,28 @@ public class MusicActivity extends BaseActivity {
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             LayoutInflater inf = getLayoutInflater();
-            if (viewType == TYPE_BANNER_ROW) {
-                return new BannerRowHolder(inf.inflate(R.layout.item_music_banner_row, parent, false));
+            switch (viewType) {
+                case TYPE_BANNER_ROW:
+                    return new BannerRowHolder(inf.inflate(R.layout.item_music_banner_row, parent, false));
+                case TYPE_DAILY_ROW:
+                    return new DailyHolder(inf.inflate(R.layout.item_music_daily, parent, false));
+                case TYPE_RECENT_ROW:
+                    return new RecentRowHolder(inf.inflate(R.layout.item_music_row, parent, false));
+                case TYPE_SONG_ROW:
+                    return new SongListHolder(inf.inflate(R.layout.layout_music_songlist, parent, false));
+                default:
+                    return new SectionRowHolder(inf.inflate(R.layout.item_music_row, parent, false));
             }
-            return new SectionRowHolder(inf.inflate(R.layout.item_music_row, parent, false));
         }
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder vh, int position) {
             Row r = rows.get(position);
-            if (vh instanceof BannerRowHolder) {
-                ((BannerRowHolder) vh).bind();
-            } else {
-                ((SectionRowHolder) vh).bind(r);
-            }
+            if (vh instanceof BannerRowHolder) ((BannerRowHolder) vh).bind();
+            else if (vh instanceof DailyHolder) ((DailyHolder) vh).bind();
+            else if (vh instanceof RecentRowHolder) ((RecentRowHolder) vh).bind(r);
+            else if (vh instanceof SongListHolder) ((SongListHolder) vh).bind(r);
+            else ((SectionRowHolder) vh).bind(r);
         }
 
         @Override
@@ -232,6 +292,38 @@ public class MusicActivity extends BaseActivity {
         }
     }
 
+    /** 每日推荐卡: 取官方榜单第一张, 点播放键直接进榜单。 */
+    class DailyHolder extends RecyclerView.ViewHolder {
+        final TextView week, day, title, desc, play;
+
+        DailyHolder(View v) {
+            super(v);
+            week = v.findViewById(R.id.dailyWeek);
+            day = v.findViewById(R.id.dailyDay);
+            title = v.findViewById(R.id.dailyTitle);
+            desc = v.findViewById(R.id.dailyDesc);
+            play = v.findViewById(R.id.dailyPlay);
+            FocusScale.attach(v, 1.02f);
+            v.setOnClickListener(v1 -> {
+                if (!topListCache.isEmpty()) openSheet(topListCache.get(0));
+            });
+            play.setOnClickListener(v1 -> {
+                if (!topListCache.isEmpty()) openSheet(topListCache.get(0));
+            });
+        }
+
+        void bind() {
+            Calendar c = Calendar.getInstance();
+            week.setText(WEEK[c.get(Calendar.DAY_OF_WEEK) - 1]);
+            day.setText(String.valueOf(c.get(Calendar.DAY_OF_MONTH)));
+            if (!topListCache.isEmpty()) {
+                MusicApi.Sheet s = topListCache.get(0);
+                title.setText("每日推荐 · " + s.name);
+                desc.setText(s.sub == null ? "为你精选" : s.sub);
+            }
+        }
+    }
+
     class SectionRowHolder extends RecyclerView.ViewHolder {
         final TextView title;
         final SheetAdapter adapter;
@@ -248,6 +340,46 @@ public class MusicActivity extends BaseActivity {
         void bind(Row r) {
             title.setText(r.sectionTitle);
             adapter.sheets = r.sheets;
+            adapter.notifyDataSetChanged();
+        }
+    }
+
+    /** 最近播放横滑行。 */
+    class RecentRowHolder extends RecyclerView.ViewHolder {
+        final TextView title;
+        final RecentAdapter adapter;
+
+        RecentRowHolder(View v) {
+            super(v);
+            title = v.findViewById(R.id.rowTitle);
+            RecyclerView list = v.findViewById(R.id.rowList);
+            list.setLayoutManager(new LinearLayoutManager(mContext, LinearLayoutManager.HORIZONTAL, false));
+            adapter = new RecentAdapter();
+            list.setAdapter(adapter);
+        }
+
+        void bind(Row r) {
+            title.setText("最近播放");
+            adapter.songs = r.songs;
+            adapter.notifyDataSetChanged();
+        }
+    }
+
+    /** 我的 tab: 竖版歌曲列表容器。 */
+    class SongListHolder extends RecyclerView.ViewHolder {
+        final RecyclerView list;
+        final SongAdapter adapter;
+
+        SongListHolder(View v) {
+            super(v);
+            list = v.findViewById(R.id.songList);
+            list.setLayoutManager(new LinearLayoutManager(mContext));
+            adapter = new SongAdapter();
+            list.setAdapter(adapter);
+        }
+
+        void bind(Row r) {
+            adapter.songs = r.songs;
             adapter.notifyDataSetChanged();
         }
     }
@@ -335,6 +467,97 @@ public class MusicActivity extends BaseActivity {
         @Override
         public int getItemCount() {
             return sheets.size();
+        }
+    }
+
+    /** 最近播放横滑卡: 点歌即播(整列做队列)。 */
+    private class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.Holder> {
+        List<MusicApi.Song> songs = new ArrayList<>();
+
+        class Holder extends RecyclerView.ViewHolder {
+            final ImageView cover;
+            final TextView name, singer;
+
+            Holder(View v) {
+                super(v);
+                cover = v.findViewById(R.id.itemRecentCover);
+                name = v.findViewById(R.id.itemRecentName);
+                singer = v.findViewById(R.id.itemRecentSinger);
+                FocusScale.attach(v);
+                v.setOnClickListener(v1 -> {
+                    int pos = getAdapterPosition();
+                    if (pos >= 0 && pos < songs.size()) MusicPlayer.get().playQueue(songs, pos);
+                });
+            }
+        }
+
+        @NonNull
+        @Override
+        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new Holder(getLayoutInflater().inflate(R.layout.item_music_recent, parent, false));
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Holder h, int position) {
+            MusicApi.Song s = songs.get(position);
+            h.name.setText(s.name);
+            h.singer.setText(s.singer);
+            if (s.cover != null && !s.cover.isEmpty()) {
+                Glide.with(mContext).load(s.cover).into(h.cover);
+            } else {
+                h.cover.setImageResource(android.R.drawable.ic_media_play);
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return songs.size();
+        }
+    }
+
+    /** 我的 tab: 竖版编号歌曲列表(复用喵音乐式行)。 */
+    private class SongAdapter extends RecyclerView.Adapter<SongAdapter.Holder> {
+        List<MusicApi.Song> songs = new ArrayList<>();
+
+        class Holder extends RecyclerView.ViewHolder {
+            TextView index, name, singer, duration;
+
+            Holder(View v) {
+                super(v);
+                index = v.findViewById(R.id.itemSongIndex);
+                name = v.findViewById(R.id.itemSongName);
+                singer = v.findViewById(R.id.itemSongSinger);
+                duration = v.findViewById(R.id.itemSongDuration);
+                FocusScale.attach(v, 1.03f);
+                v.setOnClickListener(v1 -> {
+                    int pos = getAdapterPosition();
+                    if (pos >= 0 && pos < songs.size()) MusicPlayer.get().playQueue(songs, pos);
+                });
+            }
+        }
+
+        @NonNull
+        @Override
+        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new Holder(getLayoutInflater().inflate(R.layout.item_music_song, parent, false));
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Holder h, int position) {
+            MusicApi.Song s = songs.get(position);
+            MusicApi.Song cur = MusicPlayer.get().current();
+            boolean now = cur != null && cur.songmid != null && cur.songmid.equals(s.songmid);
+            h.index.setText(now ? "▶" : String.valueOf(position + 1));
+            h.index.setTextColor(now ? 0xFF7AA8FF : 0x66FFFFFF);
+            h.name.setText(s.name);
+            h.name.setTextColor(now ? 0xFF7AA8FF : Color.WHITE);
+            h.singer.setText(s.singer);
+            h.duration.setText("");
+        }
+
+        @Override
+        public int getItemCount() {
+            return songs.size();
         }
     }
 }

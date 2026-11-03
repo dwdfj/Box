@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.12: 每日推荐卡(Voyage 式) —— 左侧日期块 + 标题/描述 + 右侧播放圆钮 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginLeft="@dimen/vs_24"
+    android:layout_marginTop="@dimen/vs_10"
+    android:layout_marginRight="@dimen/vs_24"
+    android:layout_marginBottom="@dimen/vs_10"
+    android:background="@drawable/bg_music_player_bar"
+    android:descendantFocusability="blocksDescendants"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="@dimen/vs_28">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/dailyWeek"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="周二"
+            android:textColor="@color/music_accent"
+            android:textSize="@dimen/ts_26"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dailyDay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_40"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_28"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/dailyTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_34"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dailyDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_6"
+            android:singleLine="true"
+            android:textColor="@color/music_sub"
+            android:textSize="@dimen/ts_24" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/dailyPlay"
+        android:layout_width="@dimen/vs_96"
+        android:layout_height="@dimen/vs_96"
+        android:background="@drawable/bg_music_accent_btn"
+        android:gravity="center"
+        android:text="▶"
+        android:textColor="@color/color_FFFFFF"
+        android:textSize="@dimen/ts_36" />
+</LinearLayout>

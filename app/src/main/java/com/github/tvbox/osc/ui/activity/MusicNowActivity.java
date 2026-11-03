@@ -2,22 +2,27 @@ package com.github.tvbox.osc.ui.activity;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.base.BaseActivity;
+import com.github.tvbox.osc.music.BlobPlayButton;
 import com.github.tvbox.osc.music.MusicApi;
 import com.github.tvbox.osc.music.MusicPlayer;
 
 /**
- * 小贾影视仓 v27.10: 全屏播放页(喵音乐式) —— 大封面/歌名/进度条/粉紫播放键。
- * 播放条任意处点击进入; 数据全部来自 MusicPlayer 单例。
+ * 小贾影视仓 v27.12: 全屏播放页(Now Playing) ——
+ * 大封面 + 歌名/歌手置顶 + 进度条/时间 + 上一首/Blob 播放/下一首 + 音质/来源。
  */
 public class MusicNowActivity extends BaseActivity {
-    private TextView nameView, singerView, qualityView, posView, durView, statusView, playView;
-    private android.widget.ProgressBar progress;
-    private android.widget.ImageView cover;
+    private TextView nameView, singerView, qualityView, posView, durView, statusView;
+    private ProgressBar progress;
+    private ImageView cover;
+    private BlobPlayButton blob;
     private final Handler main = new Handler(Looper.getMainLooper());
     private boolean ticking = false;
 
@@ -31,8 +36,9 @@ public class MusicNowActivity extends BaseActivity {
                 progress.setProgress((int) (pos * 1000 / dur));
                 posView.setText(fmt(pos));
                 durView.setText(fmt(dur));
+                blob.setProgress(dur > 0 ? (float) pos / dur : 0f);
             }
-            playView.setText(p.isPlaying() ? "⏸" : "▶");
+            blob.setPlaying(p.isPlaying());
             main.postDelayed(this, 500);
         }
     };
@@ -40,7 +46,7 @@ public class MusicNowActivity extends BaseActivity {
     private final MusicPlayer.Listener listener = new MusicPlayer.Listener() {
         @Override public void onStatus(String s) { statusView.setText(s); }
         @Override public void onPlaying(MusicApi.Song s, String src, String q) { bind(s, src, q); }
-        @Override public void onPaused() { playView.setText("▶"); }
+        @Override public void onPaused() { blob.setPlaying(false); }
         @Override public void onError(String s) { statusView.setText(s); }
     };
 
@@ -58,12 +64,14 @@ public class MusicNowActivity extends BaseActivity {
         posView = findViewById(R.id.musicNowPos);
         durView = findViewById(R.id.musicNowDur);
         statusView = findViewById(R.id.musicNowStatus);
-        playView = findViewById(R.id.musicNowPlay);
         progress = findViewById(R.id.musicNowProgress);
         cover = findViewById(R.id.musicNowCover);
+        blob = findViewById(R.id.musicBlobPlay);
 
         findViewById(R.id.musicNowBack).setOnClickListener(v -> finish());
-        playView.setOnClickListener(v -> MusicPlayer.get().toggle());
+        blob.setOnClickListener(v -> MusicPlayer.get().toggle());
+        findViewById(R.id.musicNowNext).setOnClickListener(v -> MusicPlayer.get().playNext());
+        findViewById(R.id.musicNowPrev).setOnClickListener(v -> MusicPlayer.get().playPrev());
 
         MusicPlayer p = MusicPlayer.get();
         MusicApi.Song cur = p.current();

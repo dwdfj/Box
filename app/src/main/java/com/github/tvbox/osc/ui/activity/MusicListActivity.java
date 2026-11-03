@@ -77,7 +77,7 @@ public class MusicListActivity extends BaseActivity {
             setStatus("音质偏好已切至 " + q + "，下次点歌生效");
         });
         findViewById(R.id.musicPlayAll).setOnClickListener(v -> {
-            if (!songs.isEmpty()) MusicPlayer.get().play(songs.get(0));
+            if (!songs.isEmpty()) MusicPlayer.get().playQueue(songs, 0); // v27.12
         });
 
         bar = new BarBind(
@@ -85,8 +85,8 @@ public class MusicListActivity extends BaseActivity {
                 findViewById(R.id.musicNowCover),
                 findViewById(R.id.musicNowName),
                 findViewById(R.id.musicNowInfo),
-                findViewById(R.id.musicPlayPause),
-                findViewById(R.id.musicProgress));
+                (com.github.tvbox.osc.music.BlobPlayButton) findViewById(R.id.musicBlobPlay),
+                findViewById(R.id.musicNextBtn));
         bar.bind(this);
 
         String mode = getIntent().getStringExtra(EXTRA_MODE);
@@ -161,7 +161,7 @@ public class MusicListActivity extends BaseActivity {
                 v.setOnClickListener(v1 -> {
                     int pos = getAdapterPosition();
                     if (pos < 0 || pos >= songs.size()) return;
-                    MusicPlayer.get().play(songs.get(pos));
+                    MusicPlayer.get().playQueue(songs, pos); // v27.12: 整列做队列, 支持 ⏭
                     notifyDataSetChanged(); // 刷新"正在播放"高亮
                 });
             }
