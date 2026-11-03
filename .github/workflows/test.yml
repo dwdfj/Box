@@ -11,10 +11,6 @@ on:
         options:
           - 'true'
           - 'false'
-      buildNo:
-        description: '构建号(versionCode=260000+N, versionName=v27.N-时间)'
-        required: false
-        default: '1'
 
 jobs:
   build:
@@ -34,7 +30,7 @@ jobs:
         run: |
           export CHAQUOPY_PYTHON=$(which python)
           chmod +x gradlew
-          ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all -PxjWallpaper=${{ github.event.inputs.wallpaper || 'true' }} -PxjBuildNo=${{ github.event.inputs.buildNo || '1' }}
+          ./gradlew assemblerelease --build-cache --parallel --daemon --warning-mode all -PxjWallpaper=${{ github.event.inputs.wallpaper || 'true' }}
       - name: Prepare App
         run: |
           mkdir -p ${{ github.workspace }}/apk/

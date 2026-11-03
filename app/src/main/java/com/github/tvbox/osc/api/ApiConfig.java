@@ -2,12 +2,7 @@ package com.github.tvbox.osc.api;
 
 import static com.github.tvbox.osc.util.RegexUtils.getPattern;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.ProgressDialog;
-import android.content.DialogInterface;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -71,12 +66,6 @@ public class ApiConfig {
     private final LinkedHashMap<String, SourceBean> sourceBeanList;
     private SourceBean mHomeSource;
     private String lastApiUrl = "";   // 小贾影视仓: 记录上次加载的线路, 用于切换线路时重置首页源
-    // 小贾影视仓 v26: 面板「加载本地 .py」刚载入的站点 key —— injectLocalPySites 见到它就覆盖旧站点。
-    // 用完即清(一次性), 避免长驻影响后续正常运行时的注入逻辑。
-    private volatile String justLoadedPyKey = "";
-    public void markJustLoadedPy(String key) {
-        justLoadedPyKey = key == null ? "" : key;
-    }
     // 小贾影视仓: 参考豆瓣(首页推荐"锁死豆瓣"用)——从任一含豆瓣的线路捕获, 供无豆瓣的线路注入
     private static final String HAWK_REF_DOUBAN = "xiaojia_ref_douban";
     private SourceBean referenceDouban = null;
@@ -186,13 +175,11 @@ public class ApiConfig {
                 content = new String(Base64.decode(content, Base64.DEFAULT));
             }
             if (content.startsWith("2423")) {
-                // v27.24: 2423 加密有两种排布，老代码只认「$# key #$」那种；
-                // 实测 潇洒·sun / 南风·XC 用的是另一种：
-                //   2423 + hex(13 位 key) + "2324" + hex(AES-CBC 密文) + hex(13 位 iv)
-                // 老代码在 indexOf("$#") == -1 时直接抛异常 → 返回未解密的 "2423..." → Gson 必失败，
-                // 表现就是这两条内置线路「一直加载不出来」。两种排布都试，解不出来再退回原文。
-                String dec = decrypt2423(content);
-                json = (dec != null && !dec.isEmpty()) ? dec : content;
+                String data = content.substring(content.indexOf("2324") + 4, content.length() - 26);
+                content = new String(AES.toBytes(content)).toLowerCase();
+                String key = AES.rightPadding(content.substring(content.indexOf("$#") + 2, content.indexOf("#$")), "0", 16);
+                String iv = AES.rightPadding(content.substring(content.length() - 13), "0", 16);
+                json = AES.CBC(data, key, iv);
             } else if (configKey != null && !AES.isJson(content)) {
                 json = AES.ECB(content, configKey);
             } else {
@@ -204,59 +191,8 @@ public class ApiConfig {
         return json;
     }
 
-    // v27.24: 解析 "2423" 加密配置。两种排布都试：
-    //   A) 2423 ... "$#" + key + "#$" ... + 明文 iv(最后 13 字符)   ← 老代码支持的变体
-    //   B) 2423 + hex(13 位 key) + "2324" + hex(密文) + hex(13 位 iv) ← 潇洒·sun / 南风·XC 实测用的这种
-    // 解出来的内容必须像配置（去注释后以 { 开头且含 sites/spider/video），否则换下一种 iv 再试。
-    private static String decrypt2423(String raw) {
-        try {
-            String c = raw.trim();
-            int m = c.indexOf("2324");
-            if (m < 4 || c.length() < m + 4 + 54) return null;
-            int kp = c.indexOf("$#"), ke = c.indexOf("#$");
-            String key = (kp >= 0 && ke > kp)
-                    ? AES.rightPadding(c.substring(kp + 2, ke), "0", 16)
-                    : AES.rightPadding(hexToText(c.substring(4, m)), "0", 16);
-            if (key.length() != 16) return null;
-            String data = c.substring(m + 4, c.length() - 26);
-            if (data.isEmpty() || (data.length() & 1) != 0) return null;
-            String[] ivs = new String[]{
-                    AES.rightPadding(hexToText(c.substring(c.length() - 26)), "0", 16),
-                    AES.rightPadding(c.substring(c.length() - 13), "0", 16)
-            };
-            for (String iv : ivs) {
-                if (iv.length() != 16) continue;
-                String out = AES.CBC(data, key, iv);
-                if (looksLikeConfig(out)) return out;
-            }
-        } catch (Throwable ignored) {
-        }
-        return null;
-    }
-
-    /** "31323334" -> "1234"（2423 里的 key/iv 是 ASCII 的 hex 写法） */
-    private static String hexToText(String hex) {
-        if (hex == null || hex.isEmpty() || (hex.length() & 1) != 0) return "";
-        StringBuilder sb = new StringBuilder(hex.length() / 2);
-        for (int i = 0; i + 1 < hex.length(); i += 2) {
-            try {
-                sb.append((char) Integer.parseInt(hex.substring(i, i + 2), 16));
-            } catch (Throwable th) {
-                return "";
-            }
-        }
-        return sb.toString();
-    }
-
-    private static boolean looksLikeConfig(String s) {
-        if (s == null || s.isEmpty()) return false;
-        String t = stripJsonComments(s).trim();
-        if (t.startsWith("\uFEFF")) t = t.substring(1).trim();
-        if (!t.startsWith("{")) return false;
-        return t.contains("\"sites\"") || t.contains("\"spider\"") || t.contains("\"video\"");
-    }
-
-    private static byte[] getImgJar(String body) {        Pattern pattern = getPattern("[A-Za-z0]{8}\\*\\*");
+    private static byte[] getImgJar(String body) {
+        Pattern pattern = getPattern("[A-Za-z0]{8}\\*\\*");
         Matcher matcher = pattern.matcher(body);
         if (matcher.find()) {
             body = body.substring(body.indexOf(matcher.group()) + 10);
@@ -265,35 +201,13 @@ public class ApiConfig {
         return "".getBytes();
     }
 
-    // 小贾影视仓 v27.27: 默认线路失效时按顺序自动接管的内置线路（首页一定能出来）。
-    // 顺序 = 实测可用性优先，不是站点越多越好：站点越多，全局搜索被最慢一个站拖住的概率越大。
-    //   小白马 62 站 100~156ms / kstore·wex 63 站 184~404ms / newwex 99 站 244~1752ms / 张群 19 站 1004ms
-    // 已剔除: hgyx(配置被 // 注释坏, 解析必失败) / rihou(域名 DNS 失效) / 摸鱼儿(服务端无响应)。
+    // 小贾影视仓: 默认线路(图片/失效)加载失败时自动回退的内置可用 JSON 线路, 保证首页一定能出来
+    // 顺序按"资源多少"排: newwex(88站,资源全) > 张群(19站) > HGYX(资源少,垫底)
     private static final String[] FALLBACK_LINES = new String[]{
-            "https://szyyds.cn/tv/x.json",
-            "https://9280.kstore.vip/wex.json",
             "https://9280.kstore.vip/newwex.json",
-            "https://zhangqun1818.serv00.net/zq/api.json"
+            "https://zhangqun1818.serv00.net/zq/api.json",
+            "https://api.hgyx.vip/hgyx.json"
     };
-
-    /**
-     * 小贾影视仓 v27.27: 这条线路是否属于「内置默认 / 内置兜底」这一类。
-     * 属于这一类的线路失败时自动换下一条可用线路，用户自己手动添加的线路失败仍按原逻辑提示，
-     * 免得"手动选了某条线路，结果被悄悄换掉"。
-     */
-    private static boolean isAutoManagedLine(String url) {
-        if (url == null || url.isEmpty()) return false;
-        for (String f : FALLBACK_LINES) {
-            if (url.equals(f)) return true;
-        }
-        try {
-            if (HomeActivity.getRes() != null) {
-                return url.equals(HomeActivity.getRes().getString(R.string.app_source));
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
-    }
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
         // 小贾影视仓 v15.4: 新一轮加载 = 任务代号 +1, 并取消上一轮仍在飞的 config/jar 请求(防堆积/串台)
@@ -305,10 +219,10 @@ public class ApiConfig {
         // 小贾影视仓: 加载参考豆瓣(首页锁死豆瓣用)
         loadReferenceDouban();
         String apiUrl = Hawk.get(HawkConfig.API_URL, HomeActivity.getRes().getString(R.string.app_source));
-        loadConfigUrl(useCache, apiUrl, callback, activity, false, 0, taskId);
+        loadConfigUrl(useCache, apiUrl, callback, activity, false, taskId);
     }
 
-    private void loadConfigUrl(boolean useCache, String apiUrl, LoadConfigCallback callback, Activity activity, boolean isFallback, int depth, int taskId) {
+    private void loadConfigUrl(boolean useCache, String apiUrl, LoadConfigCallback callback, Activity activity, boolean isFallback, int taskId) {
         // Embedded Source : Update in Strings.xml if required
         if (apiUrl == null || apiUrl.isEmpty()) {
             callback.error("源地址为空");
@@ -394,16 +308,6 @@ public class ApiConfig {
                         if (taskId != mLoadTask.get()) return; // v15.4: 已被新任务取代, 静默丢弃
                         try {
                             String json = response.body();
-                            // 小贾影视仓 v26: 多仓/订阅接口(根级 urls 数组且无 sites)—— 解析出子线路供用户选择。
-                            // 深度限制为 2 层, 防止订阅互相套娃导致无限弹框。
-                            if (depth < 2 && isSubscriptionRaw(json)) {
-                                try {
-                                    JsonObject sub = new Gson().fromJson(json, JsonObject.class);
-                                    handleSubscription(sub, apiUrl, callback, activity, useCache, depth);
-                                    return;
-                                } catch (Throwable ignored) {
-                                }
-                            }
                             parseJson(apiUrl, json);
                             try {
                                 File cacheDir = cache.getParentFile();
@@ -434,10 +338,15 @@ public class ApiConfig {
                                 }
                             } catch (Throwable ignored) {
                             }
-                            // 小贾影视仓 v27.27: 默认/兜底线路解析失败(图片配置、配置被注释坏等), 自动换下一条可用线路
-                            if (!isFallback && isAutoManagedLine(apiUrl)) {
-                                tryFallback(0, useCache, callback, activity, taskId);
-                                return;
+                            // 小贾影视仓: 默认线路解析失败(如图片配置 itv666.webp), 同样回退到可用 JSON 线路
+                            if (!isFallback) {
+                                String def = "";
+                                if (HomeActivity.getRes() != null)
+                                    def = HomeActivity.getRes().getString(R.string.app_source);
+                                if (apiUrl.equals(def)) {
+                                    tryFallback(0, useCache, callback, activity, taskId);
+                                    return;
+                                }
                             }
                             String reason = th.getMessage() == null ? "" : th.getMessage();
                             if (reason.length() > 200) reason = reason.substring(0, 200);
@@ -463,14 +372,19 @@ public class ApiConfig {
                         if (!isFallback && apiUrl != null) {
                             String mirror = getLineMirror(apiUrl);
                             if (mirror != null && !mirror.equals(apiUrl)) {
-                                loadConfigUrl(false, mirror, callback, activity, true, 0, taskId);
+                                loadConfigUrl(false, mirror, callback, activity, true, taskId);
                                 return;
                             }
                         }
-                        // 小贾影视仓 v27.27: 默认/兜底线路拉不动时, 自动换下一条可用线路, 保证首页一定能出来
-                        if (!isFallback && isAutoManagedLine(apiUrl)) {
-                            tryFallback(0, useCache, callback, activity, taskId);
-                            return;
+                        // 小贾影视仓: 默认线路(图片/失效)加载失败时, 自动回退到可用的 JSON 线路, 保证首页一定能出来
+                        if (!isFallback) {
+                            String def = "";
+                            if (HomeActivity.getRes() != null)
+                                def = HomeActivity.getRes().getString(R.string.app_source);
+                            if (apiUrl.equals(def)) {
+                                tryFallback(0, useCache, callback, activity, taskId);
+                                return;
+                            }
                         }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));
                     }
@@ -558,27 +472,15 @@ public class ApiConfig {
 
     // 小贾影视仓: 依次尝试回退线路; 成功则把生效线路记为当前 API_URL(标题与内容一致), 全部失败才报错
     private void tryFallback(int index, boolean useCache, LoadConfigCallback callback, Activity activity, int taskId) {
-        // v27.27: 跳过"刚刚失败的那条" —— 否则会拿同一条地址再等一次超时, 白等 10~20 秒
-        tryFallback(index, useCache, callback, activity, taskId, Hawk.get(HawkConfig.API_URL, ""));
-    }
-
-    private void tryFallback(int index, boolean useCache, LoadConfigCallback callback, Activity activity, int taskId, String skipUrl) {
         if (index >= FALLBACK_LINES.length) {
             callback.error("所有内置线路均加载失败，请检查网络或切换其它线路");
             return;
         }
         final String fb = FALLBACK_LINES[index];
-        if (skipUrl != null && skipUrl.equals(fb)) {       // 这条刚失败过, 换下一条
-            tryFallback(index + 1, useCache, callback, activity, taskId, skipUrl);
-            return;
-        }
         loadConfigUrl(useCache, fb, new LoadConfigCallback() {
             @Override
             public void success() {
                 Hawk.put(HawkConfig.API_URL, fb);
-                Hawk.put(HawkConfig.LAST_GOOD_API, fb);
-                // v27.27: 留给首页弹一句"已自动切换", 否则用户只会发现站点列表突然变了却不知道原因
-                Hawk.put("auto_line_switch_to", fb);
                 callback.success();
             }
 
@@ -589,9 +491,9 @@ public class ApiConfig {
 
             @Override
             public void error(String msg) {
-                tryFallback(index + 1, useCache, callback, activity, taskId, skipUrl);
+                tryFallback(index + 1, useCache, callback, activity, taskId);
             }
-        }, activity, true, 0, taskId);
+        }, activity, true, taskId);
     }
 
     // 小贾影视仓 v24.1: jar 缓存文件 md5 结果缓存 —— 原来每次切线路都对 csp jar(3MB+)重算哈希(50~150ms)。
@@ -1228,17 +1130,6 @@ public class ApiConfig {
                 LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
                 liveChannelGroup.setGroupName(liveURL_final);
                 liveChannelGroupList.add(liveChannelGroup);
-            } else if (!StringUtils.isBlank(liveURL)) {
-                // 小贾影视仓 v27.1: 配置里**没有 lives 字段**时, 也要用「用户手填的直播源」建组。
-                // 旧逻辑整段都包在 if (infoJson.has("lives")) 里面 —— 而绝大多数线路的 JSON
-                // 根本没有 lives, 于是用户在「线路配置」里填的直播地址没有任何代码去读:
-                // 直播页要么空频道、要么还是老列表, 体感就是"手动添加链接不生效"。
-                String finalLive = Base64.encodeToString(liveURL.getBytes("UTF-8"),
-                        Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP);
-                finalLive = "http://127.0.0.1:9978/proxy?do=live&type=txt&ext=" + finalLive;
-                LiveChannelGroup liveChannelGroup = new LiveChannelGroup();
-                liveChannelGroup.setGroupName(finalLive);
-                liveChannelGroupList.add(liveChannelGroup);
             }
 
 
@@ -1363,12 +1254,6 @@ public class ApiConfig {
     }
 
     // 小贾影视仓: 安全地去掉 JSON 里的 // 行注释 与 /* */ 块注释, 但保留字符串内的 // (如 http://)
-    //
-    // 小贾影视仓 v26: 顺带清掉「字符串内部的裸换行/回车/制表符」。
-    // JSON 规范禁止字符串里出现未转义的 CR/LF, 但不少配置作者手滑了 —— 典型如
-    // http://210.245.166.68:1188/tvbox/cun/chun.bmp 里的 "芒\r\n\r\n果":
-    // org.json 直接抛 "Invalid control character at: line 568 column 158", 整份配置一条都加载不出。
-    // 这里在字符串态下把裸控制字符折成空格, 关引号时再整体 rtrim 一次, 不影响正常配置。
     private static String stripJsonComments(String json) {
         if (json == null) return null;
         StringBuilder out = new StringBuilder();
@@ -1391,11 +1276,6 @@ public class ApiConfig {
             }
             if (c == '"' && prev != '\\') {
                 inString = !inString;
-                if (!inString) {
-                    // v26: 关引号前把刚写进去的空格收掉, 让 "芒  \r\n 果" -> "芒 果"
-                    int L = out.length();
-                    while (L > 0 && out.charAt(L - 1) == ' ') { L--; out.setLength(L); }
-                }
                 out.append(c);
                 prev = c;
                 continue;
@@ -1403,11 +1283,6 @@ public class ApiConfig {
             if (!inString) {
                 if (c == '/' && i + 1 < n && json.charAt(i + 1) == '/') { inLine = true; prev = c; continue; }
                 if (c == '/' && i + 1 < n && json.charAt(i + 1) == '*') { inBlock = true; prev = c; continue; }
-            } else if (c < 0x20) {
-                // v26: 字符串内的裸控制字符 -> 空格
-                out.append(' ');
-                prev = ' ';
-                continue;
             }
             out.append(c);
             prev = c;
@@ -1644,7 +1519,7 @@ public class ApiConfig {
     }
 
     public SourceBean getSource(String key) {
-        if (key == null || !sourceBeanList.containsKey(key))
+        if (!sourceBeanList.containsKey(key))
             return null;
         return sourceBeanList.get(key);
     }
@@ -1652,25 +1527,6 @@ public class ApiConfig {
     public void setSourceBean(SourceBean sourceBean) {
         this.mHomeSource = sourceBean;
         Hawk.put(HawkConfig.HOME_API, sourceBean.getKey());
-    }
-
-    /**
-     * 小贾影视仓 v27.22: 删掉一个站点(目前只有"删除本地 py"用它)。
-     * 只摘内存里的站点表 + 若它是首页站就清掉保存的 HOME_API,
-     * 文件与 LOCAL_PY_LIST 由调用方负责, 保证两边一致。
-     */
-    public void removeSourceBean(String key) {
-        try {
-            if (key == null || key.isEmpty()) return;
-            sourceBeanList.remove(key);
-            if (mHomeSource != null && key.equals(mHomeSource.getKey())) {
-                mHomeSource = null;
-                Hawk.put(HawkConfig.HOME_API, "");
-            }
-            String cached = Hawk.get(HawkConfig.HOME_API, "");
-            if (key.equals(cached)) Hawk.put(HawkConfig.HOME_API, "");
-        } catch (Throwable ignored) {
-        }
     }
 
     public void setDefaultParse(ParseBean parseBean) {
@@ -1710,63 +1566,8 @@ public class ApiConfig {
                 File local = new File(App.getInstance().getFilesDir(), rel);
                 if (!local.isFile()) continue;      // 用户清过数据 / 文件被删 -> 跳过
                 String key = "py_local_" + MD5.string2MD5(rel);
+                if (sourceBeanList.containsKey(key)) continue;
                 String api = addrOk ? (addr + "file/" + rel) : ("file://" + local.getAbsolutePath());
-                // 小贾影视仓 v26: 压缩包解出来的 py 走子目录(plugin/<名字>/<入口>.py), 这里给路径加一个
-                // 8 位 hash 尾巴 —— 目的**不是**唯一化, 而是让「外部存储优先」失效:
-                // RemoteServer 的 /file/ 先找 /storage/emulated/0/<rel>, 存在就吐外部文件;
-                // 用户 SD 卡上若残留同名 plugin/aowu/spider.py, 读到的就是旧内容(极难查的假 bug)。
-                // 文件名带 hash 后外部不可能同名, 落盘/读取都稳定命中私有目录。
-                // 幂等: 已带本 hash 的 rel 不会二次加工(否则每次注入都变一个新 key)。
-                if (rel.indexOf('/', "plugin/".length()) > 0) {
-                    int slash = rel.lastIndexOf('/');
-                    String dirPart = rel.substring(0, slash);
-                    String fn = rel.substring(slash + 1);
-                    int dot = fn.lastIndexOf('.');
-                    String stem = dot > 0 ? fn.substring(0, dot) : fn;
-                    String tail = dot > 0 ? fn.substring(dot) : ".py";
-                    String h = MD5.string2MD5(rel).substring(0, 8);
-                    if (!stem.endsWith("." + h)) {
-                        String newRel = dirPart + "/" + stem + "." + h + tail;
-                        File moved = new File(App.getInstance().getFilesDir(), newRel);
-                        if (!moved.isFile()) {
-                            try {
-                                File pdir = moved.getParentFile();
-                                if (pdir != null && (pdir.exists() || pdir.mkdirs())) {
-                                    java.io.InputStream in = new java.io.FileInputStream(local);
-                                    try {
-                                        java.io.FileOutputStream fos = new java.io.FileOutputStream(moved);
-                                        try {
-                                            byte[] b = new byte[16384];
-                                            int n;
-                                            while ((n = in.read(b)) != -1) fos.write(b, 0, n);
-                                            fos.flush();
-                                        } finally {
-                                            try { fos.close(); } catch (Throwable ignored) {}
-                                        }
-                                    } finally {
-                                        try { in.close(); } catch (Throwable ignored) {}
-                                    }
-                                }
-                            } catch (Throwable ignored) {
-                            }
-                        }
-                        if (moved.isFile()) {
-                            rel = newRel;
-                            api = addrOk ? (addr + "file/" + rel) : ("file://" + moved.getAbsolutePath());
-                            key = "py_local_" + MD5.string2MD5(rel);
-                        }
-                    }
-                }
-                if (sourceBeanList.containsKey(key)) {
-                    // 小贾影视仓 v26: 刚在面板点完「加载本地 .py」时, 必须覆盖旧站点 ——
-                    // 压缩包重载会换成新入口文件, 老站点留着就是"加载成功但打不开"。
-                    if (!key.equals(justLoadedPyKey)) continue;
-                    // 顺带把 Python 侧缓存的旧 Spider 实例扔掉, 否则读到/编译的仍是上一版代码
-                    try {
-                        pyLoader.invalidate(key);
-                    } catch (Throwable ignored) {
-                    }
-                }
                 SourceBean sb = new SourceBean();
                 sb.setKey(key);
                 // 小贾影视仓 v23: 本地 py 源覆盖「影视 / 短剧 / 小说 / 漫画」各种内容 ——
@@ -1794,311 +1595,37 @@ public class ApiConfig {
             // 是懒加载(首次可见才 init), 点过去要等"Python 就绪+插件编译+依赖下载+init"全链条。
             // 现在配置加载完成后就在后台把所有本地 py 源的 spider 预初始化(getSpider 有 25s 超时且
             // init 结果有缓存, 超时任务后台继续跑), 用户点进 py tab 时基本秒开。
-            warmPySpiders();
+            warmLocalPySpiders();
         } catch (Throwable th) {
             th.printStackTrace();
-        } finally {
-            justLoadedPyKey = "";   // v26: 一次性标记, 本次注入结束后清掉
         }
     }
 
-    /** 小贾影视仓 v24.7.3+: 后台预初始化全部 py 源 spider(本地 py_local_ + 配置里的远程 .py 源)。
-     *  去重由 PythonLoader.spiderInits 保证。覆盖远程 py 后, 用户点进任意 py 源都近乎秒开,
-     *  不再经历"Python就绪+插件编译+依赖下载+init"的冷启动全链条。
-     *
-     *  v26.2: 预热并行化。旧实现是单线程顺序 getCSP —— 每个 getCSP 都阻塞等自己那个源的 init
-     *  完成(最长 25s)才下一个, PythonLoader 的 3 线程 bootExecutor 基本闲着排队,
-     *  多 py 源线路要几分钟才预热完。现在每个源一个任务丢进 3 线程池, 多个 py 源真正并发
-     *  初始化(下载走网络, requests 释放 GIL, Chaquopy 线程安全)。
-     *  另: 预热不走 getCSP 而直接调 pyLoader.getSpider —— getCSP 会 setRecentPyKey 写
-     *  "最近使用的 py 源", 并行预热会把它抢写成预热目标, 顶掉用户正在播放的 py 源,
-     *  导致 proxyInvoke 本机中转定位错 spider(qimao 等用 localProxy 的源会播不了)。 */
-    public void warmPySpiders() {
+    /** 小贾影视仓 v24.7.3: 后台预初始化全部本地 py 源 spider(去重由 PythonLoader.spiderInits 保证) */
+    private void warmLocalPySpiders() {
         try {
             final ArrayList<SourceBean> warmList = new ArrayList<>();
             for (SourceBean sb : sourceBeanList.values()) {
-                if (sb == null) continue;
-                String api = sb.getApi();
-                String key = sb.getKey();
-                if (api == null || api.isEmpty()) continue;
-                // 本地 py 源, 或 配置中指向 .py 的远程源(如 my.json / fty.json 里的 py 站)
-                if ((key != null && key.startsWith("py_local_")) || api.contains(".py")) {
+                if (sb != null && sb.getKey() != null && sb.getKey().startsWith("py_local_")) {
                     warmList.add(sb);
                 }
             }
             if (warmList.isEmpty()) return;
-
-            // v26.4: 精确预热(替代 v26.2 的"全量 3 线程并发")。
-            // 旧策略的副作用: 配置里 5~10 个 py 站时, 3 个线程同时下插件+依赖, 把带宽抢光,
-            // 结果首页那个源反而更慢, 用户体感"py 还是慢"。
-            // 新策略: ① 首页源单独一个线程立刻预热(用户最可能先点它);
-            //         ② 其余源串行错峰, 等 2.5s 再一个个来, 不再和首页抢带宽。
-            String homeKey = null;
-            try {
-                SourceBean home = getHomeSourceBean();
-                homeKey = home == null ? null : home.getKey();
-            } catch (Throwable ignored) {
-            }
-            final String hk = homeKey;
-            if (hk != null) {
-                for (int i = 0; i < warmList.size(); i++) {
-                    if (hk.equals(warmList.get(i).getKey())) {
-                        SourceBean first = warmList.remove(i);
-                        warmList.add(0, first);
-                        break;
-                    }
-                }
-            }
-
-            final SourceBean firstSb = warmList.remove(0);
-            Thread t1 = new Thread(new Runnable() {
+            Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        pyLoader.getSpider(firstSb.getKey(), firstSb.getApi(), firstSb.getExt());
-                    } catch (Throwable ignored) {
-                    }
-                }
-            }, "py-warm-home");
-            t1.setDaemon(true);
-            t1.start();
-
-            if (warmList.isEmpty()) return;
-            final ArrayList<SourceBean> rest = new ArrayList<>(warmList);
-            Thread t2 = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(2500);
-                    } catch (InterruptedException ignored) {
-                    }
-                    for (SourceBean sb : rest) {
+                    for (SourceBean sb : warmList) {
                         try {
-                            // 仅触发 getSpider+init, 不发网络分类请求; 绕过 getCSP 的 setRecentPyKey
-                            pyLoader.getSpider(sb.getKey(), sb.getApi(), sb.getExt());
+                            getCSP(sb);   // 仅触发 getSpider+init, 不发网络分类请求
                         } catch (Throwable ignored) {
                         }
                     }
                 }
-            }, "py-warm-rest");
-            t2.setDaemon(true);
-            t2.start();
+            }, "py_warmup");
+            t.setDaemon(true);
+            t.start();
         } catch (Throwable ignored) {
         }
-    }
-
-    // ===================== 小贾影视仓 v26: 多仓 / 订阅接口(根级 urls 数组)支持 =====================
-    /** 廉价判断: 是否为订阅接口(有 urls 数组且无 sites)。避免对每份普通配置都做完整 Gson 解析。 */
-    private boolean isSubscriptionRaw(String json) {
-        if (json == null) return false;
-        String t = json.trim();
-        if (t.isEmpty() || (!t.contains("\"urls\"") && !t.contains("urls:"))) return false;
-        if (t.contains("\"sites\"") || t.contains("\"video\"")) return false;
-        try {
-            JsonObject o = new Gson().fromJson(t, JsonObject.class);
-            if (o != null && o.has("urls") && o.get("urls").isJsonArray()
-                    && o.getAsJsonArray("urls").size() > 0) {
-                return true;
-            }
-        } catch (Throwable ignored) { }
-        return false;
-    }
-
-    /** 订阅子线路条目 */
-    private static class SubLine {
-        String name;
-        String url;
-        boolean alive;
-        int code;
-        long ms;
-        SubLine() { alive = false; code = -1; ms = -1; }
-    }
-
-    /** 解析订阅 JSON, 探测各子线可用性, 弹出选择框 */
-    private void handleSubscription(JsonObject root, final String apiUrl, final LoadConfigCallback callback,
-                                    final Activity activity, final boolean useCache, final int depth) {
-        final ArrayList<SubLine> lines = new ArrayList<>();
-        try {
-            JsonArray arr = root.getAsJsonArray("urls");
-            for (JsonElement e : arr) {
-                if (e == null || !e.isJsonObject()) continue;
-                JsonObject o = e.getAsJsonObject();
-                String name = safeStr(o, "name", safeStr(o, "n", safeStr(o, "t", "")));
-                String url = safeStr(o, "url", safeStr(o, "u", safeStr(o, "link", "")));
-                if (url.isEmpty()) continue;
-                SubLine sl = new SubLine();
-                sl.name = name.isEmpty() ? url : name;
-                sl.url = url;
-                lines.add(sl);
-            }
-        } catch (Throwable ignored) { }
-        if (lines.isEmpty()) {
-            callback.error("订阅接口未包含可用线路");
-            return;
-        }
-        // 无界面可展示选择框(极端情况): 直接加载第一条, 避免卡死
-        if (activity == null || activity.isFinishing()) {
-            loadChosenLine(lines.get(0).url, apiUrl, callback, activity, useCache, depth + 1);
-            return;
-        }
-        final ProgressDialog pd = new ProgressDialog(activity);
-        pd.setMessage("正在检测线路可用性…");
-        pd.setCancelable(true);
-        pd.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                callback.error("已取消检测");
-            }
-        });
-        try { pd.show(); } catch (Throwable ignored) { }
-        probeLines(lines, new Runnable() {
-            @Override
-            public void run() {
-                try { if (pd.isShowing()) pd.dismiss(); } catch (Throwable ignored) { }
-                showLinePicker(activity, lines, apiUrl, callback, useCache, depth);
-            }
-        });
-    }
-
-    /** 后台并发探测各子线可用性(带整体安全超时) */
-    private void probeLines(final ArrayList<SubLine> lines, final Runnable onDone) {
-        final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(lines.size());
-        final java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean(false);
-        final Runnable maybeDone = new Runnable() {
-            @Override
-            public void run() {
-                if (remaining.decrementAndGet() <= 0 && finished.compareAndSet(false, true)) {
-                    postOnMain(onDone);
-                }
-            }
-        };
-        for (final SubLine sl : lines) {
-            final long t0 = System.currentTimeMillis();
-            try {
-                OkGo.<String>get(sl.url)
-                        .tag("xj_probe")
-                        .retryCount(0)
-                        .headers("User-Agent", userAgent)
-                        .headers("Range", "bytes=0-0")
-                        .headers("Accept", requestAccept)
-                        .execute(new AbsCallback<String>() {
-                            @Override
-                            public void onSuccess(Response<String> r) {
-                                int c = r.code();
-                                sl.code = c;
-                                // 2xx/3xx 可用; 4xx 除 404/410(确属不存在)外视为可达(可能需特定头); 5xx 视为临时可达
-                                sl.alive = (c >= 200 && c <= 399) || (c >= 400 && c != 404 && c != 410);
-                                sl.ms = System.currentTimeMillis() - t0;
-                                maybeDone.run();
-                            }
-                            @Override
-                            public void onError(Response<String> r) {
-                                sl.alive = false; sl.code = -1; sl.ms = System.currentTimeMillis() - t0;
-                                maybeDone.run();
-                            }
-                            @Override
-                            public String convertResponse(okhttp3.Response resp) throws Throwable {
-                                return "";
-                            }
-                        });
-            } catch (Throwable t) {
-                sl.alive = false; sl.code = -1;
-                maybeDone.run();
-            }
-        }
-        // 整体安全超时: 至多等待 9 秒, 避免个别线路 hang 住整个选择流程
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (finished.compareAndSet(false, true)) postOnMain(onDone);
-            }
-        }, 9000);
-    }
-
-    private static void postOnMain(Runnable r) {
-        if (Looper.myLooper() == Looper.getMainLooper()) r.run();
-        else new Handler(Looper.getMainLooper()).post(r);
-    }
-
-    /** 弹出线路选择框: 可用线路在前, 不可用(探测失败/404)在后并标注 */
-    private void showLinePicker(Activity activity, ArrayList<SubLine> lines, String apiUrl,
-                                LoadConfigCallback callback, boolean useCache, int depth) {
-        if (activity == null || activity.isFinishing()) {
-            callback.error("界面已关闭，未选择线路");
-            return;
-        }
-        int liveCount = 0;
-        for (SubLine s : lines) if (s.alive) liveCount++;
-        final ArrayList<SubLine> showList = new ArrayList<>(lines);
-        // 可用优先排序
-        java.util.Collections.sort(showList, new java.util.Comparator<SubLine>() {
-            @Override
-            public int compare(SubLine a, SubLine b) {
-                if (a.alive != b.alive) return a.alive ? -1 : 1;
-                return 0;
-            }
-        });
-        String[] items = new String[showList.size()];
-        for (int i = 0; i < showList.size(); i++) {
-            SubLine s = showList.get(i);
-            String status = s.alive
-                    ? ("（可用 · " + (s.ms >= 0 ? s.ms : "?") + "ms）")
-                    : ("（不可用 · " + codeText(s.code) + "）");
-            items[i] = s.name + "   " + status;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setTitle("请选择线路（" + liveCount + " 条可用 / 共 " + lines.size() + " 条）");
-        builder.setItems(items, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface d, int which) {
-                SubLine pick = showList.get(which);
-                d.dismiss();
-                loadChosenLine(pick.url, apiUrl, callback, activity, useCache, depth + 1);
-            }
-        });
-        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface d, int w) {
-                d.dismiss();
-                callback.error("未选择线路");
-            }
-        });
-        builder.setCancelable(false);
-        builder.show();
-    }
-
-    private static String codeText(int c) {
-        if (c == -1) return "无响应";
-        if (c == 404) return "404 不存在";
-        if (c == 410) return "410 已删除";
-        return String.valueOf(c);
-    }
-
-    private void loadChosenLine(String url, String apiUrl, LoadConfigCallback callback,
-                                Activity activity, boolean useCache, int depth) {
-        // 小贾影视仓 v27.0: 把用户在多仓里选中的子仓**记住**。
-        // 原先只 loadConfigUrl 不落盘，于是每次冷启动都会重新抓 dc 根、再弹一次选择框 ——
-        // 用户会觉得"这个多仓每次都要选，很烦"，等于多仓功能白给。现在选一次即固定，之后直连子仓。
-        try {
-            if (url != null && !url.isEmpty()) {
-                Hawk.put(HawkConfig.API_URL, url);
-                java.util.ArrayList<String> hist = Hawk.get(HawkConfig.API_HISTORY, new java.util.ArrayList<String>());
-                if (!hist.contains(url)) hist.add(0, url);
-                if (hist.size() > 20) hist.remove(20);
-                Hawk.put(HawkConfig.API_HISTORY, hist);
-            }
-        } catch (Throwable ignored) {
-        }
-        int pickTask = mLoadTask.incrementAndGet();
-        // 用全新任务代号加载选中的具体线路; 该线路若是嵌套订阅(depth<2)会继续弹选择框, 否则直接解析
-        loadConfigUrl(false, url, callback, activity, false, depth, pickTask);
-    }
-
-    private static String safeStr(JsonObject o, String key, String def) {
-        try {
-            if (o.has(key) && !o.get(key).isJsonNull()) return o.get(key).getAsString().trim();
-        } catch (Throwable ignored) { }
-        return def;
     }
 
     // 小贾影视仓 v23: 按文件名给本地 py 源打一个类型前缀(纯展示用, 完全不影响 spider 行为)。
@@ -2201,13 +1728,6 @@ public class ApiConfig {
     }
 
     String fixContentPath(String url, String content) {
-        // 小贾影视仓 v26: 配置文本头部常带 UTF-8 BOM(EF BB BF), 典型如
-        // http://210.245.166.68:1188/tvbox/cun/chun.bmp —— 它不以 "{" 开头,
-        // 会被 AES.isJson() 判成"加密内容"再走一遍解密分支, 解出来的东西也是带 BOM 的乱开头,
-        // 最终 Gson 在 line 1 column 1 直接失败。所有来源(图片 base64 / 裸文本 / php 打包)统一在这里剥。
-        if (content != null && content.length() > 0 && content.charAt(0) == '\uFEFF') {
-            content = content.substring(1);
-        }
         if (content.contains("\"./")) {
             url=url.replace("file://","clan://localhost/");
             if (!url.startsWith("http") && !url.startsWith("clan://")) {

@@ -391,33 +391,6 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
     // 彻底断掉 Drawable 状态的跨窗口污染。
     protected static Bitmap globalWpBitmap = null;
 
-    // 小贾影视仓 v26.6: 记住这份缓存是"按哪个宽高比裁的"。
-    // 缓存里的图已经按当时的屏幕比例 centerCrop 过, 横竖屏切换(或从播放页返回)后屏幕比例变了,
-    // 复用旧图再被窗口 FILL 拉伸 —— 用户看到的就是"竖屏时壁纸下半身像被切掉"。
-    protected static float globalWpAspect = 0f;
-
-    private static void recordWpAspect() {
-        try {
-            if (globalWpBitmap != null && globalWpBitmap.getHeight() > 0) {
-                globalWpAspect = globalWpBitmap.getWidth() / (float) globalWpBitmap.getHeight();
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** 当前屏幕比例与缓存图的裁剪比例是否一致(6% 容差); 不一致必须重新裁。 */
-    private boolean wpCacheFitsScreen() {
-        if (globalWpBitmap == null || globalWpAspect <= 0f) return false;
-        try {
-            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-            if (dm.widthPixels <= 0 || dm.heightPixels <= 0) return false;
-            float want = dm.widthPixels / (float) dm.heightPixels;
-            return Math.abs(want - globalWpAspect) / want < 0.06f;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
-
     private android.graphics.drawable.Drawable buildWallpaperDrawable() {
         if (globalWpBitmap == null) return null;
         android.graphics.drawable.BitmapDrawable d =
@@ -493,7 +466,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
         // v25: 快速路径也要**每次新建 Drawable**, 不能复用上一次的实例 ——
         // 共享 Drawable 会带着上个窗口的 bounds 画出半截壁纸。
-        if (!force && globalWpBitmap != null && wpCacheFitsScreen()) {
+        if (!force && globalWpBitmap != null) {
             android.graphics.drawable.Drawable d = buildWallpaperDrawable();
             if (d != null) {
                 getWindow().setBackgroundDrawable(d);
@@ -523,7 +496,6 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                     globalWpBitmap = null;
                 } else {
                     globalWpBitmap = darkenWallpaper(centerCropWallpaper(src));
-                    recordWpAspect();
                 }
             } else {
                 globalWpBitmap = null;
@@ -550,7 +522,6 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
                 Bitmap bmp = BitmapFactory.decodeResource(res, R.drawable.home_wallpaper, opts);
                 if (bmp != null) {
                     globalWpBitmap = darkenWallpaper(centerCropWallpaper(bmp));
-                    recordWpAspect();
                     android.graphics.drawable.Drawable d = buildWallpaperDrawable();
                     if (d != null) getWindow().setBackgroundDrawable(d);
                     return;
@@ -564,26 +535,21 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
-    // 无壁纸版唯一的绘制路径: 墨黑渐变背景(不读盘、不解码 Bitmap)
+    // 无壁纸版唯一的绘制路径: 主题色纯色背景(不读盘、不解码 Bitmap)
     private void applyThemeColorBackground() {
         try {
-            // 小贾影视仓 v27.0: 原来是「主色纯色铺满整屏」—— 主色可能是亮金/亮紫,
-            // 满屏铺开又亮又刺眼, 而且首页所有文字按钮都压在同一块饱和色上, 完全没有层次。
-            // 改成墨黑三段渐变(顶部带一点极光紫 → 中段墨黑 → 底部更深), 与 Aurora 主题同源:
-            // 深色底能托住海报和白色文字, 竖向渐变又给了页面一点纵深, 不是死黑一片。
-            int top = 0xFF16132B;
-            int mid = 0xFF0B0C12;
-            int bottom = 0xFF070810;
-            try {
-                top = getResources().getColor(R.color.color_aurora_top);
-            } catch (Throwable ignored) {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            getTheme().resolveAttribute(R.attr.color_theme, tv, true);
+            int themeColor;
+            if (tv.resourceId != 0) {
+                themeColor = getResources().getColor(tv.resourceId);
+            } else {
+                themeColor = tv.data;
             }
-            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable(
-                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{top, mid, bottom});
-            getWindow().setBackgroundDrawable(g);
+            // v25: ColorDrawable 每次新建, 不用 static 共享实例(与壁纸同一个坑)
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(themeColor));
         } catch (Throwable t) {
-            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF0B0C12));
+            getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF101010));
         }
     }
 }

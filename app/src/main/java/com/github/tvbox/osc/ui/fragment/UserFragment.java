@@ -16,7 +16,6 @@ import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.base.BaseLazyFragment;
 import com.github.tvbox.osc.bean.Movie;
-import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.event.ServerEvent;
@@ -26,7 +25,6 @@ import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.UA;
 import com.github.tvbox.osc.util.ImgUtil;
-import com.github.tvbox.osc.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -404,18 +402,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     /**
      * 统一打开逻辑 —— 删除模式移除历史 / 全网搜 / 详情
      */
-    /** 小贾影视仓 v27.18: 一次点击只允许发起一次跳转。 */
-    private long lastOpenVodTs = 0L;
-
     private void openVod(Movie.Video vod) {
         if (vod == null) return;
-        // 小贾影视仓 v27.18: 防重入。
-        // Banner 和网格卡都挂了点击, TvRecyclerView 在触摸模式下还会先派发一次"选中",
-        // 同一下手指能连着走到两次 openVod —— 第一次拿到的 vod.id 为空(走"按片名搜"),
-        // 于是"先闪一下搜索页, 再进播放页"。这里做 900ms 单通道, 一次点击只认第一个。
-        long now = System.currentTimeMillis();
-        if (now - lastOpenVodTs < 900L) return;
-        lastOpenVodTs = now;
         if (ApiConfig.get().getSourceBeanList().isEmpty())
             return;
         // takagen99: Check if in Delete Mode
@@ -428,49 +416,24 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             Bundle bundle = new Bundle();
             bundle.putString("id", vod.id);
             bundle.putString("sourceKey", vod.sourceKey);
-            // 小贾影视仓 v26.8: 带上片名与封面 —— 直达播放模式下详情页只当数据中转,
-            // 进场骨架(虚化封面+片名)靠这两个字段, 否则只能是黑屏转圈。
-            bundle.putString("title", vod.name);
-            bundle.putString("pic", vod.pic);
             if (vod.id.startsWith("msearch:")) {
-                // v27.28: msearch: 伪 id 也是"要按片名搜", 但不再弹搜索页, 静默匹配后直接进详情
-                com.github.tvbox.osc.util.SilentOpen.openByName(mActivity, vod.sourceKey, vod.name);
+                bundle.putString("title", vod.name);
+                jumpActivity(FastSearchActivity.class, bundle);
             } else {
                 jumpActivity(DetailActivity.class, bundle);
             }
-        } else if (Hawk.get(HawkConfig.HOME_REC, 0) == 1 && tryOpenByName(vod.name)) {
-            // 站点推荐模式下条目本该带 id —— 若为空, 先按片名在当前推荐里找一条带 id 的替身,
-            // 找到就直接进播放页, 不再把用户甩到搜索页。
         } else {
-            // 小贾影视仓 v27.28: 没 id 的条目(豆瓣兜底/banner/站点给的 msearch: 伪 id)不再拉搜索页,
-            // 改成「按片名静默搜索当前站点 → 命中直接进详情」。用户只看到一句提示,
-            // 不会再出现"点封面先闪一下搜索页"。
-            com.github.tvbox.osc.util.SilentOpen.openByName(mActivity, vod.sourceKey, vod.name);
-        }
-    }
-
-    /**
-     * 小贾影视仓 v27.18: 首页条目 id 为空时, 按片名在同批推荐数据里找一条带 id 的。
-     * 找到就直接进播放页 —— 用户要的是"点一次就进去", 不是"先闪一下搜索页"。
-     */
-    private boolean tryOpenByName(String name) {
-        if (name == null || name.trim().isEmpty()) return false;
-        String target = name.trim();
-        java.util.List<Movie.Video> pool = homeHotVodAdapter == null ? null : homeHotVodAdapter.getData();
-        if (pool == null || pool.isEmpty()) return false;
-        for (Movie.Video v : pool) {
-            if (v == null || v.id == null || v.id.isEmpty()) continue;
-            if (target.equals(v.name == null ? "" : v.name.trim())) {
-                Bundle bundle = new Bundle();
-                bundle.putString("id", v.id);
-                bundle.putString("sourceKey", v.sourceKey);
-                bundle.putString("title", v.name);
-                bundle.putString("pic", v.pic);
-                jumpActivity(DetailActivity.class, bundle);
-                return true;
+            // 豆瓣热播等无 id 内容: 按片名全网搜
+            Intent newIntent;
+            if (Hawk.get(HawkConfig.FAST_SEARCH_MODE, false)) {
+                newIntent = new Intent(mContext, FastSearchActivity.class);
+            } else {
+                newIntent = new Intent(mContext, SearchActivity.class);
             }
+            newIntent.putExtra("title", vod.name);
+            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            mActivity.startActivity(newIntent);
         }
-        return false;
     }
 
     private void initHomeHotVod(UserHomeRowAdapter adapter) {
@@ -484,21 +447,6 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             // 直接 return 且之后没有任何回填, 首屏推荐永远空白, 必须重进才有。
             // 现在站点数据未就绪时落到下面的豆瓣/历史兜底链, 首开即有内容;
             // 站点数据到位后(重进/切线路重建页面)自然恢复站点推荐。
-            // 小贾影视仓 v26.3: 用户明确要求"首页推荐改成站点推荐" —— 未就绪时**不再直接掉豆瓣**,
-            // 先回显当天该站的推荐落盘缓存(getSort 成功时都会写), 缓存也空了才走豆瓣/历史兜底。
-            try {
-                SourceBean home = ApiConfig.get().getHomeSourceBean();
-                String homeKey = home == null ? null : home.getKey();
-                if (homeKey != null) {
-                    java.util.List<Movie.Video> cached =
-                            SourceViewModel.getHomeRecVideosCached(homeKey);
-                    if (cached != null && !cached.isEmpty()) {
-                        adapter.setNewData(cached);
-                        return;
-                    }
-                }
-            } catch (Throwable ignored) {
-            }
         } else if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
             adapter.setNewData(historyToVideos(RoomDataManger.getAllVodRecord(30)));
             return;

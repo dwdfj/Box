@@ -3,34 +3,14 @@
     <color name="color_FFB800">#FF6600</color>
 
     <!-- Main Theme E50914 D81F26 -->
-    <!-- 小贾影视仓 v27.0 Aurora: 全站主色 正红#F80000 → 极光紫#8B6BFF -->
-    <color name="color_theme">#8B6BFF</color>
-    <color name="color_theme_80">#CC8B6BFF</color>
-    <color name="color_theme_70">#B38B6BFF</color>
-    <color name="color_theme_60">#998B6BFF</color>
-    <color name="color_theme_50">#808B6BFF</color>
-    <color name="color_theme_40">#668B6BFF</color>
+    <color name="color_theme">#F80000</color>
+    <color name="color_theme_80">#CCF80000</color>
+    <color name="color_theme_70">#B3F80000</color>
+    <color name="color_theme_60">#99F80000</color>
+    <color name="color_theme_50">#80F80000</color>
+    <color name="color_theme_40">#66F80000</color>
     <!-- Main Dialog Button BG -->
-    <color name="color_theme_dark_70">#B34E33C0</color>
-
-    <!-- ===== 小贾影视仓 v27.0 Aurora 色板（新增，供新布局直接引用） ===== -->
-    <color name="color_aurora_bg">#0B0C12</color>          <!-- 页面底色 墨黑 -->
-    <color name="color_aurora_top">#16132B</color>         <!-- 页面顶部（带一点极光紫的纵深） -->
-    <color name="color_aurora_bg_deep">#070810</color>     <!-- 更深一层（视频区/播放页） -->
-    <color name="color_aurora_card">#14161E</color>        <!-- 卡片底 -->
-    <color name="color_aurora_card_hi">#1B1E28</color>     <!-- 卡片高亮/按下 -->
-    <color name="color_aurora_glass">#CC101219</color>     <!-- 玻璃层（浮在壁纸上） -->
-    <color name="color_aurora_line">#2A2F3D</color>        <!-- 分割线/静默描边 -->
-    <color name="color_aurora_line_hi">#4D8B6BFF</color>   <!-- 聚焦描边 -->
-    <color name="color_aurora_accent">#8B6BFF</color>      <!-- 极光紫 -->
-    <color name="color_aurora_accent_hi">#C9B8FF</color>   <!-- 浅紫高光 -->
-    <color name="color_aurora_accent_dp">#4E33C0</color>   <!-- 深紫 -->
-    <color name="color_aurora_text">#F5F6F8</color>        <!-- 主文字 -->
-    <color name="color_aurora_text_sub">#A0A5B4</color>    <!-- 次文字 -->
-    <color name="color_aurora_text_dim">#6A7080</color>    <!-- 弱文字 -->
-    <color name="color_aurora_warm">#FFC66B</color>        <!-- 少量暖色点缀（评分/角标） -->
-    <color name="color_aurora_ok">#4ADE80</color>
-    <color name="color_aurora_warn">#FBBF24</color>
+    <color name="color_theme_dark_70">#B3601216</color>
 
     <!-- EPG Colors -->
     <color name="color_32364E">#32364E</color>
@@ -81,7 +61,7 @@
     <color name="color_000000_FF">#FF000000</color>
 
     <!-- 小贾影视仓 v15.7 首页「今日主推」金色角标 -->
-    <color name="color_home_gold">#9F86FF</color>
+    <color name="color_home_gold">#E8A33D</color>
 
     <!-- Unused Subtitle Text -->
     <color name="color_FFB6C1">#FFB6C1</color>

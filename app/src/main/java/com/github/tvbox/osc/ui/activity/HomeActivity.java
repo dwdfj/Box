@@ -11,8 +11,6 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-
-import com.github.tvbox.osc.base.App;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -105,10 +103,6 @@ public class HomeActivity extends BaseActivity {
     private ImageView tvFind;
     private ImageView tvMenu;
     private ImageView tvLive;
-    // 小贾影视仓 B1: 顶栏音乐入口 -> 拉起喵音乐
-    private ImageView tvMusic;
-    // 喵音乐包名(B1 约定): 未安装时 Toast 提示
-    public static final String MIAO_MUSIC_PKG = "com.miaomusic.app";
     // 小贾影视仓 v20: 首页通栏搜索框(取代原顶栏"打开应用"位置, 原抽屉入口已移除)
     private LinearLayout homeSearchBar;
     private TvRecyclerView mGridView;
@@ -171,12 +165,6 @@ public class HomeActivity extends BaseActivity {
 
     // takagen99: Added to allow read string
     public static Resources getRes() {
-        // 小贾影视仓: res 只在 init() 里赋值, 若 SearchReceiver 等直接拉起 SearchActivity 而 HomeActivity
-        // 尚未 init, res 为 null, 调用方又大多未判空 -> NPE 崩。这里回退到 Application 资源(字符串资源与
-        // 配置无关, 安全可用), 杜绝整类崩溃。
-        if (res == null && App.getInstance() != null) {
-            return App.getInstance().getResources();
-        }
         return res;
     }
 
@@ -190,7 +178,6 @@ public class HomeActivity extends BaseActivity {
         this.tvFind = findViewById(R.id.tvFind);
         this.tvMenu = findViewById(R.id.tvMenu);
         this.tvLive = findViewById(R.id.tvLive);
-        this.tvMusic = findViewById(R.id.tvMusic);
         this.homeSearchBar = findViewById(R.id.homeSearchBar);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
@@ -331,24 +318,6 @@ public class HomeActivity extends BaseActivity {
                 jumpActivity(LivePlayActivity.class);
             }
         });
-        // 小贾影视仓 B1: 音乐入口 —— 拉起喵音乐(互拉深链方案), 未安装给提示
-        tvMusic.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                FastClickCheckUtil.check(view);
-                try {
-                    Intent mIntent = getPackageManager().getLaunchIntentForPackage(MIAO_MUSIC_PKG);
-                    if (mIntent != null) {
-                        mIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(mIntent);
-                    } else {
-                        Toast.makeText(mContext, "未安装喵音乐, 请先安装", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (Throwable e) {
-                    Toast.makeText(mContext, "打开喵音乐失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
         // Button : Settings >> To go into App Settings ----------------
         tvMenu.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
@@ -444,37 +413,34 @@ public class HomeActivity extends BaseActivity {
                 // 原代码直接 .getKey() 会 NPE 闪退(启动期最常见的一处裸奔点)。
                 SourceBean homeSortBean = ApiConfig.get().getHomeSourceBean();
                 String homeSortKey = homeSortBean == null ? "" : homeSortBean.getKey();
-                // 小贾影视仓 v27.1: 本地 py 源启动慢/暂时没内容时 **不再悄悄换站**。
-                // 旧逻辑( v23.8 )一见分类为空就 setSourceBean(别的站) 并落盘 HOME_API ——
-                // py 冷启动要几十秒, 首次启动几乎必然先返回空, 于是用户"导入的 py 下次打开就没了",
-                // 只能再手动切一次。现在改为: 先在后台重试两次(每次 6s, 给 Python 运行时启动时间),
-                // 仍为空才提示 —— 但**保留用户选的 py**, 只有用户自己点胶囊才换源。
-                if (!fromHomeSwitch && homeSortBean != null
+                // 小贾影视仓 v23.8: 本地 py 源打不开(分类/推荐全空)时自动换站点,
+                // 不让首页一直空转 —— 用户反馈"加载有的py不能用时, 自动更换线路"。
+                // 只兜启动/常规加载路径(fromHomeSwitch=false); 手动切站失败已有看门狗回滚。
+                if (!fromHomeSwitch && !pyAutoFallbackFired && homeSortBean != null
                         && homeSortBean.getKey() != null && homeSortBean.getKey().startsWith("py_local_")
                         && (absXml == null || absXml.classes == null || absXml.classes.sortList == null
                             || absXml.classes.sortList.isEmpty())) {
-                    final SourceBean keepPy = homeSortBean;
-                    if (pyStartupRetry < 2) {
-                        pyStartupRetry++;
+                    pyAutoFallbackFired = true;
+                    SourceBean next = findFallbackSource(homeSortBean.getKey());
+                    if (next != null) {
                         Toast.makeText(HomeActivity.this,
-                                "「" + keepPy.getName() + "」正在启动 Python 运行时，稍候自动重试(" + pyStartupRetry + "/2)…",
-                                Toast.LENGTH_SHORT).show();
-                        postDelayedIfAlive(new Runnable() {
-                            @Override
-                            public void run() {
-                                SourceBean now = ApiConfig.get().getHomeSourceBean();
-                                if (!alive() || now == null || !keepPy.getKey().equals(now.getKey())) return;
-                                // 不设 homeSortGuard: 保持"启动加载"语义, 空结果才能继续走到下一轮重试
-                                sourceViewModel.getSort(keepPy.getKey());
-                                armSortWatchdog();
-                            }
-                        }, 6000);
+                                "「" + homeSortBean.getName() + "」源不可用，已自动切换到「" + next.getName() + "」",
+                                Toast.LENGTH_LONG).show();
+                        homeSortGuard = next.getKey();
+                        homeSwitchPrevKey = homeSortBean.getKey();
+                        inPlaceSwitching = true;
+                        currentSelected = 0;
+                        sortFocused = 0;
+                        ApiConfig.get().setSourceBean(next);
+                        showLoading();
+                        try {
+                            OkGo.getInstance().cancelTag(homeSortKey + "_sort");
+                        } catch (Throwable ignored) {
+                        }
+                        sourceViewModel.getSort(next.getKey());
+                        armSwitchWatchdog();
                         return;
                     }
-                    restoreTopBar();
-                    Toast.makeText(HomeActivity.this,
-                            "「" + keepPy.getName() + "」暂时没有返回内容，已保留这个源。\n可点顶部胶囊换线路，或稍后长按胶囊刷新",
-                            Toast.LENGTH_LONG).show();
                 }
                 if (absXml != null && absXml.classes != null && absXml.classes.sortList != null) {
                     sortAdapter.setNewData(appendLocalPyParallelSorts(
@@ -516,7 +482,7 @@ public class HomeActivity extends BaseActivity {
                     }, 1500);
                 }
                 // 小贾影视仓: 标题显示当前线路名(红底白字)
-                applyCapsule(capsuleTitle());
+                tvName.setText(capsuleTitle());
                 tvName.clearAnimation();
                 if (fromHomeSwitch) {
                     // 复位后, ViewPager 视口回到第 0 页
@@ -542,10 +508,6 @@ public class HomeActivity extends BaseActivity {
 
     // 小贾影视仓 v23.8: 本地 py 源打不开自动换站 —— 单次 Activity 生命周期只兜一次, 防来回横跳
     private boolean pyAutoFallbackFired = false;
-
-    // 小贾影视仓 v27.1: 启动时本地 py 源"暂无内容"的自动重试次数(最多 2 次, 每次 6s)。
-    // 用重试替代旧的"直接换站并落盘", 保证用户选的 py 不会被系统偷偷改掉。
-    private int pyStartupRetry = 0;
 
     /**
      * 小贾影视仓 v23.8: 找一个"可回退"的首页站点。
@@ -644,7 +606,7 @@ public class HomeActivity extends BaseActivity {
                 homeRecSelfHealFired = false;
                 showSuccess();
                 tvName.clearAnimation();
-                applyCapsule(capsuleTitle());
+                tvName.setText(capsuleTitle());
             }
         };
         try {
@@ -792,20 +754,9 @@ public class HomeActivity extends BaseActivity {
                 // 小贾影视仓 v23.9.1: 记录"最近一次成功加载的线路"。
                 // 之后拉取其它线路失败时自动切回这条, 用户不再被困死在"重试/取消"循环里。
                 Hawk.put(HawkConfig.LAST_GOOD_API, Hawk.get(HawkConfig.API_URL, ""));
-                // v27.27: 默认线路失效后由 ApiConfig 自动接管, 这里告诉用户"换了哪条",
-                // 否则他只会发现站点列表和胶囊名字突然变了。标志由 ApiConfig.tryFallback 写入。
-                final String autoTo = Hawk.get("auto_line_switch_to", "");
-                if (autoTo != null && !autoTo.isEmpty()) {
-                    Hawk.put("auto_line_switch_to", "");
-                }
                 postIfAlive(new Runnable() {
                     @Override
                     public void run() {
-                        if (autoTo != null && !autoTo.isEmpty()) {
-                            Toast.makeText(HomeActivity.this,
-                                    "原线路加载失败，已自动切换到「" + getLineName(autoTo) + "」",
-                                    Toast.LENGTH_LONG).show();
-                        }
                         // 小贾影视仓 v24.1: 去掉 50ms 人为延迟, config 成功后直接接 jar 加载
                         initData();
                     }
@@ -1084,10 +1035,8 @@ public class HomeActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
 
-        // 小贾影视仓 v27.1: 胶囊只显示「当前线路/站点名」, 不再带 App 名。
-        // 用户: "加载完线路或者 py 文件, 就无需再显示小贾影视仓字样了" —— 品牌名占位挤掉的
-        // 全是线路名本身的宽度, 而线路名才是用户真正需要一眼确认的信息。
-        applyCapsule(capsuleTitle());
+        // 小贾影视仓: 标题显示当前线路名(红底白字)
+        tvName.setText(getString(R.string.app_name) + " · " + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source))));
         tvName.clearAnimation();
 
         // 小贾影视仓 v23.8: 从播放页/详情页返回时, 顶部红色标题胶囊强制自愈回满尺寸。
@@ -1400,7 +1349,6 @@ public class HomeActivity extends BaseActivity {
             tvFind.setFocusable(false);
             tvMenu.setFocusable(false);
             tvLive.setFocusable(false);
-            tvMusic.setFocusable(false);
             return;
         }
         // Show Top =======================================================
@@ -1418,7 +1366,6 @@ public class HomeActivity extends BaseActivity {
             tvFind.setFocusable(true);
             tvMenu.setFocusable(true);
             tvLive.setFocusable(true);
-            tvMusic.setFocusable(true);
         }
     }
 
@@ -1449,34 +1396,9 @@ public class HomeActivity extends BaseActivity {
     }
 
     /**
-     * 小贾影视仓 v27.0: 标题胶囊改「双段排版」。
-     * 原来 "小贾影视仓 · 线路名" 整串同一字号同一亮度，读起来是一坨白字，也没有层级；
-     * 现在拆成两段 —— App 名保持满字号纯白，分隔点之后的线路名缩小到 78%、压到 60% 白，
-     * 视觉上第一眼看到品牌、第二眼看到线路，胶囊也不再需要那么宽。
-     */
-    private void applyCapsule(String raw) {
-        if (tvName == null) return;
-        if (raw == null) raw = "";
-        try {
-            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder(raw);
-            int dot = raw.indexOf(" · ");
-            if (dot > 0 && dot + 3 < raw.length()) {
-                int s = dot + 3;
-                sb.setSpan(new android.text.style.ForegroundColorSpan(0x99FFFFFF), s, raw.length(),
-                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.setSpan(new android.text.style.RelativeSizeSpan(0.78f), s, raw.length(),
-                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            tvName.setText(sb);
-        } catch (Throwable th) {
-            tvName.setText(raw);
-        }
-    }
-
-    /**
-     * 小贾影视仓 v27.1: 顶部胶囊文案 —— **只显示当前生效的线路/站点名**。
-     * v27.0 及之前是 "小贾影视仓 · 线路名", 加载完成后品牌名没有任何信息量,
-     * 反而把线路名挤成小字; 现在直接返回线路名(本地 py 返回 py 名), 满字号纯白。
+     * 小贾影视仓 v23.8: 顶部红胶囊文案。
+     * 当前首页站是本地 py 源(py_local_*)时直接显示该 py 的名字(去掉"(本地py)"尾巴),
+     * 其余情况维持原样显示线路名 —— 用户要求"胶囊那里也显示对应py的名字"。
      */
     private String capsuleTitle() {
         SourceBean hs = null;
@@ -1488,10 +1410,11 @@ public class HomeActivity extends BaseActivity {
             String n = hs.getName() == null ? "" : hs.getName();
             if (n.endsWith("(本地py)")) n = n.substring(0, n.length() - "(本地py)".length());
             if (!n.trim().isEmpty()) {
-                return n.trim();
+                return getString(R.string.app_name) + " · " + n.trim();
             }
         }
-        return getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source)));
+        return getString(R.string.app_name) + " · "
+                + getLineName(Hawk.get(HawkConfig.API_URL, getString(R.string.app_source)));
     }
 
     @Override
@@ -1532,11 +1455,9 @@ public class HomeActivity extends BaseActivity {
             else sites.add(sb);
         }
         sites.addAll(0, localPySites);
-        // 小贾影视仓 v27.18: 站点还没解析出来(线路刚切换/配置拉取失败)时**不要 return**。
-        // 旧逻辑这里直接 Toast 后退出, 用户看到的就是"点胶囊什么都不弹, 线路也没得选"——
-        // 其实他想要的正是"换一条线路"。现在照常弹面板: 右列空着, 左列线路照样能点。
         if (sites.isEmpty()) {
-            Toast.makeText(this, "当前线路站点还没加载出来，可直接在左侧换线路", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "当前线路暂无站点, 请先点\"线路配置\"确认", Toast.LENGTH_SHORT).show();
+            return;
         }
         final SourcePanelDialog panel = new SourcePanelDialog(this, lineItems, lineSelect, sites,
                 Math.max(0, sites.indexOf(ApiConfig.get().getHomeSourceBean())), homeStyleText());
@@ -1565,11 +1486,6 @@ public class HomeActivity extends BaseActivity {
             public void onPickLocalPy() {
                 pickLocalPy();
             }
-
-            @Override
-            public void onDeletePy(SourceBean site) {
-                confirmDeleteLocalPy(site);
-            }
         });
         panel.show();
         // 小贾影视仓 v25: 面板一打开就后台批量预热所有站点的 extend ——
@@ -1590,67 +1506,41 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    // 小贾影视仓 v27.0: 预置线路合并为**唯一数据源**。
-    // 原先 buildLineCandidates() 和 getLineName() 各维护一份 presetLines，加一条线路要改两处；
-    // 上一版就是这么"加了 dc 多仓但只加了一处"，结果信号源面板里根本看不到它。
-    // 现统一为下面的常量，两处都引用同一份。
-    static final String[][] PRESET_LINES = new String[][]{
-            // ── 2026-10-31 二次审核：逐条 x3 轮实测（手机网络），只保留「解析后真能出站点」的线路 ──
-            // 判据不是 HTTP 200，而是「按引擎同一套规则解出来的 sites 数」：
-            //   纯 JSON → 直接 Gson；带 BOM → 去 BOM；带 // 注释 → stripJsonComments；
-            //   返回图片(PNG/JPEG) → isImageConfig/extractImageConfig 抽尾部 base64 配置；2423 前缀 → 引擎解密。
-            //
-            // ⚠️ 教训（v27.23 误删了 4 条能用的线路）：图片响应 **不等于** 不是配置。
-            //   itv666.cc/aowu/config.webp 与 英格里希嗷呜.top/tv 返回同一个 32×32 PNG(21508B)，
-            //   但图尾藏了 20160 字符 base64 → 解出 78 站（两者内容完全一致，只保留一条，避免面板重复）。
-            //   饭太硬 三个域名(net/art/cc)返回同一张 JPEG，尾部 base64 解出 48 站，配置里带 36 行 // 注释，
-            //   stripJsonComments 会清掉，解析正常 —— 镜像切换由 ApiConfig 的 MIRROR 表自动做，故只列一条。
-            //
-            // 真正下线（逐条 3 轮确认）：
-            //   日后      http://rihou.cc:88/demo.php       → 3/3 立即 URLError，rihou.cc 域名 DNS 解析失败；
-            //   摸鱼儿    http://我不是.摸鱼儿.top          → 3/3 都在 21 秒超时，域名可解析但服务端无响应；
-            //   瓜子·HGYX https://api.hgyx.vip/hgyx.json    → 配置把站点对象整段用 // 注释（连 "searchable": 的值
-            //             都被注释掉），去注释后 JSON 结构断裂，3/3 解析失败 —— 已同时移出 FALLBACK_LINES。
-            //
-            // 代理经验：raw.githubusercontent.com 直连被 RST；v6.gh-proxy.org / ghproxy.monkeyray.net / ghfast.top
-            // 现在都会 30~60 秒无响应（3/3 失败）；只有 445569.pages.dev 稳定（0.7~1.3 秒，3/3 成功），统一用它。
-            {"挺好的·46站", "https://ztha.top/TVBox/thdjk.json"},                    // 125~594ms
-            {"小白马·62站", "https://szyyds.cn/tv/x.json"},                          // 100~156ms(配置带 BOM, 引擎已处理)
-            {"bbm·123站", "http://150.158.52.248/tgyg/bbm.json"},                     // 168~225ms
-            {"kstore·wex 63站", "https://9280.kstore.vip/wex.json"},                  // 184~404ms
-            {"kstore·aiwex 99站", "https://9280.kstore.vip/aiwex.json"},              // 334~383ms
-            {"潇洒·sun 109站", "https://9877.kstore.space/sun.json"},                 // 214~298ms(2423 变体 B; 老解密器认不出, v27.24 已修 → 解出 109 站)
-            {"饭太硬·48站", "http://www.xn--sss604efuw.net/tv"},                        // 511~1397ms(图片藏 base64 配置; net/art 自动互为镜像)
-            // v27.29: 面板与胶囊都不再显示"(默认)"后缀 —— 名字本身就是站名，用户要求去掉。
-            {"嗷呜·78站", "http://itv666.cc/aowu/config.webp"},                        // 461~1612ms(图片藏 base64 配置; 与 英格里希嗷呜.top 同一份) · app_source 指向这条
-            {"kstore·newwex 99站", "https://9280.kstore.vip/newwex.json"},            // 244~1752ms
-            // APAO 多仓：12 个子仓(大佬/摸鱼/嗷呜/饭太硬/肥猫/小虎斑/小米/vox/王二小…)。
-            // 选中后弹子仓选择框, 选一次即记住, 之后冷启动直连子仓。
-            {"APAO·12仓(多仓)", "https://445569.pages.dev/https://raw.githubusercontent.com/apaodh/apaodh/refs/heads/main/dc"}, // 692~839ms / 12 仓
-            // 「摸鱼102站」只是一条普通线路(默认线路是上面的 嗷呜·78站)；
-            // v27.24: 代理从 v6.gh-proxy.org 换成 445569.pages.dev —— 旧代理实测 47~60 秒直接超时，
-            // 这正是"启动要等很久"的主因；换完后同一份配置 0.7~1.3 秒返回。
-            {"APAO·摸鱼102站", "https://445569.pages.dev/https://raw.githubusercontent.com/apaodh/apaodh/refs/heads/main/backups/my.json"}, // 723~1339ms / 102 站
-            {"南风·XC 91站", "https://445569.pages.dev/https://raw.githubusercontent.com/yoursmile66/TVBox/main/XC.json"}, // 754~856ms(2423 变体 B, v27.24 修好解密; 旧代理要 35~77 秒)
-            {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},             // 1004~1031ms
-            {"肥猫·39站", "http://xn--z7x900a.net/tv"},                                // 929~2293ms(punycode; 中文域名 okhttp 会直接判非法 URL)
-            {"菜泥丝·37站", "https://tv.xn--yhqu5zs87a.top"}                          // 1366~3030ms
-    };
-
     // 小贾影视仓 v15.4: 候选线路(预置+历史+当前), 返回 显示名->地址(按地址去重, 保留插入序)
     java.util.LinkedHashMap<String, String> buildLineCandidates() {
         java.util.LinkedHashMap<String, String> lines = new java.util.LinkedHashMap<>();
-        String[][] presetLines = PRESET_LINES;
+        // 预置线路(名称, 地址) —— v15 筛选(2026-09 实测)
+        // 肥猫·net: 2423 AES 加密配置(引擎原生解密), 40站含豆瓣+lives, 实测可用(肥猫.com 主站已挂)
+        // 王二小: 官网域名已改个人落地页/JS单源(basic auth), 真实配置=kstore newwex/wex/aiwex(防封)
+        // 饭太硬 art/net 双域名现指向同一 JPEG 图片配置(v11 图片解码器可解)
+        // 剔除: 潇洒(404)、小不点(HTML)、JK·catvod(HTML)、魔力云播cat(JS单源无法解析)
+        String[][] presetLines = new String[][]{
+                {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                // 小贾影视仓 v21: 「内置·肥猫全能包·120站」整条下线 —— 内置加固包(guard_v7/v8.so)在部分机型上
+                // 点击即 native 崩(无弹窗、无 xj_crash.log), 且所有公共接口的 spider 都是同款加固,
+                // 内置=定时炸弹。这正是 AVBox 的精髓所在: 它的 assets 里根本不内置任何加固包。
+                // (如需再启用, 只能改为"引导用户自配无需加固的 JS/Python 线路"。)
+                {"肥猫·net", "http://肥猫.net/tv"},
+                {"饭太硬·主", "http://www.饭太硬.art/tv"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
+                {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
+                {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
+                {"日后", "http://rihou.cc:88/demo.php"},
+                {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                // 小贾影视仓 v19: 用户提供的新接口(2026-10-07 实测可用)
+                {"摸鱼儿·97站", "http://我不是.摸鱼儿.top"},
+                {"嗷呜呜·78站", "http://www.英格里希嗷呜.top/tv"},
+                {"挺好的·46站", "https://ztha.top/TVBox/thdjk.json"},
+                {"小白马·62站", "https://szyyds.cn/tv/x.json"},
+                {"菜泥丝·46站", "https://tv.xn--yhqu5zs87a.top"}
+        };
         for (String[] p : presetLines) {
             if (!lines.containsValue(p[1])) lines.put(p[0], p[1]);
         }
         ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
         for (String h : history) {          // 历史/手动添加的线路(始终保留)
-            if (h == null || h.isEmpty()) continue;
-            // v27.24: 历史里可能存着早就死掉的线路(选中后必然加载失败), 直接不列出来;
-            // 走老 GitHub 反代的历史地址换到新反代, 否则用户切回去还是 30~60 秒超时。
-            if (com.github.tvbox.osc.util.LineUrl.isDead(h)) continue;
-            h = com.github.tvbox.osc.util.LineUrl.migrate(h);
             if (!lines.containsValue(h)) lines.put(h, h);
         }
         String current = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
@@ -1659,10 +1549,6 @@ public class HomeActivity extends BaseActivity {
         }
         return lines;
     }
-
-    // v27.24: 「哪条线路算死线」「旧地址怎么迁移」统一放在 util/LineUrl，App 启动迁移也用同一份规则，
-    // 免得多处判断不一致（之前的坑：面板已清掉死线，启动迁移又把死线写回 Hawk）。
-
 
     // 小贾影视仓 v15.4: 应用线路选择(预置/历史) —— 持久化历史 + API_URL 后整页重载新配置
     void applyLineSelection(final String name, final String url) {
@@ -1674,17 +1560,6 @@ public class HomeActivity extends BaseActivity {
         if (hist.size() > 20) hist.remove(20);
         Hawk.put(HawkConfig.API_HISTORY, hist);
         Hawk.put(HawkConfig.API_URL, url);
-        // 小贾影视仓 v27.22: 切线路必须把「首页站点」一起重置。
-        // 旧逻辑保留 HOME_API 是为了让豆瓣推荐跨线路固定, 但本地 py 站(py_local_*)是全局注入的 ——
-        // 换线路后它照样存在, 于是 parseJson 把它恢复成首页站, 胶囊继续显示上一个 py 的名字,
-        // 用户看到的就是"线路切了、标题还是旧 py"。非 py 站(豆瓣)仍保持跨线路固定。
-        try {
-            String homeKey = Hawk.get(HawkConfig.HOME_API, "");
-            if (homeKey != null && homeKey.startsWith("py_local_")) {
-                Hawk.put(HawkConfig.HOME_API, "");
-            }
-        } catch (Throwable ignored) {
-        }
         // 小贾影视仓 v22.1: 用户主动切线路 => 立刻清掉启动哨兵标记(计数 + 待完成标记)。
         // 切线路会重建 HomeActivity, 新线路若加载慢, 用户等不及往往会再切一次;
         // 旧逻辑会把这串正常操作累计成"启动异常"并在第 3 次强制回退默认线路。主动切换不算异常。
@@ -1773,9 +1648,6 @@ public class HomeActivity extends BaseActivity {
         }
         // 记录上一站 key(失败回滚用), 再持久化目标站点并发出原地加载
         homeSwitchPrevKey = oldKey;
-        // v26.3: 是否 py 源提前判定(胶囊文案 + 看门狗时长都用它) —— py_local_ 或 api 含 .py
-        boolean targetIsPy = (target.getKey() != null && target.getKey().startsWith("py_local_"))
-                || (target.getApi() != null && target.getApi().contains(".py"));
         ApiConfig.get().setSourceBean(target);
         homeSortGuard = target.getKey();
         inPlaceSwitching = true;
@@ -1783,16 +1655,7 @@ public class HomeActivity extends BaseActivity {
         sortFocused = 0;
         if (mGridView != null) mGridView.setSelection(0);
         tvName.clearAnimation();
-        if (targetIsPy) {
-            // 小贾影视仓 v26.3: py 源冷启动要几十秒(解压 Python 运行时+下载编译插件+init),
-            // 期间胶囊**不显示 py 名** —— 用户明确要求"本地 py 加载成功的时候首页胶囊才显示
-            // py 名称, 不能还没加载成功就显示, 我会识别错误当前到底是什么线路的"。
-            // 这里保持旧文案(仍是上一个已生效的线路); 加载成功后由 sortResult 观察者的
-            // capsuleTitle() 刷新成 py 名; 若失败被看门狗回滚, 也不会出现"假显示"。
-            // (非 py 源仍即时显示 "XXX(切换中…)" 给反馈, 它们秒回。)
-        } else {
-            applyCapsule(target.getName() + "(切换中…)");
-        }
+        tvName.setText(getString(R.string.app_name) + " · " + target.getName() + "(切换中…)");
         showLoading();
         // 小贾影视仓 v17: 切线路时先预热目标站的 extend, 首页分类不必在主线程等它
         sourceViewModel.prefetchExt(target);
@@ -1801,11 +1664,7 @@ public class HomeActivity extends BaseActivity {
         // v23.8: py 源(含本地 py)给长看门狗(冷启动 Python+下载插件耗时, 12s 会误杀好源)
         // v24.7.3: py 看门狗 35s -> 45s —— getSort 给 py 源的超时是 40s, 35s 看门狗会把
         // 35~40s 之间才返回的好源误判回滚(结果白算, 用户体感"切过去被弹回来, 再切一次秒进")。
-        // v26 fix: 原来只有 py_local_ 才给 45s, 远程 py 源(配置里 .py 站)只给 12s ——
-        // 远程 py 冷启动同样几十秒, 12s 看门狗必然把它误杀回滚, 用户体感"切 py 源总被弹回/很慢"。
-        // 现按"是否 py 源"判定(本地 py_local_ 或 api 含 .py), 不再只看 key 前缀。
-        // (targetIsPy 已在方法开头判定, 这里复用。)
-        armSwitchWatchdog(targetIsPy ? 45000 : 12000);
+        armSwitchWatchdog(target.getKey() != null && target.getKey().startsWith("py_local_") ? 45000 : 12000);
     }
 
     // 小贾影视仓 v15.1: 切线路/换源/加载本地接口 —— 统一"重启首页 Activity"(takagen99 原版模式)。
@@ -1889,12 +1748,8 @@ public class HomeActivity extends BaseActivity {
             i.addCategory(Intent.CATEGORY_OPENABLE);
             i.setType("*/*");
             i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            // 小贾影视仓 v26: 补 zip —— 很多人拿到的是「py 源压缩包」, 不给 zip 的话
-            // 系统文件选择器里这些文件是灰的, 根本点不到。
             i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                    "text/x-python", "text/plain", "application/octet-stream",
-                    "application/zip", "application/x-zip-compressed",
-                    "application/x-zip", "application/x-compressed"});
+                    "text/x-python", "text/plain", "application/octet-stream"});
             startActivityForResult(i, REQ_PICK_LOCAL_PY);
         } catch (Throwable th) {
             th.printStackTrace();
@@ -1906,17 +1761,8 @@ public class HomeActivity extends BaseActivity {
     // 之所以"复制"而不是直接引用原路径: SAF 给的 content:// 或外部存储路径本进程无权长期直读;
     // 落到私有目录后由本地 HTTP 服务(/file/plugin/xxx.py)稳定供给 pyLoader。
     // v23: 支持**一次多选**(getClipData), 单选仍走 getData() —— 短剧源/小说源/影视源可以一起加载。
-    void handleLocalPyPicked(final int resultCode, final Intent data) {
+    void handleLocalPyPicked(int resultCode, Intent data) {
         if (resultCode != RESULT_OK || data == null) return;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                doHandleLocalPyPicked(data);
-            }
-        }, "local-py-load").start();
-    }
-
-    private void doHandleLocalPyPicked(Intent data) {
         try {
             // 1) 收集本次选中的全部 uri(多选 / 单选两条路径)
             ArrayList<android.net.Uri> uris = new ArrayList<>();
@@ -1929,587 +1775,84 @@ public class HomeActivity extends BaseActivity {
             } else if (data.getData() != null) {
                 uris.add(data.getData());
             }
-            if (uris.isEmpty()) {
-                toastMain("没有选到文件");
-                return;
-            }
-
-            // 小贾影视仓 v26: 全过程提示 —— 以前只在最后弹一条, 解压大包/多选时要等好几秒,
-            // 中间完全没反馈, 用户根本不知道点了到底有没有生效。
-            final int total = uris.size();
-            final Toast[] progress = new Toast[1];
-            final String[] progressText = new String[]{"正在加载 0/" + total + " 个文件…"};
-            // 小贾影视仓 fix: 这里在 local-py-load 后台线程, 必须走 updatePyLoadProgress(转发主线程)。
-            // 原来直接调 showPyLoadProgress → Toast.makeText().show() 在没有 Looper 的后台线程
-            // 抛 "Can't toast on a thread that has not called Looper.prepare()",
-            // 被最外层 catch 吞掉报 "py 加载失败" —— 整个加载在处理任何文件之前就中断。
-            updatePyLoadProgress(progress, progressText, progressText[0]);
+            if (uris.isEmpty()) return;
 
             java.io.File dir = new java.io.File(getFilesDir(), "plugin");
             if (!dir.exists() && !dir.mkdirs()) {
-                toastMain("无法创建插件目录");
+                Toast.makeText(this, "无法创建插件目录", Toast.LENGTH_SHORT).show();
                 return;
             }
             ArrayList<String> list = Hawk.get(HawkConfig.LOCAL_PY_LIST, new ArrayList<String>());
             if (list == null) list = new ArrayList<>();
 
             int ok = 0;
-            int unpacked = 0;         // v26: 本次有几个是压缩包解出来的
-            int failed = 0;
             StringBuilder loaded = new StringBuilder();
-            StringBuilder failedNames = new StringBuilder();
             String firstRel = null;   // v23.8: 记录本次加载的第一个 py(加载完自动切过去)
-            String firstPyKey = null; // v26: 注入后它的 key 可能变(子目录 py 会加 hash), 由 injectLocalPySites 决定
             for (int i = 0; i < uris.size(); i++) {
-                android.net.Uri uri = uris.get(i);
-                String showName = localPyDisplayName(uri);
-                // v26: 处理前先报「正在处理第几个/共几个」, 大压缩包解压时用户能看到确实在动
-                updatePyLoadProgress(progress, progressText,
-                        "正在加载 " + (i + 1) + "/" + total + "：" + showName);
-                java.io.File tmp = null;
-                boolean isZip = false;
-                String failWhy = null;
                 try {
-                    // 2) 先把内容落到临时文件, 再判类型 —— 扩展名不可信(SAF 常给 octet-stream),
-                    //    只有读完前 4 字节的 zip 魔数才知道它到底是 .py 还是压缩包。
-                    tmp = new java.io.File(dir, ".tmp_" + System.currentTimeMillis() + "_" + i);
-                    java.io.InputStream is = getContentResolver().openInputStream(uri);
-                    if (is == null) {
-                        failWhy = "读不到文件";
-                    } else {
-                        try {
-                            java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp);
-                            byte[] buf = new byte[8192];
-                            int n;
-                            while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
-                            fos.flush();
-                            fos.close();
-                        } finally {
-                            try { is.close(); } catch (Throwable ignored) {}
-                        }
+                    android.net.Uri uri = uris.get(i);
+                    String showName = localPyDisplayName(uri);
 
-                        isZip = looksLikeZip(uri, tmp);
-                        if (isZip) {
-                            // 小贾影视仓 v26: 选中的是 py 源压缩包 —— 旧实现会原样存成 .py,
-                            // Python 拿到二进制内容 exec 必失败, 用户看到的就是"加载了但打不开"。
-                            // 现在解到 plugin/<名字目录>/ 下, 挑一个入口 .py 注册成站点。
-                            String entry = extractPyZip(uri, tmp, showName);
-                            if (entry == null) {
-                                failWhy = "压缩包里没有 .py";
-                            } else {
-                                String rel = "plugin/" + entry;
-                                rememberLocalPy(list, showName, rel);
-                                if (firstPyKey == null) {
-                                    firstRel = rel;
-                                    firstPyKey = "py_local_" + MD5.string2MD5(rel);
-                                }
-                                ok++;
-                                unpacked++;
-                                if (loaded.length() > 0) loaded.append("、");
-                                loaded.append(showName);
-                            }
-                        } else {
-                            // 2b) 普通 .py: 改名落到私有目录。文件名统一 local_<时间戳>_<序号>.py ——
-                            //     绕开中文/空格在 URL 里被截断的老坑, 序号保证"同批多选"不会撞名。
-                            String fileName = "local_" + System.currentTimeMillis() + "_" + i + ".py";
-                            java.io.File out = new java.io.File(dir, fileName);
-                            if (out.exists()) out.delete();
-                            if (!tmp.renameTo(out)) {
-                                copyFile(tmp, out);
-                            }
-                            if (!out.exists() || out.length() == 0) {
-                                failWhy = "写入失败";
-                            } else if (!looksLikePySource(out)) {
-                                // 小贾影视仓 v27.1: 选中了损坏/根本不是 py 的文件(图片、加密包、空壳)
-                                // 时当场判掉并说清原因 —— 旧实现会照收, 直到下次加载首页才报一串异常。
-                                out.delete();
-                                failWhy = "不是有效的 py 源";
-                            } else {
-                                String rel = "plugin/" + fileName;
-                                rememberLocalPy(list, showName, rel);
-                                if (firstPyKey == null) {
-                                    firstRel = rel;
-                                    firstPyKey = "py_local_" + MD5.string2MD5(rel);
-                                }
-                                ok++;
-                                if (loaded.length() > 0) loaded.append("、");
-                                loaded.append(showName);
-                            }
-                        }
+                    // 2) 复制到私有目录。文件名统一 local_<时间戳>_<序号>.py ——
+                    //    绕开中文/空格在 URL 里被截断的老坑, 序号保证"同批多选"不会撞名。
+                    java.io.InputStream is = getContentResolver().openInputStream(uri);
+                    if (is == null) continue;
+                    String fileName = "local_" + System.currentTimeMillis() + "_" + i + ".py";
+                    java.io.File out = new java.io.File(dir, fileName);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(out);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+                    fos.flush();
+                    fos.close();
+                    is.close();
+
+                    // 3) 持久化(存相对 filesDir 的路径, 由 ApiConfig.injectLocalPySites 拼成本地服务地址)
+                    String rel = "plugin/" + fileName;
+                    for (int k = list.size() - 1; k >= 0; k--) {
+                        String it = list.get(k);
+                        if (it != null && it.startsWith(showName + "|")) list.remove(k);
                     }
+                    list.add(0, showName + "|" + rel);
+                    ok++;
+                    if (firstRel == null) firstRel = rel;
+                    if (loaded.length() > 0) loaded.append("、");
+                    loaded.append(showName);
                 } catch (Throwable th) {
                     th.printStackTrace();
-                    failWhy = "异常: " + th.getMessage();
-                } finally {
-                    //noinspection ResultOfMethodCallIgnored
-                    if (tmp != null && tmp.exists()) tmp.delete();
                 }
-                if (failWhy != null) {
-                    failed++;
-                    if (failedNames.length() > 0) failedNames.append("、");
-                    failedNames.append(showName).append("(").append(failWhy).append(")");
-                }
-                updatePyLoadProgress(progress, progressText,
-                        "已处理 " + (i + 1) + "/" + total + "（成功 " + ok + (failed > 0 ? "，失败 " + failed : "") + "）");
             }
             if (ok == 0) {
-                updatePyLoadProgress(progress, progressText, "没有成功加载任何 py：" + failedNames);
+                Toast.makeText(this, "没有成功加载任何 .py", Toast.LENGTH_SHORT).show();
                 return;
             }
             Hawk.put(HawkConfig.LOCAL_PY_LIST, list);
 
             // 4) 立即注入站点(配置重解析时会再注入一次, 幂等)
-            // 小贾影视仓 v26: 先标记"这一条是刚载入的", injectLocalPySites 见到就覆盖同名旧站点。
-            // 压缩包重载时入口文件名会变(hash 尾缀), 不覆盖的话面板里会留下打不开的旧站点。
-            updatePyLoadProgress(progress, progressText, "正在注册站点…");
-            try {
-                if (firstPyKey != null) ApiConfig.get().markJustLoadedPy(firstPyKey);
-            } catch (Throwable ignored) {
-            }
             try {
                 ApiConfig.get().injectLocalPySites();
-                // 小贾影视仓 fix: 注入刚加载的本地 py 后立刻预热它的 spider,
-                // 否则用户点进影视详情(detailContent 走 chaquopy)要等完整的 Python 冷启动(几十秒)。
-                ApiConfig.get().warmPySpiders();
             } catch (Throwable ignored) {
             }
             String head = (ok == 1) ? ("已加载「" + loaded + "」") : ("已加载 " + ok + " 个源: " + loaded);
-            if (unpacked > 0) head += "(含 " + unpacked + " 个压缩包)";
-            if (failed > 0) head += "\n有 " + failed + " 个没成功: " + failedNames;
 
             // 5) 小贾影视仓 v23.8: 自动切到刚加载的 py 源 —— 不再要求用户去信号源面板手动点一次。
             //    用的是与面板点站点完全相同的 switchHomeSourceInPlace 原地切站链路:
             //    胶囊即时显示 py 名、首页数据加载、12s 看门狗(坏源自动回滚原站)全都复用。
             if (firstRel != null && !firstRel.isEmpty()) {
-                // v26: 注入时子目录 py 的 rel 会被改写成带 hash 的文件名(见 injectLocalPySites),
-                // 所以这里不能再用"原始 rel 推 key", 直接取刚才注入后真实存在的那个站点。
-                SourceBean pySite = firstPyKey != null ? ApiConfig.get().getSource(firstPyKey) : null;
-                if (pySite == null) pySite = findLocalPySite(firstRel, firstPyKey);
+                SourceBean pySite = ApiConfig.get().getSource("py_local_" + MD5.string2MD5(firstRel));
                 if (pySite != null) {
-                    final SourceBean site = pySite;
-                    toastMain(head + "(本地py)，正在打开…");
-                    // 小贾影视仓 fix: switchHomeSourceInPlace 内部直接 Toast/操作 UI(tvName.setText/showLoading),
-                    // 必须在主线程跑。当前在 local-py-load 后台线程调用会抛
-                    // "Can't toast on a thread that has not called Looper.prepare()",
-                    // 导致 py 注入成功却误报 "py 加载失败" 且切站未生效。改为主线程执行。
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            switchHomeSourceInPlace(site);
-                        }
-                    });
+                    Toast.makeText(this, head + "(本地py)，正在打开…", Toast.LENGTH_LONG).show();
+                    switchHomeSourceInPlace(pySite);
                     return;
                 }
             }
             // 注入失败等兜底: 退回旧行为(整页重载, 站点在面板里可手动点)
-            toastMain(head + "(本地py)：在信号源面板右侧「站点」最前面，或直接用搜索框搜片");
+            Toast.makeText(this, head + "(本地py)：在信号源面板右侧「站点」最前面，或直接用搜索框搜片", Toast.LENGTH_LONG).show();
             reloadHome();
         } catch (Throwable th) {
             th.printStackTrace();
-            // 小贾影视仓 fix: 以前只拼 th.getMessage(), 很多异常 message 为 null, 用户看到的
-            // 就是干巴巴一句 "py 加载失败: null", 无法定位。现在带异常类名+首个栈帧(类.方法:行号)。
-            String detail = th.getClass().getSimpleName();
-            if (th.getMessage() != null) detail += ": " + th.getMessage();
-            StackTraceElement[] st = th.getStackTrace();
-            if (st != null && st.length > 0) {
-                detail += " @ " + st[0].getClassName() + "." + st[0].getMethodName()
-                        + ":" + st[0].getLineNumber();
-            }
-            toastMain("py 加载失败: " + detail);
+            Toast.makeText(this, "py 加载失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
         }
-    }
-
-    // 小贾影视仓 v26: 后台线程里弹提示(此时处理已挪到 "local-py-load" 线程)
-    private void toastMain(final String msg) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (!isFinishing()) Toast.makeText(HomeActivity.this, msg, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    // 小贾影视仓 v26: 加载本地 py 的进度提示(复用一个 Toast, 原地改文案, 不会叠出一堆)。
-    // 必须在主线程调用 —— 由 updatePyLoadProgress 转发。
-    private void showPyLoadProgress(final Toast[] holder, final String[] text, final String msg) {
-        if (isFinishing()) return;
-        text[0] = msg;
-        Toast t = holder[0];
-        if (t == null) {
-            holder[0] = Toast.makeText(this, msg, Toast.LENGTH_LONG);
-        } else {
-            t.setText(msg);   // 复用同一个 Toast, 文案原地变化
-        }
-        holder[0].show();
-    }
-
-    // 在后台线程改提示文案 —— Toast 只能主线程操作
-    private void updatePyLoadProgress(final Toast[] holder, final String[] text, final String msg) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                showPyLoadProgress(holder, text, msg);
-            }
-        });
-    }
-
-    // 小贾影视仓 v26: 兜底找刚注入的本地 py 站点。
-    // injectLocalPySites 会把子目录 py 的 rel 改写成带 hash 的文件名, key 也随之变 ——
-    // 这里按"api 里含原始入口文件名前缀"来匹配(重载同一个包时入口名不变, 只有 hash 尾缀不同)。
-    private SourceBean findLocalPySite(String rel, String knownKey) {
-        try {
-            if (knownKey != null) {
-                SourceBean s = ApiConfig.get().getSource(knownKey);
-                if (s != null) return s;
-            }
-            if (rel == null || rel.isEmpty()) return null;
-            String fn = rel.substring(rel.lastIndexOf('/') + 1);
-            int dot = fn.lastIndexOf('.');
-            String stem = dot > 0 ? fn.substring(0, dot) : fn;   // 如 "spider"
-            SourceBean fallback = null;
-            for (SourceBean s : ApiConfig.get().getSourceBeanList()) {
-                if (s == null || s.getKey() == null || !s.getKey().startsWith("py_local_")) continue;
-                String api = s.getApi() == null ? "" : s.getApi();
-                String base = api.substring(api.lastIndexOf('/') + 1);
-                if (base.startsWith(stem + ".")) return s;
-                if (fallback == null) fallback = s;
-            }
-            return fallback;
-        } catch (Throwable th) {
-            return null;
-        }
-    }
-
-    // 小贾影视仓 v27.22: 删除本地 py 源(信号源面板里长按 py 站点触发)。
-    // 之前 py 只有"加载"没有"删除", 加载错了/坏了一直挂在站点列表最前面, 只能靠"再加载一个同名"覆盖。
-    private void confirmDeleteLocalPy(final SourceBean site) {
-        if (site == null) return;
-        String label = (site.getName() == null || site.getName().trim().isEmpty())
-                ? "该 py 源" : site.getName();
-        try {
-            new AlertDialog.Builder(this)
-                    .setTitle("删除 py 源")
-                    .setMessage("确定删除「" + label + "」吗？\n对应的 .py 文件会一起删掉，想再用需要重新加载文件。")
-                    .setPositiveButton("删除", (d, w) -> doDeleteLocalPy(site))
-                    .setNegativeButton("取消", null)
-                    .show();
-        } catch (Throwable th) {
-            // 弹窗起不来也要能删, 不能因为 UI 异常把功能一起废掉
-            doDeleteLocalPy(site);
-        }
-    }
-
-    private void doDeleteLocalPy(final SourceBean site) {
-        if (site == null) return;
-        final String key = site.getKey();
-        final String label = (site.getName() == null || site.getName().trim().isEmpty())
-                ? "py 源" : site.getName();
-        boolean wasHome = false;
-        try {
-            SourceBean before = ApiConfig.get().getHomeSourceBean();
-            wasHome = before != null && key != null && key.equals(before.getKey());
-        } catch (Throwable ignored) {
-        }
-        try {
-            // 1) 从加载清单里摘掉(靠 key 反查相对路径, 因为压缩包的入口名带 hash 尾缀)
-            ArrayList<String> list = Hawk.get(HawkConfig.LOCAL_PY_LIST, new ArrayList<String>());
-            if (list == null) list = new ArrayList<>();
-            String rel = null;
-            for (int i = list.size() - 1; i >= 0; i--) {
-                String it = list.get(i);
-                if (it == null) {
-                    list.remove(i);
-                    continue;
-                }
-                int p = it.indexOf('|');
-                if (p <= 0) continue;
-                String r = it.substring(p + 1);
-                if (("py_local_" + MD5.string2MD5(r)).equals(key)) {
-                    rel = r;
-                    list.remove(i);
-                }
-            }
-            Hawk.put(HawkConfig.LOCAL_PY_LIST, list);
-
-            // 2) 删文件。压缩包解出来的 py 在 plugin/<名字>/ 子目录里, 整个目录一起删,
-            //    否则下次同名加载会留下上一版的残留 .py。
-            java.io.File pluginDir = new java.io.File(getFilesDir(), "plugin");
-            if (rel != null && !rel.isEmpty()) {
-                java.io.File f = new java.io.File(getFilesDir(), rel);
-                java.io.File parent = f.getParentFile();
-                if (parent != null && !parent.equals(pluginDir)) {
-                    deleteRecursive(parent);
-                } else if (f.exists()) {
-                    //noinspection ResultOfMethodCallIgnored
-                    f.delete();
-                }
-            }
-
-            // 3) 从内存站点表摘掉
-            ApiConfig.get().removeSourceBean(key);
-
-            // 4) 删的正好是当前首页站 -> 立刻换一个本线路能用的站, 否则首页会空着
-            if (wasHome) {
-                for (SourceBean sb : ApiConfig.get().getSourceBeanList()) {
-                    if (sb == null || sb.getKey() == null) continue;
-                    if (sb.getHide() != 0) continue;
-                    if (sb.getKey().startsWith("py_local_")) continue;
-                    ApiConfig.get().setSourceBean(sb);
-                    break;
-                }
-            }
-            Toast.makeText(this, "已删除「" + label + "」", Toast.LENGTH_SHORT).show();
-        } catch (Throwable th) {
-            th.printStackTrace();
-            Toast.makeText(this, "删除失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-        reloadHome();
-    }
-
-    // 小贾影视仓 v27.1: 粗判"这是不是一份 Python 源码"。
-    // 只看前 64KB: 出现 NUL / 大量控制字符 → 二进制(等于坏包); 一个 def/class/import 都没有
-    // → 不是爬虫源。判定刻意宽松(误杀一个能用的源, 比放过一个坏源更让用户难受),
-    // 读文件失败时按"通过"处理, 交给运行时兜底。
-    private boolean looksLikePySource(java.io.File f) {
-        try {
-            if (f == null || f.length() <= 0) return false;
-            int cap = (int) Math.min(f.length(), 65536L);
-            byte[] b = new byte[cap];
-            java.io.FileInputStream in = new java.io.FileInputStream(f);
-            int n;
-            try {
-                n = in.read(b);
-            } finally {
-                try { in.close(); } catch (Throwable ignored) {}
-            }
-            if (n <= 0) return false;
-            int ctrl = 0;
-            for (int i = 0; i < n; i++) {
-                byte c = b[i];
-                if (c == 0) return false;              // 二进制
-                if (c < 0x09) ctrl++;
-            }
-            if (ctrl * 10 > n) return false;
-            String head = new String(b, 0, n, "UTF-8");
-            return head.contains("def ") || head.contains("class ") || head.contains("import ");
-        } catch (Throwable th) {
-            return true;
-        }
-    }
-
-    // 小贾影视仓 v26: 把一条「名字|相对路径」写进 LOCAL_PY_LIST。
-    // 同名旧记录先删 —— 覆盖加载同一个源时不会在面板里堆出两份; 位置放最前, 与旧行为一致。
-    private void rememberLocalPy(ArrayList<String> list, String showName, String rel) {
-        for (int k = list.size() - 1; k >= 0; k--) {
-            String it = list.get(k);
-            if (it != null && it.startsWith(showName + "|")) list.remove(k);
-        }
-        list.add(0, showName + "|" + rel);
-    }
-
-    // 小贾影视仓 v26: 内容是 zip 吗 —— 先看 4 字节魔数(扩展名不可信: SAF 对 .zip 常报
-    // application/octet-stream, 也有把 zip 改名成 .py 的情况), 再看显示名后缀兜底。
-    // 注意只用本地文件路径检魔数, 不再重开 uri —— 部分 provider 的流不可重复读。
-    private boolean looksLikeZip(android.net.Uri uri, java.io.File f) {
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(f);
-            byte[] h = new byte[4];
-            int n = fis.read(h);
-            fis.close();
-            if (n == 4) {
-                boolean magic = (h[0] == 0x50 && h[1] == 0x4B)
-                        && ((h[2] == 0x03 && h[3] == 0x04)     // 普通条目
-                        || (h[2] == 0x05 && h[3] == 0x06)      // 空压缩包
-                        || (h[2] == 0x07 && h[3] == 0x08));    // 分卷
-                if (magic) return true;
-            }
-        } catch (Throwable ignored) {
-        }
-        String name = localPyDisplayName(uri).toLowerCase();
-        return name.endsWith(".zip") || name.endsWith(".pyz") || name.endsWith(".xzip");
-    }
-
-    // 小贾影视仓 v26: 解压 py 源压缩包, 返回入口 .py 相对 plugin/ 的路径(形如 "aowu/spider.py")。
-    // 解压目录用固定名 plugin/<名字>/ —— 相对路径稳定, 下次覆盖加载同一个包时 key(py_local_MD5(rel))不变,
-    // 用户保存的首页站/收藏不会失效。名字先做一次安全化(去掉路径分隔符等)。
-    //
-    // 入口挑选顺序(绝大多数 py 源包都能对上前两条):
-    //   1) 内容里有 "class Spider" 的 .py —— 这是 py 源的强特征, 压缩包里附带的 utils.py/
-    //      base.py 一般没有 Spider 类;
-    //   2) 叫 main.py / spider.py / index.py / <包名>.py(且不以 _ 开头——排除 __init__);
-    //   3) 根目录里唯一的一个 .py;
-    //   4) 按目录深度取最浅的第一个(带 __init__.py 的包形态)。
-    private String extractPyZip(android.net.Uri uri, java.io.File zipFile, String showName) {
-        java.util.zip.ZipFile zf = null;
-        try {
-            String safe = safeDirName(showName);
-            java.io.File base = new java.io.File(getFilesDir(), "plugin");
-            java.io.File outDir = new java.io.File(base, safe);
-            // 旧内容清掉: 同一个包可能换过版本, 残留的旧 .py 会让入口挑选挑错
-            if (outDir.exists()) deleteRecursive(outDir);
-            if (!outDir.mkdirs()) return null;
-
-            zf = new java.util.zip.ZipFile(zipFile);
-            java.util.List<String> pyFiles = new java.util.ArrayList<>();
-            java.util.Enumeration<? extends java.util.zip.ZipEntry> en = zf.entries();
-            while (en.hasMoreElements()) {
-                java.util.zip.ZipEntry e = en.nextElement();
-                if (e.isDirectory()) continue;
-                String raw = e.getName().replace('\\', '/');
-                if (raw.startsWith("/") || raw.contains("../") || raw.contains(":")) continue; // 防 Zip Slip
-                // 系统/编辑器垃圾目录不落盘
-                String low = raw.toLowerCase();
-                if (low.startsWith("__macosx/") || low.contains("/__macosx/")
-                        || low.contains("/.git/") || low.startsWith(".git/")) continue;
-                java.io.File dst = new java.io.File(outDir, raw);
-                // 再兜一层: 落盘路径必须在 outDir 之内
-                if (!dst.getCanonicalPath().startsWith(outDir.getCanonicalPath() + java.io.File.separator)
-                        && !dst.getCanonicalPath().equals(outDir.getCanonicalPath())) continue;
-                java.io.File parent = dst.getParentFile();
-                if (parent != null && !parent.exists() && !parent.mkdirs()) continue;
-                java.io.InputStream in = zf.getInputStream(e);
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(dst);
-                try {
-                    byte[] buf = new byte[16384];
-                    int n;
-                    while ((n = in.read(buf)) != -1) fos.write(buf, 0, n);
-                    fos.flush();
-                } finally {
-                    try { in.close(); } catch (Throwable ignored) {}
-                    try { fos.close(); } catch (Throwable ignored) {}
-                }
-                if (low.endsWith(".py")) pyFiles.add(dst.getAbsolutePath());
-            }
-            zf.close();
-            zf = null;
-            if (pyFiles.isEmpty()) return null;
-
-            String entryAbs = pickPyEntry(pyFiles, outDir, showName);
-            if (entryAbs == null) return null;
-            String relInside = entryAbs.substring(outDir.getAbsolutePath().length() + 1).replace('\\', '/');
-            return safe + "/" + relInside;
-        } catch (Throwable th) {
-            th.printStackTrace();
-            return null;
-        } finally {
-            if (zf != null) {
-                try { zf.close(); } catch (Throwable ignored) {}
-            }
-        }
-    }
-
-    // 小贾影视仓 v26: 从解压出的 .py 列表里挑入口(规则见 extractPyZip 注释)
-    private String pickPyEntry(java.util.List<String> pyFiles, java.io.File outDir, String showName) {
-        String base = outDir.getAbsolutePath() + java.io.File.separator;
-        // 1) 含 class Spider 的
-        java.util.List<String> withSpider = new java.util.ArrayList<>();
-        for (String p : pyFiles) {
-            try {
-                if (readHeadText(p, 512 * 1024).contains("class Spider")) withSpider.add(p);
-            } catch (Throwable ignored) {
-            }
-        }
-        if (withSpider.size() == 1) return withSpider.get(0);
-        if (withSpider.size() > 1) {
-            // 有多个: 优先名短的(基础骨架/测试脚本通常命名更长), 再优先浅层
-            return shallowest(withSpider, base);
-        }
-        // 2) 常见入口名
-        String[] prefer = new String[]{"spider.py", "main.py", "index.py", "app.py", "jx.py",
-                (showName == null ? "" : showName.toLowerCase()) + ".py"};
-        for (String want : prefer) {
-            for (String p : pyFiles) {
-                String fn = p.substring(p.lastIndexOf(java.io.File.separator) + 1).toLowerCase();
-                if (!fn.startsWith("_") && fn.equals(want)) return p;
-            }
-        }
-        // 3) 根目录唯一的 .py
-        String rootOnly = null;
-        int rootCnt = 0;
-        for (String p : pyFiles) {
-            if (!p.substring(base.length()).contains(java.io.File.separator)) {
-                rootCnt++;
-                rootOnly = p;
-            }
-        }
-        if (rootCnt == 1 && rootOnly != null
-                && !rootOnly.endsWith("__init__.py")) return rootOnly;
-        // 4) 最浅层 + 名字不是 __init__
-        java.util.List<String> cand = new java.util.ArrayList<>();
-        for (String p : pyFiles) {
-            if (!p.endsWith("__init__.py") && !p.substring(base.length()).startsWith("_")) cand.add(p);
-        }
-        if (cand.isEmpty()) cand = pyFiles;
-        return shallowest(cand, base);
-    }
-
-    private String shallowest(java.util.List<String> paths, String base) {
-        String best = null;
-        int bestDepth = Integer.MAX_VALUE;
-        int bestLen = Integer.MAX_VALUE;
-        for (String p : paths) {
-            String rel = p.startsWith(base) ? p.substring(base.length()) : p;
-            int depth = rel.split("[/\\\\]").length;
-            int len = rel.length();
-            if (depth < bestDepth || (depth == bestDepth && len < bestLen)) {
-                bestDepth = depth;
-                bestLen = len;
-                best = p;
-            }
-        }
-        return best;
-    }
-
-    // 读文件前 n 字节当文本(UTF-8 宽松解码), 只用于特征匹配
-    private String readHeadText(String path, int max) throws Throwable {
-        java.io.FileInputStream fis = new java.io.FileInputStream(path);
-        try {
-            byte[] b = new byte[max];
-            int n = fis.read(b);
-            if (n <= 0) return "";
-            return new String(b, 0, n, "UTF-8");
-        } finally {
-            try { fis.close(); } catch (Throwable ignored) {}
-        }
-    }
-
-    // 压缩包解压目录名: 去掉路径分隔符/非法字符, 空则给默认名
-    private String safeDirName(String name) {
-        if (name == null) return "pyzip";
-        String s = name.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
-        s = s.replaceAll("_+", "_");
-        if (s.startsWith("_")) s = s.substring(1);
-        if (s.endsWith("_")) s = s.substring(0, s.length() - 1);
-        if (s.isEmpty()) s = "pyzip";
-        if (s.length() > 40) s = s.substring(0, 40);
-        return s;
-    }
-
-    private void copyFile(java.io.File src, java.io.File dst) throws Throwable {
-        java.io.FileInputStream in = new java.io.FileInputStream(src);
-        try {
-            java.io.FileOutputStream out = new java.io.FileOutputStream(dst);
-            try {
-                byte[] buf = new byte[16384];
-                int n;
-                while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-                out.flush();
-            } finally {
-                try { out.close(); } catch (Throwable ignored) {}
-            }
-        } finally {
-            try { in.close(); } catch (Throwable ignored) {}
-        }
-    }
-
-    private void deleteRecursive(java.io.File f) {
-        if (f == null || !f.exists()) return;
-        if (f.isDirectory()) {
-            java.io.File[] kids = f.listFiles();
-            if (kids != null) for (java.io.File k : kids) deleteRecursive(k);
-        }
-        //noinspection ResultOfMethodCallIgnored
-        f.delete();
     }
 
     // 小贾影视仓 v23: 从 content uri 取文件显示名(DISPLAY_NAME), 去掉 .py 后缀
@@ -2528,14 +1871,6 @@ public class HomeActivity extends BaseActivity {
         } catch (Throwable ignored) {
         }
         if (showName.toLowerCase().endsWith(".py")) showName = showName.substring(0, showName.length() - 3);
-        // 小贾影视仓 v26: 压缩包也去掉后缀, 站点名显示成「aowu」而不是「aowu.zip」
-        String lowName = showName.toLowerCase();
-        for (String ext : new String[]{".zip", ".pyz", ".xzip", ".rar", ".7z"}) {
-            if (lowName.endsWith(ext)) {
-                showName = showName.substring(0, showName.length() - ext.length());
-                break;
-            }
-        }
         if (showName.isEmpty()) showName = "local";
         return showName;
     }
@@ -2543,8 +1878,28 @@ public class HomeActivity extends BaseActivity {
     // 小贾影视仓: 根据线路地址返回显示名称
     public static String getLineName(String url) {
         if (url == null || url.isEmpty()) return "";
-        // v27.0: 与 buildLineCandidates 共用同一份 PRESET_LINES，避免两处清单不同步
-        String[][] presetLines = PRESET_LINES;
+        String[][] presetLines = new String[][]{
+                {"itv666·嗷呜(默认)", "http://itv666.cc/aowu/config.webp"},
+                // 小贾影视仓 v21: 「内置·肥猫全能包·120站」整条下线 —— 内置加固包(guard_v7/v8.so)在部分机型上
+                // 点击即 native 崩(无弹窗、无 xj_crash.log), 且所有公共接口的 spider 都是同款加固,
+                // 内置=定时炸弹。这正是 AVBox 的精髓所在: 它的 assets 里根本不内置任何加固包。
+                // (如需再启用, 只能改为"引导用户自配无需加固的 JS/Python 线路"。)
+                {"肥猫·net", "http://肥猫.net/tv"},
+                {"饭太硬·主", "http://www.饭太硬.art/tv"},
+                {"kstore·88站", "https://9280.kstore.vip/newwex.json"},
+                {"王二小·wex防封", "https://9280.kstore.vip/wex.json"},
+                {"安卓三代·aiwex", "https://9280.kstore.vip/aiwex.json"},
+                {"张群·19站", "https://zhangqun1818.serv00.net/zq/api.json"},
+                {"日后", "http://rihou.cc:88/demo.php"},
+                {"饭太硬·镜像", "http://www.饭太硬.net/tv"},
+                {"瓜子·HGYX", "https://api.hgyx.vip/hgyx.json"},
+                // 小贾影视仓 v19: 用户提供的新接口(2026-10-07 实测可用)
+                {"摸鱼儿·97站", "http://我不是.摸鱼儿.top"},
+                {"嗷呜呜·78站", "http://www.英格里希嗷呜.top/tv"},
+                {"挺好的·46站", "https://ztha.top/TVBox/thdjk.json"},
+                {"小白马·62站", "https://szyyds.cn/tv/x.json"},
+                {"菜泥丝·46站", "https://tv.xn--yhqu5zs87a.top"}
+        };
         for (String[] p : presetLines) {
             if (url.equals(p[1])) return p[0];
         }

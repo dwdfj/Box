@@ -59,13 +59,6 @@ public class IjkmPlayer extends IjkPlayer {
         mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "dns_cache_clear", 1);
         mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "dns_cache_timeout", -1);
         mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT,"safe",0);
-        // v27.30: 起播/播放调优(与 OK影视 等壳子常用的 IJK 参数一致):
-        //   analyzeduration/probesize 决定"开流前先探多久", ffmpeg 默认 5 秒/5MB, HLS 上明显拖慢首帧;
-        //   max-buffer-size 给足缓冲防卡顿, framedrop 让解码跟不上时丢帧而不是越积越慢。
-        mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", 2000000);
-        mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "probesize", 2000000);
-        mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 15 * 1024 * 1024);
-        mMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1);
         super.setOptions();
     }
 

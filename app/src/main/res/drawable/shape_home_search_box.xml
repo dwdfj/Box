@@ -1,36 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.0 Aurora: 首页通栏搜索框。
-     行高 vs_128，半径同步 vs_64(= 半高) → 标准胶囊。
-     静默态 = 墨黑玻璃(82%) + 20% 白细边，浮在任何壁纸上都不脏；
-     聚焦态 = 极光紫 30% 底 + 2mm 浅紫边，焦点反馈强但不刺眼。
-     旧版(鎏金)是深棕底 + 金边，在浅色壁纸上会发黄发浑。 -->
+<!-- 小贾影视仓 v23: 首页通栏搜索框底(竖屏版)。
+     竖屏把行高提到 vs_128(≈手机 48dp 舒适点击高度), 半径同步收敛到 vs_60, 接近胶囊形。
+     v24.0 冰晶蓝玻璃: 默认态 = 深海军蓝半透明玻璃底 + 冰蓝描边;
+     聚焦/按压: 主题色(冰晶蓝)底 + 冰描边, 保持键位导航的高可见反馈。 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:state_pressed="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_64" />
-            <solid android:color="#4D8B6BFF" />
-            <stroke android:width="2mm" android:color="@color/color_aurora_accent_hi" />
+            <corners android:radius="@dimen/vs_60" />
+            <solid android:color="?attr/color_theme_40" />
+            <stroke android:width="1.5mm" android:color="#FFE8B34B" />
         </shape>
     </item>
     <item android:state_focused="false" android:state_pressed="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_64" />
-            <solid android:color="#4D8B6BFF" />
-            <stroke android:width="2mm" android:color="@color/color_aurora_accent" />
+            <corners android:radius="@dimen/vs_60" />
+            <solid android:color="?attr/color_theme_40" />
+            <stroke android:width="1.5mm" android:color="#FFE8B34B" />
         </shape>
     </item>
     <item android:state_focused="true">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_64" />
-            <solid android:color="#3D8B6BFF" />
-            <stroke android:width="2mm" android:color="@color/color_aurora_accent_hi" />
+            <corners android:radius="@dimen/vs_60" />
+            <solid android:color="?attr/color_theme_40" />
+            <stroke android:width="2mm" android:color="#FFFFE9A8" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/vs_64" />
-            <solid android:color="#D20E1017" />
-            <stroke android:width="1mm" android:color="#33FFFFFF" />
+            <corners android:radius="@dimen/vs_60" />
+            <solid android:color="#B32B1F08" />
+            <stroke android:width="1.5mm" android:color="#8CFFE9A8" />
         </shape>
     </item>
 </selector>

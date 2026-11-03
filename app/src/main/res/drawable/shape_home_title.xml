@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.0 Aurora: 首页标题胶囊。
-     与启动图标同源 —— 斜向极光紫渐变(浅紫 → 主紫 → 深紫) + 22% 白内描边模拟玻璃高光。
-     v24.2 鎏金那版是纯横向金渐变，横向渐变在胶囊上会显得"扁"，斜向才有体积感。 -->
+<!-- 小贾影视仓 v23: 首页标题胶囊(点=信号源面板)。
+     竖屏顶栏行高提到 vs_140, 半径同步提到 vs_70(= 行高一半) 才是标准胶囊形;
+     若被用在更矮的行上, corner radius 会被自动钳到"半高", 仍是胶囊, 不会画错。
+     v24.0 冰晶蓝玻璃: 霓虹粉紫 → 冰蓝渐变(浅冰→深冰, 与壁纸玻璃呼应)。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners android:radius="@dimen/vs_70" />
     <gradient
-        android:angle="315"
-        android:startColor="@color/color_aurora_accent_hi"
-        android:centerColor="@color/color_aurora_accent"
-        android:endColor="@color/color_aurora_accent_dp"
+        android:angle="0"
+        android:startColor="#FFE9A8"
+        android:centerColor="#E8B34B"
+        android:endColor="#B8860B"
         android:type="linear" />
-    <stroke android:width="1mm" android:color="#38FFFFFF" />
+    <stroke android:width="1mm" android:color="#59FFFFFF" />
 </shape>

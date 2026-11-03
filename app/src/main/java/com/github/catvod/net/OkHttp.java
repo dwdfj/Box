@@ -135,8 +135,6 @@ public class OkHttp {
 
     private static OkHttpClient.Builder getBuilder() {
         OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(new OkhttpInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns()).hostnameVerifier(SSLCompat.VERIFIER).sslSocketFactory(new SSLCompat(), SSLCompat.TM);
-        // v26.4: hosts 覆盖 + 广告域名拦截(jar/py 爬虫的所有请求都走这里)
-        NetRules.install(builder);
         builder.proxySelector(selector());
         return builder;
     }

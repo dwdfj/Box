@@ -3,9 +3,8 @@
     <item android:state_focused="true">
         <shape>
             <corners android:radius="@dimen/vs_14" />
-            <!-- v27.28: 焦点态 = 主题紫实底 + 白描边(与选集胶囊一致) -->
-            <stroke android:width="@dimen/vs_3" android:color="@color/color_FFFFFF" />
-            <solid android:color="#8B6BFF" />
+            <stroke android:width="@dimen/vs_2" android:color="@color/color_FFFFFF" />
+            <solid android:color="?attr/color_theme_40" />
         </shape>
     </item>
     <item android:state_focused="false">

@@ -73,29 +73,10 @@ public class PythonSpider extends Spider {
                         depFutures.add(depPool.submit(() -> {
                             Log.i("PyLoader", "echo-init api: " + api);
                             String depUrl = PythonLoader.getInstance().getUrlByApi(api);
-                            if (depUrl == null || depUrl.isEmpty()) {
-                                // 与原行为一致: 解析不到地址的依赖跳过(可能是可选依赖)
-                                Log.i("PyLoader", "echo-init depUrl unresolved, skip: " + api);
-                                return null;
-                            }
+                            if (depUrl.isEmpty()) return null;
                             Log.i("PyLoader", "echo-init depUrl: " + depUrl);
-                            // 小贾影视仓 v26.2: 依赖下载重试一次 —— gh-proxy 反代时常 5xx/断流,
-                            // 原实现一次失败就整个源加载中止(用户体感"部分 py 加载不出来")。
-                            // 重试一次能救回大多数瞬时失败; 仍失败则在提示里带上依赖 URL,
-                            // 便于判断是源作者自己的服务器挂了还是盒子问题。
-                            for (int attempt = 1; attempt <= 2; attempt++) {
-                                try {
-                                    String tmpPath = app.callAttr("downloadPlugin", cachePath, depUrl).toString();
-                                    File f = new File(tmpPath);
-                                    if (f.exists() && f.length() > 0) {
-                                        return new String[]{api, tmpPath, depUrl};
-                                    }
-                                    Log.i("PyLoader", "echo-init dep attempt " + attempt + " empty: " + depUrl);
-                                } catch (Throwable te) {
-                                    Log.i("PyLoader", "echo-init dep attempt " + attempt + " error: " + te.getMessage());
-                                }
-                            }
-                            return new String[]{api, "", depUrl};
+                            String tmpPath = app.callAttr("downloadPlugin", cachePath, depUrl).toString();
+                            return new String[]{api, tmpPath};
                         }));
                     }
                     for (java.util.concurrent.Future<String[]> f : depFutures) {
@@ -106,9 +87,8 @@ public class PythonSpider extends Spider {
                             te.printStackTrace();
                         }
                         if (r == null) continue;
-                        if (r[1] == null || r[1].isEmpty() || !new File(r[1]).exists()) {
-                            // v26.2: 提示带上具体依赖 URL, 不再只是干巴巴 "XXX加载失败!"
-                            PyToast.showCancelableToast(name + " 依赖 " + r[0] + " 下载失败: " + r[2]);
+                        if (!new File(r[1]).exists()) {
+                            PyToast.showCancelableToast(r[0] + "加载失败!");
                             return;
                         } else {
                             PyLog.d(r[0] + ": 加载插件依赖成功！");

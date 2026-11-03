@@ -66,8 +66,6 @@ public class OkGoHelper {
             loggingInterceptor.setColorLevel(Level.OFF);
         }
         builder.addInterceptor(loggingInterceptor);
-        // v26.4: 播放链路同样走网络规则层(部分源站会插广告域名重定向)
-        com.github.catvod.net.NetRules.install(builder);
         builder.connectionSpecs(getConnectionSpec());
         builder.retryOnConnectionFailure(true);
         builder.followRedirects(true);
@@ -185,8 +183,6 @@ public class OkGoHelper {
 
         //builder.retryOnConnectionFailure(false);
         builder.connectionSpecs(getConnectionSpec());
-        // v26.4: 网络规则层(hosts 覆盖 + 广告拦截), 全 App 请求统一走这里
-        com.github.catvod.net.NetRules.install(builder);
         builder = builder.addInterceptor(loggingInterceptor)
                 .readTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS)
                 .writeTimeout(DEFAULT_MILLISECONDS, TimeUnit.MILLISECONDS)

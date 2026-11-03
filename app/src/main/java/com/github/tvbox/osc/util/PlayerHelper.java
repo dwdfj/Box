@@ -45,9 +45,6 @@ public class PlayerHelper {
             e.printStackTrace();
         }
         if (forcePlayerType >= 0) playerType = forcePlayerType;
-        // v27.31: 4=智能 —— 具体内核由播放页按「站点+流类型」实测结果决定并强制传入;
-        // 万一有别处漏传, 这里退回 IJK, 不至于落到系统播放器。
-        if (playerType == PlayerAuto.TYPE_AUTO) playerType = PlayerAuto.K_IJK;
         IJKCode codec = ApiConfig.get().getIJKCodec(ijkCode);
         PlayerFactory playerFactory;
         if (playerType == 1) {
@@ -89,7 +86,6 @@ public class PlayerHelper {
 
     public static void updateCfg(VideoView videoView) {
         int playType = Hawk.get(HawkConfig.PLAY_TYPE, 0);
-        if (playType == PlayerAuto.TYPE_AUTO) playType = PlayerAuto.K_IJK;   // v27.31 智能: 此处无上下文, 退回 IJK
         PlayerFactory playerFactory;
         if (playType == 1) {
             playerFactory = new PlayerFactory<IjkmPlayer>() {
@@ -129,9 +125,7 @@ public class PlayerHelper {
     }
 
     public static String getPlayerName(int playType) {
-        if (playType == PlayerAuto.TYPE_AUTO) {
-            return "智能";
-        } else if (playType == 1) {
+        if (playType == 1) {
             return "IJK";
         } else if (playType == 2) {
             return "Exo";

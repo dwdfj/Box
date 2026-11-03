@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.18: 信号源面板 —— 左列线路(配置级) / 右列站点(SourceBean)。
-     v27.1 用 ConstraintLayout 的 0dp 双向约束链来"竖向拉长", 在 Dialog 的 wrap 窗口里
-     高度会先按 0 算, 于是两列列表塌成一条缝 —— 用户看到的就是"点胶囊没有线路可选了"。
-     现在改回最朴素的垂直 LinearLayout: 标题(wrap) + 主体(0dp/weight=1) + 底部按钮(wrap),
-     高度由 Dialog 窗口的 MATCH_PARENT 决定, 不依赖任何约束链, 一定能撑开。 -->
+<!-- 小贾影视仓 v23.x: 统一「信号源」面板 —— 左列=线路(配置级, 预置+历史) / 右列=站点(SourceBean, 当前线路内)。
+     v23.3 修复「部分文字太大无法显示」: v23.2 把字号和内边距整体放大后,
+     ① 底部四个按钮按 ts_34 + vs_44 内边距合计约 1674 单位, 而面板内宽只有 1100 —— 溢出 574,
+        靠右的「返回」被挤出可视区, 「加载本地 .py」也被截断;
+     ② 列表项 item_dialog_select 用 ts_24 且无 singleLine/ellipsize, 长站点名直接换行撑高。
+     现统一: 面板加宽到 vs_1240, 标题/列标题/按钮降到 ts_26~ts_30,
+     底部四按钮改 weight=1 均分 + singleLine + ellipsize, 保证一个都不被挤出。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cl_root"
         android:layout_width="@dimen/vs_1240"
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:layout_margin="@dimen/vs_10"
         android:background="@drawable/shape_dialog_bg_main"
-        android:orientation="vertical"
         android:paddingLeft="@dimen/vs_32"
         android:paddingTop="@dimen/vs_24"
         android:paddingRight="@dimen/vs_32"
@@ -27,7 +28,6 @@
             android:id="@+id/panelTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
             android:shadowColor="@color/color_FF000000"
             android:shadowDx="0"
             android:shadowDy="0"
@@ -36,22 +36,25 @@
             android:text="信号源 · 线路 / 站点"
             android:textColor="@color/color_FFFFFF"
             android:textSize="@dimen/ts_30"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- 中部: 左线路列 + 分隔 + 右站点列。
-             height=0dp + weight=1 —— 父级是垂直 LinearLayout 且高度确定(match_parent),
-             这种写法在 LinearLayout 里是稳定的"吃掉剩余空间", 不会像约束链那样塌缩。 -->
+        <!-- 中部: 左线路列 + 分隔 + 右站点列 -->
         <LinearLayout
             android:id="@+id/panelBody"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_0"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_20"
-            android:layout_weight="1"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/panelTitle">
 
             <LinearLayout
                 android:layout_width="@dimen/vs_420"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:orientation="vertical">
 
                 <TextView
@@ -66,8 +69,7 @@
                 <com.owen.tvrecyclerview.widget.TvRecyclerView
                     android:id="@+id/panelLineList"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_0"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/vs_640"
                     android:orientation="vertical"
                     app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
                     app:tv_layoutManager="V7LinearLayoutManager"
@@ -77,24 +79,21 @@
 
             <View
                 android:layout_width="@dimen/vs_2"
-                android:layout_height="match_parent"
+                android:layout_height="@dimen/vs_640"
                 android:layout_marginLeft="@dimen/vs_20"
                 android:layout_marginRight="@dimen/vs_20"
                 android:background="@color/color_FFFFFF_20" />
 
             <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/panelSiteTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
                     android:paddingBottom="@dimen/vs_10"
-                    android:singleLine="true"
                     android:text="站点"
                     android:textColor="@color/color_FFFFFF_70"
                     android:textSize="@dimen/ts_26"
@@ -103,8 +102,7 @@
                 <com.owen.tvrecyclerview.widget.TvRecyclerView
                     android:id="@+id/panelSiteList"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_0"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/vs_640"
                     android:orientation="vertical"
                     app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
                     app:tv_selectedItemIsCentered="true"
@@ -118,16 +116,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_20"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/panelBody">
 
             <TextView
                 android:id="@+id/panelStyleBtn"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_80"
                 android:layout_weight="1"
+                android:layout_height="@dimen/vs_80"
                 android:background="@drawable/button_dialog_vod"
-                android:clickable="true"
                 android:ellipsize="end"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingLeft="@dimen/vs_12"
@@ -141,12 +142,12 @@
             <TextView
                 android:id="@+id/panelConfigBtn"
                 android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="@dimen/vs_80"
                 android:layout_marginLeft="@dimen/vs_14"
-                android:layout_weight="1"
                 android:background="@drawable/button_dialog_vod"
-                android:clickable="true"
                 android:ellipsize="end"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingLeft="@dimen/vs_12"
@@ -160,12 +161,12 @@
             <TextView
                 android:id="@+id/panelPyBtn"
                 android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="@dimen/vs_80"
                 android:layout_marginLeft="@dimen/vs_14"
-                android:layout_weight="1"
                 android:background="@drawable/button_dialog_vod"
-                android:clickable="true"
                 android:ellipsize="end"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingLeft="@dimen/vs_12"
@@ -178,12 +179,12 @@
             <TextView
                 android:id="@+id/panelCloseBtn"
                 android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="@dimen/vs_80"
                 android:layout_marginLeft="@dimen/vs_14"
-                android:layout_weight="1"
                 android:background="@drawable/button_dialog_vod"
-                android:clickable="true"
                 android:ellipsize="end"
+                android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:paddingLeft="@dimen/vs_12"
@@ -193,5 +194,5 @@
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_26" />
         </LinearLayout>
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>

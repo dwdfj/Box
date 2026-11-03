@@ -38,17 +38,11 @@
         <!-- 小贾影视仓 v23.6: 标题胶囊「定宽」——
              之前 wrap_content 会随「线路名」长短伸缩, 来回切信号源时胶囊忽大忽小;
              v23.5 那版用 min/max 夹, 但 620~760 之间仍随文本漂移, 而且 vs_620 根本没定义(编译不过)。
-             现在直接写死宽度: 无论线路名多长多短, 胶囊尺寸恒定, 超长尾部省略。
-
-             小贾影视仓 v27.1: 改回「短则贴字、长则封顶」——
-             胶囊里已经不再带 App 名, 只剩线路/py 名, 定宽 700 会留出一大块空紫底很难看。
-             用 minWidth(340) / maxWidth(700) 夹住, 既贴字又不会因为超长线路名把右边三个图标挤掉。 -->
+             现在直接写死宽度: 无论线路名多长多短, 胶囊尺寸恒定, 超长尾部省略。 -->
         <TextView
             android:id="@+id/tvName"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/vs_700"
             android:layout_height="match_parent"
-            android:maxWidth="@dimen/vs_700"
-            android:minWidth="@dimen/vs_340"
             android:background="@drawable/shape_home_title"
             android:clickable="true"
             android:ellipsize="end"
@@ -73,62 +67,44 @@
 
         <ImageView
             android:id="@+id/tvFind"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
-            android:nextFocusRight="@id/tvMusic"
-            android:padding="@dimen/vs_22"
+            android:nextFocusRight="@id/tvLive"
+            android:padding="@dimen/vs_18"
             android:src="@drawable/hm_search" />
 
-        <!-- 直播: 小贾影视仓 v23 —— 从首页底部 dock 上移至顶栏, 紧挨设置(用户要求)
-             小贾影视仓 v26: 80 -> 110(用户反馈"直播和设置按钮太小"), 图标内边距同步 18 -> 22,
-             保证图标本体也等比放大, 不是只放大点击区 -->
+        <!-- 直播: 小贾影视仓 v23 —— 从首页底部 dock 上移至顶栏, 紧挨设置(用户要求) -->
         <ImageView
             android:id="@+id/tvLive"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
             android:nextFocusLeft="@id/tvFind"
-            android:nextFocusRight="@id/tvMusic"
-            android:padding="@dimen/vs_22"
+            android:nextFocusRight="@id/tvMenu"
+            android:padding="@dimen/vs_18"
             android:src="@drawable/hm_live" />
 
-        <!-- 音乐: 小贾影视仓 B1 —— 拉起喵音乐(com.miaomusic.app), 未安装时提示 -->
         <ImageView
-            android:id="@+id/tvMusic"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
+            android:id="@+id/tvMenu"
+            android:layout_width="@dimen/vs_80"
+            android:layout_height="@dimen/vs_80"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
             android:nextFocusLeft="@id/tvLive"
-            android:nextFocusRight="@id/tvMenu"
             android:nextFocusDown="@id/homeSearchBar"
-            android:padding="@dimen/vs_22"
-            android:src="@drawable/hm_music" />
-
-        <ImageView
-            android:id="@+id/tvMenu"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
-            android:background="@drawable/shape_top_icon_btn"
-            android:clickable="true"
-            android:focusable="true"
-            android:nextFocusLeft="@id/tvMusic"
-            android:nextFocusDown="@id/homeSearchBar"
-            android:padding="@dimen/vs_22"
+            android:padding="@dimen/vs_18"
             android:src="@drawable/hm_settings" />
 
     </LinearLayout>

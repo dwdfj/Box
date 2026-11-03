@@ -5,7 +5,7 @@
     android:id="@+id/tv_chip"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/sel_play_line_chip"
+    android:background="@drawable/shape_play_card_icon"
     android:ellipsize="end"
     android:focusable="true"
     android:gravity="center"

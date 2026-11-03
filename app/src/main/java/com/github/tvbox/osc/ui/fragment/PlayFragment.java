@@ -276,22 +276,7 @@ public class PlayFragment extends BaseLazyFragment {
                         setTip("加载完成，嗅探视频中", true, false);
                     }
                 } else if (msg.what == 300) {
-                    // 小贾影视仓 v27.1: 播放器硬错误。
-                    // 旧实现把 ExoPlayer 的原始异常整段贴到画面上 —— 用户截图里那串
-                    // "None of the available extractors (FlvExtractor, ...) could read the stream"
-                    // 就是 error.getMessage()。这里只留日志, 界面给中文结论, 并自动换内核/换线路试一次。
-                    String raw = msg.obj == null ? null : msg.obj.toString();
-                    android.util.Log.e("xjys-player", "播放错误: " + raw);
-                    setTip(friendlyPlayError(raw), false, true);
-                    if (!playErrorAutoRecovered) {
-                        playErrorAutoRecovered = true;
-                        mHandler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (isAdded()) errorWithRetry("该线路播放失败，正在自动更换线路…", false);
-                            }
-                        }, 700);
-                    }
+                    setTip((String)msg.obj, false, true);
                 }
                 return false;
             }
@@ -753,31 +738,6 @@ public class PlayFragment extends BaseLazyFragment {
         mPlayLoadTip.setVisibility(View.GONE);
         mPlayLoading.setVisibility(View.GONE);
         mPlayLoadErr.setVisibility(View.GONE);
-        playErrorAutoRecovered = false;   // 真正播起来了, 下次报错可以再自动恢复一次
-    }
-
-    /**
-     * 小贾影视仓 v27.1: 把播放器原始异常翻成人话。
-     * 白名单式匹配常见的几类(容器/编码不支持、连接失败、超时), 其余一律给通用结论 +
-     * 指向"换线路"; 任何情况下都不再把英文堆栈/异常原文贴到画面上。
-     */
-    String friendlyPlayError(String raw) {
-        String low = raw == null ? "" : raw.toLowerCase();
-        if (low.contains("extractor") || low.contains("could not read the stream")
-                || low.contains("unrecognized") || low.contains("malformed")
-                || low.contains("parser_exception") || low.contains("decoder")) {
-            return "这条线路的视频源格式不受支持，请切换线路后重试";
-        }
-        if (low.contains("timeout") || low.contains("timed out") || low.contains("connect")) {
-            return "这条线路连接超时，请切换线路后重试";
-        }
-        if (low.contains("403") || low.contains("401") || low.contains("forbidden")) {
-            return "这条线路的视频地址已失效，请切换线路后重试";
-        }
-        if (low.contains("404") || low.contains("not found")) {
-            return "这条线路的视频已下架，请切换线路后重试";
-        }
-        return "这条线路播放失败，请切换线路后重试";
     }
 
     void errorWithRetry(String err, boolean finish) {
@@ -821,8 +781,7 @@ public class PlayFragment extends BaseLazyFragment {
     }
 
     void playUrl(String url, HashMap<String, String> headers) {
-        // v27.30: 去广告默认关闭(起播前多下载一遍 m3u8 = 凭空多 1~2 个网络往返)
-        if (!Hawk.get(HawkConfig.VIDEO_PURIFY, false)) {
+        if (!Hawk.get(HawkConfig.VIDEO_PURIFY, true)) {
             startPlayUrl(url, headers);
             return;
         }
@@ -1367,9 +1326,9 @@ public class PlayFragment extends BaseLazyFragment {
         mPlayLineList.setLayoutManager(new V7LinearLayoutManager(requireContext(), 0, false));
         mPlayLineList.setAdapter(mLineAdapter);
 
-        // 选集: v26.8 与播放页对齐 —— 4 列等宽网格(item_play_episode)
-        mEpisodeAdapter = new PlayChipAdapter(R.layout.item_play_episode, true);
-        mPlayEpisodeList.setLayoutManager(new V7GridLayoutManager(requireContext(), 4));
+        // 选集: 三列胶囊网格
+        mEpisodeAdapter = new PlayChipAdapter();
+        mPlayEpisodeList.setLayoutManager(new V7GridLayoutManager(requireContext(), 3));
         mPlayEpisodeList.setAdapter(mEpisodeAdapter);
 
         mPlayDesToggle.setOnClickListener(v -> {
@@ -1501,40 +1460,6 @@ public class PlayFragment extends BaseLazyFragment {
         }
         mEpisodeAdapter.setNewData(names);
         mEpisodeAdapter.setSelectedIndex(currentEpisodeChipIndex());
-        applyEpisodeListHeight(names.size());
-    }
-
-    /**
-     * 小贾影视仓 v27.1: 选集网格高度按实际行数收口 —— 见 PlayActivity 同名方法注释。
-     * 旧版 weight=1 会被撑满整块面板, 集数少时(电影只有两个版本)出现"内容上下分离 + 大片空白"。
-     */
-    private void applyEpisodeListHeight(int count) {
-        try {
-            if (mPlayEpisodeList == null) return;
-            if (getResources().getConfiguration().orientation
-                    != android.content.res.Configuration.ORIENTATION_PORTRAIT) {
-                return;
-            }
-            int rows = (count + 3) / 4;
-            if (rows < 1) rows = 1;
-            if (rows > 3) rows = 3;
-            int itemH = getResources().getDimensionPixelSize(R.dimen.vs_110);
-            int gap = getResources().getDimensionPixelSize(R.dimen.vs_16);
-            int h = rows * itemH + (rows - 1) * gap;
-            android.view.ViewGroup.LayoutParams lp = mPlayEpisodeList.getLayoutParams();
-            if (lp == null) return;
-            boolean changed = lp.height != h;
-            lp.height = h;
-            if (lp instanceof android.widget.LinearLayout.LayoutParams) {
-                android.widget.LinearLayout.LayoutParams llp = (android.widget.LinearLayout.LayoutParams) lp;
-                if (llp.weight != 0) {
-                    llp.weight = 0;
-                    changed = true;
-                }
-            }
-            if (changed) mPlayEpisodeList.setLayoutParams(lp);
-        } catch (Throwable ignored) {
-        }
     }
 
     /** 倒序时把「真实播放序号」换算成「胶囊列表里的位置」。 */
@@ -1617,12 +1542,6 @@ public class PlayFragment extends BaseLazyFragment {
             return;
         }
         mVodInfo.playIndex++;
-        // 小贾影视仓 fix: playGroupCount<=0(未初始化)时整除/取模会 divide by zero, 兜底按"整组"处理。
-        if (mVodInfo.playGroupCount <= 0) {
-            java.util.List<VodInfo.VodSeries> cur =
-                    mVodInfo.seriesMap == null ? null : mVodInfo.seriesMap.get(mVodInfo.playFlag);
-            mVodInfo.playGroupCount = Math.max(1, cur == null ? 1 : cur.size());
-        }
         mVodInfo.playGroup += mVodInfo.playIndex / mVodInfo.playGroupCount;
         mVodInfo.playIndex = mVodInfo.playIndex %  mVodInfo.playGroupCount;
         play(false);
@@ -1644,12 +1563,6 @@ public class PlayFragment extends BaseLazyFragment {
             return;
         }
         if(mVodInfo.playIndex == 0){
-            // 小贾影视仓 fix: playGroupCount<=0 时 playGroupCount-1 会是 -1(非法索引), 兜底归 0。
-            if (mVodInfo.playGroupCount <= 0) {
-                java.util.List<VodInfo.VodSeries> cur =
-                        mVodInfo.seriesMap == null ? null : mVodInfo.seriesMap.get(mVodInfo.playFlag);
-                mVodInfo.playGroupCount = Math.max(1, cur == null ? 1 : cur.size());
-            }
             mVodInfo.playGroup--;
             mVodInfo.playIndex = mVodInfo.playGroupCount - 1;
         }else{
@@ -1659,8 +1572,6 @@ public class PlayFragment extends BaseLazyFragment {
     }
 
     private int autoRetryCount = 0;
-    /** 小贾影视仓 v27.1: 一次播放周期内是否已对"硬错误"自动恢复过(防 300 消息连环触发) */
-    private boolean playErrorAutoRecovered = false;
 
     boolean autoRetry() {
         switchPlayer();

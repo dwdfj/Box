@@ -1,21 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 小贾影视仓: 搜索结果来源渠道条目
      v23.8: 字号 ts_22(36mm) -> ts_30(50mm), 内边距 vs_15/vs_8 -> vs_22/vs_12
-     —— 用户反馈"搜索界面播放源文字也是太小了"。
-     v27.18: 背景换成胶囊选择框(选中=紫底白边), 字号再放大到 ts_32。 -->
+     —— 用户反馈"搜索界面播放源文字也是太小了"。 -->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/tvSourceName"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/shape_chip_select_pill"
+    android:background="@drawable/shape_home_title"
     android:ellipsize="end"
     android:gravity="center"
     android:maxLines="1"
-    android:paddingLeft="@dimen/vs_26"
-    android:paddingTop="@dimen/vs_14"
-    android:paddingRight="@dimen/vs_26"
-    android:paddingBottom="@dimen/vs_14"
+    android:paddingLeft="@dimen/vs_22"
+    android:paddingRight="@dimen/vs_22"
+    android:paddingTop="@dimen/vs_12"
+    android:paddingBottom="@dimen/vs_12"
     android:singleLine="true"
     android:textColor="@android:color/white"
-    android:textSize="@dimen/ts_34"
+    android:textSize="@dimen/ts_30"
     android:textStyle="bold" />

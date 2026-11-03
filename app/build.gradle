@@ -7,11 +7,6 @@ def static buildTime() {
     return new Date().format("yyyyMMdd_HHmm", TimeZone.getTimeZone("GMT+08:00"))
 }
 
-// 小贾影视仓: versionCode 原写死 1 —— Android 安装器/系统靠 versionCode 判断新旧版本,
-// 恒为 1 时覆盖安装可能被拒或"装旧不装新"(用户反复装不到新包的疑似原因之一)。
-// 现由构建脚本传 -PxjBuildNo=N 递增; versionName 带构建号+时间, App"关于"页可直接核对版本。
-def xjBuildNo = project.hasProperty('xjBuildNo') ? project.property('xjBuildNo').toString() : '0'
-
 // 小贾影视仓: 壁纸构建开关 —— ./gradlew assembleRelease -PxjWallpaper=false 出"无内置壁纸版"(主题纯色)
 def xjWallpaper = project.hasProperty('xjWallpaper') ? project.property('xjWallpaper') : 'true'
 
@@ -21,8 +16,8 @@ android {
     defaultConfig {
         applicationId 'com.github.tvbox.osc.tk'
         targetSdkVersion 28
-        versionCode 260000 + Integer.parseInt(xjBuildNo)
-        versionName "v27." + xjBuildNo + "-" + buildTime()
+        versionCode 1
+        versionName "1.0.".concat(buildTime())
         multiDexEnabled true
         buildConfigField "boolean", "XJ_WALLPAPER", xjWallpaper
         //设置room的Schema的位置
@@ -107,17 +102,6 @@ android {
 
     lint {
         disable 'UnsafeOptInUsageError'
-    }
-
-    // 小贾影视仓 本地构建: 本机缺少闭源 aar com.aliyun.player(原在 GitHub 仓库 app/libs 里,
-    // 本地副本未同步到)。该包(aliplayer)在 app 内无任何外部引用, 排除后不影响其它播放器(Exo/Ijk)。
-    // 若以后把 aliyun 播放器 aar 放进 app/libs, 删掉这一段即可恢复。
-    sourceSets {
-        main {
-            java {
-                exclude 'xyz/doikki/videoplayer/aliplayer/**'
-            }
-        }
     }
 }
 

@@ -91,49 +91,41 @@
                     android:textSize="@dimen/ts_20" />
             </LinearLayout>
 
-            <!-- ② 精选大图 Banner —— v26.6: 按用户要求整块关闭。
-                 上轮只隐藏了封面图, 但标题行里的「播放圆钮 + 收藏文字钮」还留在屏幕上,
-                 用户看到的就是"推荐图都没了, 播放/收藏怎么还在"。现在整块 gone, 推荐直接进网格。 -->
+            <!-- ② 精选大图 Banner(竖屏: 独占一行, 随下方网格焦点联动; 整页滚动时一起上滑滚走) -->
             <FrameLayout
                 android:id="@+id/tvFeaturedBanner"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="@dimen/vs_760"
                 android:layout_marginTop="@dimen/vs_14"
                 android:background="@drawable/shape_home_banner"
                 android:clickable="true"
                 android:focusable="true"
                 android:nextFocusDown="@id/tvHotGrid"
-                android:padding="@dimen/vs_2"
-                android:visibility="gone">
+                android:padding="@dimen/vs_2">
 
-                <!-- v26.4: 按用户要求去掉横屏封面大图(ivBanner 保留 id 但隐藏),
-                     整块改成"文字条"—— 标题/评分/年份/类型 + 播放/收藏, 高度从 vs_760 收到内容高度,
-                     首页能直接多看到一行海报。 -->
                 <ImageView
                     android:id="@+id/ivBanner"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_760"
+                    android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/img_loading_placeholder"
-                    android:visibility="gone" />
+                    android:src="@drawable/img_loading_placeholder" />
 
-                <!-- 渐变遮罩: 原用于压暗封面图, 去图后无意义, v26.4 隐藏 -->
+                <!-- 底部渐变遮罩, 保证标题/按钮可读 -->
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/vs_460"
                     android:layout_gravity="bottom"
                     android:background="@drawable/shape_banner_scrim"
-                    android:focusable="false"
-                    android:visibility="gone" />
+                    android:focusable="false" />
 
-                <!-- 信息区: 标题 + 元信息 + 操作钮(去图后改为顶部对齐、紧凑排布) -->
+                <!-- 底部信息区: 标题 + 元信息 + 操作钮 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top"
+                    android:layout_gravity="bottom"
                     android:focusable="false"
                     android:orientation="vertical"
-                    android:padding="@dimen/vs_32">
+                    android:padding="@dimen/vs_40">
 
                     <TextView
                         android:id="@+id/tvBannerTitle"
@@ -141,10 +133,10 @@
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:focusable="false"
-                        android:maxLines="1"
+                        android:maxLines="2"
                         android:text=""
                         android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_40"
+                        android:textSize="@dimen/ts_50"
                         android:textStyle="bold" />
 
                     <TextView

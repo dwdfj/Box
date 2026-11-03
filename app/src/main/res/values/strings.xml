@@ -2,9 +2,6 @@
 <resources>
     <string name="app_name">小贾影视仓</string>
     <string name="app_home">Home</string>
-    <!-- v27.28: 默认线路 = 「嗷呜·78站」。配置是 PNG 尾部藏 base64(IMAGE 配置),
-         引擎 isImageConfig/extractImageConfig 负责抽取, 实测 461~1612ms 可用。
-         失效时 ApiConfig 会自动换到 小白马/wex/newwex/张群。 -->
     <string name="app_source">http://itv666.cc/aowu/config.webp</string>
 
     // 小贾影视仓 v23.6: 投屏(DLNA) //

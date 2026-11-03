@@ -20,7 +20,6 @@ import com.github.tvbox.osc.bean.MovieSort;
 import com.github.tvbox.osc.bean.SourceBean;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.util.DefaultConfig;
-import com.github.tvbox.osc.util.DetailCache;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.LOG;
 import com.github.tvbox.osc.util.MD5;
@@ -201,13 +200,6 @@ public class SourceViewModel extends ViewModel {
             saveHomeRecVideos(sourceKey, videos);
             return videos;
         }
-        return loadHomeRecVideos(sourceKey);
-    }
-
-    // 小贾影视仓 v26.3: 供 UserFragment 在"站点推荐"模式下首页数据尚未就绪时,
-    // 优先回显**当天该站**的推荐落盘缓存, 而不是直接掉到豆瓣链 ——
-    // 用户明确要求"首页推荐改成站点推荐", 冷启动/切线路瞬间也不能被豆瓣抢占。
-    public static List<Movie.Video> getHomeRecVideosCached(String sourceKey) {
         return loadHomeRecVideos(sourceKey);
     }
 
@@ -745,27 +737,7 @@ public class SourceViewModel extends ViewModel {
             urlid = pushUrl;
         }
         String id = urlid;
-
-        // 小贾影视仓 v27.16: 详情落盘缓存命中 —— 10 分钟内点同一部片直接秒开, 不再等源站。
-        // 缓存的是**源站原始响应**, 走的是和网络返回一模一样的解析路径(json/xml), 下游行为不变。
-        final String dKey = sourceKey;
-        final String dId = id;
-        final String[] dHit = DetailCache.get(dKey, dId);
-        if (dHit != null) {
-            spThreadPool.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        if ("0".equals(dHit[0])) xml(detailResult, dHit[1], dKey);
-                        else json(detailResult, dHit[1], dKey);
-                    } catch (Throwable th) {
-                        th.printStackTrace();
-                    }
-                }
-            });
-            return;
-        }
-
+    
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
         if (sourceBean == null) {
             detailResult.postValue(null);
@@ -807,9 +779,6 @@ public class SourceViewModel extends ViewModel {
                     } catch (Exception e) {
                         LOG.i("echo--getDetail--error: " + e.getMessage());
                     } finally {
-                        if (json != null && json.contains("vod_play_url")) {
-                            DetailCache.put(sourceBean.getKey(), id, false, json);
-                        }
                         json(detailResult, json, sourceBean.getKey());
                         executor.shutdown();
                     }
@@ -838,16 +807,10 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             if (type == 0) {
                                 String xml = response.body();
-                                if (xml != null && xml.contains("vod_play_url")) {
-                                    DetailCache.put(sourceBean.getKey(), id, true, xml);
-                                }
                                 xml(detailResult, xml, sourceBean.getKey());
                             } else {
                                 String json = response.body();
                                 LOG.i(json);
-                                if (json != null && json.contains("vod_play_url")) {
-                                    DetailCache.put(sourceBean.getKey(), id, false, json);
-                                }
                                 json(detailResult, json, sourceBean.getKey());
                             }
                         }
@@ -924,31 +887,26 @@ public class SourceViewModel extends ViewModel {
             // 小贾影视仓 v23.7: py/jar 源搜索原本是"裸调" —— sp.searchContent() 没有任何超时,
             // 插件一旦挂住(网络卡死/Chaquo 阻塞), 这个搜索池线程就永久回不来。池只有 12 个槽,
             // 累计挂几个 py/jar 源整个全局搜索就瘫掉(而且看不出报错, 只是"某些源永远搜不出来")。
-            // 这里套一层 15s 超时(参照 FongMi: 每个搜索都 withTimeout(TIMEOUT_SEARCH)),
+            // 这里套一层 30s 超时(参照 FongMi: 每个搜索都 withTimeout(TIMEOUT_SEARCH=30s)),
             // 到点放弃并释放搜索池线程。
-            // v27.25: 30s -> 15s, 并且超时后要 cancel(true)+shutdownNow()。
-            // 旧写法只 shutdown(), 线程池在跑的任务并不会停 —— 每超时一次就漏一个线程,
-            // 多搜几轮后进程里堆着一堆卡住的 py 调用, 表现就是"越用越慢、部分源再也不出结果"。
             ExecutorService one = Executors.newSingleThreadExecutor();
             String search = null;
-            Future<String> f = null;
             try {
-                f = one.submit(new Callable<String>() {
+                Future<String> f = one.submit(new Callable<String>() {
                     @Override
                     public String call() throws Exception {
                         Spider sp = ApiConfig.get().getCSP(sourceBean);
                         return sp.searchContent(wd, false);
                     }
                 });
-                search = f.get(15, TimeUnit.SECONDS);
+                search = f.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException te) {
-                if (f != null) f.cancel(true);
-                logSearch(sourceBean.getKey(), "search-timeout", "15s");
+                logSearch(sourceBean.getKey(), "search-timeout", "30s");
             } catch (Throwable th) {
                 th.printStackTrace();
                 logSearch(sourceBean.getKey(), "search-catch", th.getClass().getSimpleName() + ": " + th.getMessage());
             } finally {
-                one.shutdownNow();
+                one.shutdown();
             }
             if (!TextUtils.isEmpty(search)) {
                 logSearch(sourceBean.getKey(), "search-ok", search.length() > 160 ? search.substring(0, 160) : search);

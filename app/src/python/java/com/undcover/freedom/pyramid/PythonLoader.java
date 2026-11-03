@@ -59,22 +59,6 @@ public class PythonLoader {
     private volatile boolean bootStarted = false;
     private volatile boolean pyReady = false;
     private volatile Throwable bootError = null;
-    // 小贾影视仓 v26: 每个 key 的 spider 是按 url 初始化后**永久缓存**的(spiders 表从不清理)。
-    // 本地 py 重新加载(尤其是压缩包: 入口文件换了新内容)时, 旧实例还挂在缓存里, 用户看到的
-    // 就是"加载成功了但行为和上一版一样"。invalidate() 把该 key 的实例与进行中的 init 一起丢掉,
-    // 下次 getSpider 会重新 downloadPlugin + 重新编译。
-    public void invalidate(String key) {
-        if (key == null || key.isEmpty()) return;
-        try {
-            spiders.remove(key);
-        } catch (Throwable ignored) {
-        }
-        try {
-            Future<PythonSpider> f = spiderInits.remove(key);
-            if (f != null) f.cancel(true);
-        } catch (Throwable ignored) {
-        }
-    }
 
     public PythonLoader() {
         siteMap = new HashMap<>();
