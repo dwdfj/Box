@@ -69,6 +69,19 @@ public final class BallHost implements Application.ActivityLifecycleCallbacks {
                 return;
             }
             show(activity);
+            // v27.34: 刚 onResume 时 decorView 可能还没 measure(宽高 0), 第一次挂上去算不出坐标。
+            // 再补挂一次(幂等: 已在同窗口只刷新), 保证"从播放页退回影视首页球还在"。
+            final Activity a = activity;
+            activity.getWindow().getDecorView().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (a.isFinishing() || !shouldShow(a)) return;
+                        show(a);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }, 280);
         } catch (Throwable ignored) {
         }
     }

@@ -38,18 +38,6 @@
    }
   },
   {
-   "key": "xjCmsWujin",
-   "name": "♾无尽",
-   "type": 1,
-   "api": "https://api.wujinapi.me/api.php/provide/vod",
-   "searchable": 0,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
    "key": "xjCmsBaofeng",
    "name": "🌪暴风",
    "type": 1,
@@ -66,18 +54,6 @@
    "name": "🎬天堂",
    "type": 1,
    "api": "https://caiji.dyttzyapi.com/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
-   "key": "xjCmsYouzhi",
-   "name": "💎优质",
-   "type": 1,
-   "api": "https://api.yyzy-tv.vip/inc/apijson.php",
    "searchable": 1,
    "quickSearch": 1,
    "filterable": 1,

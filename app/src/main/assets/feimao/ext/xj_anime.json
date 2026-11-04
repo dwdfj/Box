@@ -26,18 +26,6 @@
    }
   },
   {
-   "key": "xjAnimeWujin",
-   "name": "♾无尽·动漫",
-   "type": 1,
-   "api": "https://api.wujinapi.me/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
    "key": "xjAnimeXigua",
    "name": "🍉西瓜·动漫",
    "type": 1,
@@ -66,18 +54,6 @@
    "name": "🎬天堂·动漫",
    "type": 1,
    "api": "https://caiji.dyttzyapi.com/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
-   "key": "xjAnimeYouzhi",
-   "name": "💎优质·动漫",
-   "type": 1,
-   "api": "https://api.yyzy-tv.vip/inc/apijson.php",
    "searchable": 1,
    "quickSearch": 1,
    "filterable": 1,
