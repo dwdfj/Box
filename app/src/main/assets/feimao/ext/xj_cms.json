@@ -2,34 +2,10 @@
  "spider": "feimao/jar/aidaox-20260824-080800.jar",
  "sites": [
   {
-   "key": "xjCmsWujin",
-   "name": "♾无尽·短剧",
+   "key": "xjCmsJisu",
+   "name": "🚀极速·短剧",
    "type": 1,
-   "api": "https://api.wujinapi.me/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
-   "key": "xjCmsXigua",
-   "name": "🍉西瓜·短剧",
-   "type": 1,
-   "api": "https://caiji.xgzyapi.com/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
-   "key": "xjCmsYouzhi",
-   "name": "💎优质·短剧",
-   "type": 1,
-   "api": "https://api.yyzy-tv.vip/inc/apijson.php",
+   "api": "https://jszyapi.com/api.php/provide/vod",
    "searchable": 1,
    "quickSearch": 1,
    "filterable": 1,
@@ -62,6 +38,18 @@
    }
   },
   {
+   "key": "xjCmsWujin",
+   "name": "♾无尽·短剧",
+   "type": 1,
+   "api": "https://api.wujinapi.me/api.php/provide/vod",
+   "searchable": 1,
+   "quickSearch": 1,
+   "filterable": 1,
+   "header": {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+   }
+  },
+  {
    "key": "xjCmsBaofeng",
    "name": "🌪暴风·短剧",
    "type": 1,
@@ -86,10 +74,10 @@
    }
   },
   {
-   "key": "xjCmsJisu",
-   "name": "🚀极速·短剧",
+   "key": "xjCmsYouzhi",
+   "name": "💎优质·短剧",
    "type": 1,
-   "api": "https://jszyapi.com/api.php/provide/vod",
+   "api": "https://api.yyzy-tv.vip/inc/apijson.php",
    "searchable": 1,
    "quickSearch": 1,
    "filterable": 1,
@@ -98,22 +86,10 @@
    }
   },
   {
-   "key": "xjCmsCitong",
-   "name": "🏛刺桐·短剧",
+   "key": "xjCmsXigua",
+   "name": "🍉西瓜·短剧",
    "type": 1,
-   "api": "https://pg.cttv.vip/api.php/provide/vod",
-   "searchable": 1,
-   "quickSearch": 1,
-   "filterable": 1,
-   "header": {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-   }
-  },
-  {
-   "key": "xjCmsXingqiu",
-   "name": "🪐星球·短剧",
-   "type": 1,
-   "api": "https://www.ysxq.cc/api.php/provide/vod",
+   "api": "https://caiji.xgzyapi.com/api.php/provide/vod",
    "searchable": 1,
    "quickSearch": 1,
    "filterable": 1,

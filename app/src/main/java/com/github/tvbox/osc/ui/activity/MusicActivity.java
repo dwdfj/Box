@@ -452,13 +452,11 @@ public class MusicActivity extends BaseActivity {
 
     /** 每日推荐卡: 取官方榜单第一张, 点播放键直接进榜单。 */
     class DailyHolder extends RecyclerView.ViewHolder {
-        final TextView week, day, title, desc, play;
+        final TextView title, desc, play;
         final ImageView thumb1, thumb2, thumb3;
 
         DailyHolder(View v) {
             super(v);
-            week = v.findViewById(R.id.dailyWeek);
-            day = v.findViewById(R.id.dailyDay);
             title = v.findViewById(R.id.dailyTitle);
             desc = v.findViewById(R.id.dailyDesc);
             play = v.findViewById(R.id.dailyPlay);
@@ -475,10 +473,7 @@ public class MusicActivity extends BaseActivity {
         }
 
         void bind() {
-            Calendar c = Calendar.getInstance();
-            week.setText(WEEK[c.get(Calendar.DAY_OF_WEEK) - 1]);
-            day.setText(String.valueOf(c.get(Calendar.DAY_OF_MONTH)));
-            // v27.18: 标题去掉「· 飙升榜」后缀 —— 榜单名对用户没意义, 还让标题显得啰嗦
+            // v27.30: 去掉左侧「周三 / 4」日期块, 标题与说明左对齐即可
             title.setText("每日推荐");
             desc.setText(dailySongs.isEmpty() ? "每天更新" : "每天更新 · " + dailySongs.size() + " 首");
             ImageView[] thumbs = {thumb1, thumb2, thumb3};

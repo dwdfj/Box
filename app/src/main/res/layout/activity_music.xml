@@ -147,7 +147,8 @@
             android:singleLine="true"
             android:text="正在加载…"
             android:textColor="@color/music_sub"
-            android:textSize="@dimen/ts_24" />
+            android:textSize="@dimen/ts_24"
+            android:visibility="gone" />
 
         <!-- 内容区: 吃满剩余高度 -->
         <androidx.recyclerview.widget.RecyclerView

@@ -419,24 +419,18 @@ public class SourceViewModel extends ViewModel {
                                 sortXml = sortJson(sortResult, raw);
                             }
                             if (sortXml != null) saveSortDisk(sourceBean.getKey(), type, raw);
-                            if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1 && sortXml.list != null && sortXml.list.videoList != null && sortXml.list.videoList.size() > 0) {
-                                ArrayList<String> ids = new ArrayList<>();
-                                for (Movie.Video vod : sortXml.list.videoList) {
-                                    ids.add(vod.id);
-                                }
-                                final AbsSortXml finalSortXml = sortXml;
-                                getHomeRecList(sourceBean, ids, new HomeRecCallback() {
-                                    @Override
-                                    public void done(List<Movie.Video> videos) {
-                                        finalSortXml.videoList = videos;
-                                        sortResult.postValue(finalSortXml);
-                                        sortCache.put(sourceKey, finalSortXml);
-                                    }
-                                });
-                            } else {
-                                sortResult.postValue(sortXml);
-                                sortCache.put(sourceKey, sortXml);
+                            // v27.30: 站点推荐模式下, 分类接口返回的 list 本身已带齐 片名/封面/备注,
+                            // 原先还要按 ids 再打一次 ac=detail 补简介/演职员 —— 首页卡片根本不用这些字段,
+                            // 却要多等一整轮网络往返(慢站 1~3 秒), 正是"能显示作品但加载很慢"的主因。
+                            // 现在直接拿 list 当推荐, detail 交给详情页按需拉。
+                            if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1
+                                    && sortXml.list != null && sortXml.list.videoList != null
+                                    && !sortXml.list.videoList.isEmpty()) {
+                                sortXml.videoList = new ArrayList<>(sortXml.list.videoList);
+                                saveHomeRecVideos(sourceBean.getKey(), sortXml.videoList);
                             }
+                            sortResult.postValue(sortXml);
+                            sortCache.put(sourceKey, sortXml);
                         }
 
                         @Override
