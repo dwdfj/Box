@@ -432,7 +432,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 String cover = optString(o, "cover");
                 if (TextUtils.isEmpty(cover)) cover = optString(o, "cover_url");
                 if (!TextUtils.isEmpty(cover)) {
-                    vod.pic = cover + "@User-Agent=" + UA.random() + "@Referer=https://www.douban.com/";
+                    vod.pic = doubanHd(cover, "m") + "@User-Agent=" + UA.random() + "@Referer=https://www.douban.com/";
                 }
                 result.add(vod);
             }
@@ -473,7 +473,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             public void run() {
                 if (ivBanner == null || tvBannerTitle == null) return;
                 if (!TextUtils.isEmpty(vod.pic)) {
-                    ImgUtil.load(vod.pic, ivBanner, 14);
+                    ImgUtil.loadHq(vod.pic, ivBanner, bannerRadius());
                 } else {
                     ivBanner.setImageResource(R.drawable.img_loading_placeholder);
                 }
@@ -568,7 +568,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         }
         // 剧照
         if (!TextUtils.isEmpty(vod.pic)) {
-            ImgUtil.load(vod.pic, ivBanner, 14);
+            ImgUtil.loadHq(vod.pic, ivBanner, bannerRadius());
         } else {
             ivBanner.setImageResource(R.drawable.img_loading_placeholder);
         }
@@ -913,7 +913,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 Movie.Video vod = new Movie.Video();
                 vod.name = obj.get("title").getAsString();
                 vod.note = obj.get("rate").getAsString();
-                vod.pic = obj.get("cover").getAsString() + "@User-Agent=" + UA.random() + "@Referer=https://www.douban.com/";
+                vod.pic = doubanHd(obj.get("cover").getAsString(), "l")
+                        + "@User-Agent=" + UA.random() + "@Referer=https://www.douban.com/";
                 result.add(vod);
             }
         } catch (Throwable th) {
@@ -923,6 +924,29 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     }
 
     // ===== 工具 =====
+
+    /**
+     * 小贾影视仓 v27.27: 豆瓣封面换成更高清的尺寸。
+     * 接口默认给的是 s_ratio_poster(实测 270×359), 铺到首页横排(≈270px 宽)刚好,
+     * 但铺到大图 Banner(≈1080px 宽)就是 4 倍放大 —— 用户看到的就是"横屏推荐图糊"。
+     * 同一张图豆瓣有 m(540×719) / l(1080×1439) 两档, 换掉路径段即可, 无需额外请求。
+     */
+    private static String doubanHd(String url, String size) {
+        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(size)) return url;
+        if (url.contains("/s_ratio_poster/")) {
+            return url.replace("/s_ratio_poster/", "/" + size + "_ratio_poster/");
+        }
+        return url;
+    }
+
+    /** Banner 圆角(px) —— 与 shape_home_banner 一致, 图片自身也要切出圆弧。 */
+    private int bannerRadius() {
+        try {
+            return getResources().getDimensionPixelSize(R.dimen.vs_44);
+        } catch (Throwable t) {
+            return 36;
+        }
+    }
 
     private boolean isPureNumber(String s) {
         if (s == null || s.isEmpty()) return false;

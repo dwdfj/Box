@@ -78,9 +78,23 @@ public class UserHomeRowAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHo
 
         ImageView ivThumb = helper.getView(R.id.ivThumb);
         if (!TextUtils.isEmpty(item.pic)) {
-            ImgUtil.load(item.pic, ivThumb, 14);
+            // v27.27: 圆角从写死的 14px(≈5dp, 看着是直角) 提到 vs_30, 与卡片底的大圆角对齐
+            ImgUtil.load(item.pic, ivThumb, radiusPx(helper));
         } else {
             ivThumb.setImageResource(R.drawable.img_loading_placeholder);
         }
+    }
+
+    private int radiusCache = -1;
+
+    private int radiusPx(BaseViewHolder helper) {
+        if (radiusCache < 0) {
+            try {
+                radiusCache = helper.itemView.getResources().getDimensionPixelSize(R.dimen.vs_30);
+            } catch (Throwable t) {
+                radiusCache = 24;
+            }
+        }
+        return radiusCache;
     }
 }

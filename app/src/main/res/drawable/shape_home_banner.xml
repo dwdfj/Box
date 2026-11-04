@@ -5,7 +5,7 @@
      底色近乎透明(海报图铺满后只在 padding 1 单位的一圈露出), 视觉更"卡片"、更透气。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <corners android:radius="@dimen/vs_26" />
+    <corners android:radius="@dimen/vs_44" />
     <solid android:color="#14000000" />
     <stroke android:width="1.5mm" android:color="#33FFFFFF" />
 </shape>

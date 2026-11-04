@@ -120,14 +120,27 @@ public class ImgUtil {
         load(url, view, roundingRadius,0,0);
     }
 
+    /**
+     * 小贾影视仓 v27.27: 高质量加载 —— 用于首页大图 Banner。
+     * 默认 load() 走 PREFER_RGB_565(16bit), 大图上会出现色带发灰; 这里改 8888 并关掉降采样。
+     */
+    public static void loadHq(String url, ImageView view, int roundingRadius) {
+        load(url, view, roundingRadius, 0, 0, true);
+    }
+
     public static void load(String url, ImageView view, int roundingRadius, int newWidth, int newHeight) {
+        load(url, view, roundingRadius, newWidth, newHeight, false);
+    }
+
+    public static void load(String url, ImageView view, int roundingRadius, int newWidth, int newHeight,
+                            boolean highQuality) {
         // 小贾影视仓: 删除 setScaleType(CENTER) 防止搜索封面在加载前后缩放跳变("闪烁跳动"根因)
         if (TextUtils.isEmpty(url)) {
             view.setImageResource(R.drawable.img_loading_placeholder);
         } else {
             if (roundingRadius == 0) roundingRadius = 1;
             RequestOptions requestOptions = new RequestOptions()
-                .format(DecodeFormat.PREFER_RGB_565)
+                .format(highQuality ? DecodeFormat.PREFER_ARGB_8888 : DecodeFormat.PREFER_RGB_565)
                 .diskCacheStrategy(getDiskCacheStrategy(4))
                 .dontAnimate()
                 .transform(new CenterCrop(), new RoundedCorners(roundingRadius));

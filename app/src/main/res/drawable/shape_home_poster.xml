@@ -8,14 +8,14 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="@dimen/vs_20" />
+            <corners android:radius="@dimen/vs_30" />
             <stroke android:width="3mm" android:color="#8B6BFF" />
             <solid android:color="#4D8B6BFF" />
         </shape>
     </item>
     <item android:state_focused="false">
         <shape>
-            <corners android:radius="@dimen/vs_20" />
+            <corners android:radius="@dimen/vs_30" />
             <solid android:color="#1FFFFFFF" />
             <stroke android:width="1mm" android:color="#33FFFFFF" />
         </shape>
