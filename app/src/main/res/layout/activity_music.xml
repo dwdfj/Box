@@ -168,43 +168,43 @@
         android:layout_gravity="bottom"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingLeft="@dimen/vs_4"
-        android:paddingRight="@dimen/vs_4"
+        android:paddingLeft="@dimen/vs_0"
+        android:paddingRight="@dimen/vs_0"
         android:paddingBottom="@dimen/vs_20">
 
-        <!-- 悬浮 dock: v27.20 继续通栏(左右只留 vs_4) + 高度再加到 vs_144 -->
+        <!-- 悬浮 dock: v27.21 彻底通栏(左右 0) + 高度 vs_160 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/vs_20"
             android:background="@drawable/bg_music_pill"
             android:orientation="horizontal"
-            android:padding="@dimen/vs_12">
+            android:padding="@dimen/vs_10">
 
             <TextView
                 android:id="@+id/musicTabHome"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_144"
+                android:layout_height="@dimen/vs_160"
                 android:layout_weight="1"
                 android:background="@drawable/bg_music_accent_btn"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="⌂ 首页"
                 android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_40"
+                android:textSize="@dimen/ts_44"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/musicTabMine"
                 android:layout_width="0dp"
-                android:layout_height="@dimen/vs_144"
+                android:layout_height="@dimen/vs_160"
                 android:layout_marginLeft="@dimen/vs_10"
                 android:layout_weight="1"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="♫ 我的"
                 android:textColor="@color/music_sub"
-                android:textSize="@dimen/ts_40" />
+                android:textSize="@dimen/ts_44" />
         </LinearLayout>
 
         <!-- 灵动条(Mini Player) -->

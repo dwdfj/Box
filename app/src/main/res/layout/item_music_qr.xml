@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.21: 「我的」页底部 —— 小程序码卡片 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_music_player_bar"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="@dimen/vs_28">
+
+    <ImageView
+        android:layout_width="@dimen/vs_220"
+        android:layout_height="@dimen/vs_220"
+        android:background="@drawable/bg_music_thumb"
+        android:contentDescription="小程序码"
+        android:padding="@dimen/vs_10"
+        android:scaleType="fitCenter"
+        android:src="@drawable/music_qr" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_28"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="微信扫一扫"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_40"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_12"
+            android:text="用小程序听歌 · 手机电脑同步"
+            android:textColor="@color/music_sub"
+            android:textSize="@dimen/ts_28" />
+    </LinearLayout>
+</LinearLayout>

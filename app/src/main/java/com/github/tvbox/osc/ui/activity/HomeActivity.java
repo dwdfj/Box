@@ -284,6 +284,39 @@ public class HomeActivity extends BaseActivity {
                 return !((GridFragment) baseLazyFragment).isLoad();
             }
         });
+        // 小贾影视仓 v27.21: 顶栏左上圆形头像 = 线路切换入口(原「线路名胶囊」缩进圆形头像)
+        View homeAvatar = findViewById(R.id.homeAvatar);
+        if (homeAvatar != null) {
+            homeAvatar.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                showSiteSwitch();
+            });
+        }
+        // v27.21: 底部 dock —— 点播回到首个分类 / 直播 / 设置
+        View dockVideo = findViewById(R.id.dockVideo);
+        if (dockVideo != null) {
+            dockVideo.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                if (mGridView != null && sortAdapter != null && sortAdapter.getItemCount() > 0) {
+                    mGridView.setSelection(0);
+                }
+                if (mViewPager != null) mViewPager.setCurrentItem(0, false);
+            });
+        }
+        View dockLive = findViewById(R.id.dockLive);
+        if (dockLive != null) {
+            dockLive.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                jumpActivity(LivePlayActivity.class);
+            });
+        }
+        View dockSetting = findViewById(R.id.dockSetting);
+        if (dockSetting != null) {
+            dockSetting.setOnClickListener(v -> {
+                FastClickCheckUtil.check(v);
+                jumpActivity(SettingActivity.class);
+            });
+        }
         // 小贾影视仓 v15.4: 单击标题 = 打开统一「信号源」面板(原"清缓存"语义移入面板操作项)
         tvName.setOnClickListener(new View.OnClickListener() {
             @Override

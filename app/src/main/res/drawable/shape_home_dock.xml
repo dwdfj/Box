@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.21: 首页底部 dock 底(墨黑玻璃 + 顶部细高光) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#D20E1017" />
+    <corners android:radius="@dimen/vs_44" />
+    <stroke
+        android:width="1mm"
+        android:color="#26FFFFFF" />
+</shape>

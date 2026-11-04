@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.21: 首页左上圆形头像底(极光紫细描边 + 半透明白) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#26FFFFFF" />
+    <stroke
+        android:width="1.5mm"
+        android:color="#66FFFFFF" />
+</shape>

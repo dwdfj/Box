@@ -41,6 +41,7 @@ public class MusicActivity extends BaseActivity {
     private static final int TYPE_DAILY_ROW = 2;
     private static final int TYPE_RECENT_ROW = 3;
     private static final int TYPE_SONG_ROW = 4; // 我的 tab: 竖版最近播放列表
+    private static final int TYPE_QR_ROW = 5;   // 我的 tab: 底部小程序码卡片
 
     private static final String[] WEEK = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
 
@@ -271,6 +272,10 @@ public class MusicActivity extends BaseActivity {
                 r.songs = rec;
                 rows.add(r);
             }
+            // v27.21: 小程序码常驻「我的」页底部, 空列表时也能看到
+            Row qr = new Row();
+            qr.type = TYPE_QR_ROW;
+            rows.add(qr);
         } else {
             // v27.16: 首页精简 —— 每日推荐 → 最近播放 → 精品歌单。
             // 原来的「飙升榜大色块 banner」+「官方榜单」整块删掉:
@@ -363,6 +368,8 @@ public class MusicActivity extends BaseActivity {
                     return new RecentRowHolder(inf.inflate(R.layout.item_music_row, parent, false));
                 case TYPE_SONG_ROW:
                     return new SongListHolder(inf.inflate(R.layout.layout_music_songlist, parent, false));
+                case TYPE_QR_ROW:
+                    return new QrHolder(inf.inflate(R.layout.item_music_qr, parent, false));
                 default:
                     return new SectionRowHolder(inf.inflate(R.layout.item_music_row, parent, false));
             }
@@ -375,12 +382,21 @@ public class MusicActivity extends BaseActivity {
             else if (vh instanceof DailyHolder) ((DailyHolder) vh).bind();
             else if (vh instanceof RecentRowHolder) ((RecentRowHolder) vh).bind(r);
             else if (vh instanceof SongListHolder) ((SongListHolder) vh).bind(r);
+            else if (vh instanceof QrHolder) { /* 静态卡片, 无需绑定 */ }
             else ((SectionRowHolder) vh).bind(r);
         }
 
         @Override
         public int getItemCount() {
             return rows.size();
+        }
+    }
+
+    /** v27.21: 「我的」页底部的小程序码卡片, 纯静态。 */
+    class QrHolder extends RecyclerView.ViewHolder {
+        QrHolder(View v) {
+            super(v);
+            FocusScale.attach(v, 1.02f);
         }
     }
 

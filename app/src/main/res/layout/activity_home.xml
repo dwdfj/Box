@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23 —— 竖屏版首页(v23 起 App 锁竖屏, 见 AndroidManifest screenOrientation=sensorPortrait)。
-     自上而下: 顶栏胶囊(标题=信号源面板 / 搜索 / 设置) → 通栏搜索框 → 分类胶囊 → ViewPager(推荐页 + 各分类页)。
-     主题是全屏(windowFullscreen=true, 无通知栏), 所以顶栏只留一点呼吸边距, 不需要避让状态栏。
-
-     ⚠️ AutoSize 基准(勿改): App.java 里已确保 screenWidth = 屏幕**短边**。竖屏下系数 = 短边px / 1280
-     (Mate70: 1224/1280 ≈ 0.956), 所以这里的 `vs_N` 就是"1280 宽设计稿单位", 占屏宽比例恒定:
-     vs_40 = 3.1% 屏宽, vs_140 = 10.9% 屏宽(≈手机 56dp 标准顶栏), vs_64 ≈ 24dp 图标。
-     ⚠️ 高度预算: 首页推荐区是 weight=1 弹性布局, 固定部分(顶栏+搜索框+分类)合计 ≈ 436 单位,
-     屏高约 2824 单位(2700px/0.956) → 剩余 ≈ 2388 给内容区。新增顶部控件前务必先算这笔账。 -->
+<!-- 小贾影视仓 v27.21: 影视首页按参考图重排 ——
+     顶栏: 左上圆形头像(= 线路切换入口) + 居中「点播」标 + 右上搜索/音乐;
+     底部: 悬浮 dock(点播 / 直播 / 设置), 与「我的」音乐页一致的导航形态;
+     原「通栏搜索框」隐藏(tvFind 已能直达搜索页), 把高度让给内容区。 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -16,8 +11,8 @@
     <LinearLayout
         android:id="@+id/topLayout"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_140"
-        android:layout_marginTop="@dimen/vs_30"
+        android:layout_height="@dimen/vs_150"
+        android:layout_marginTop="@dimen/vs_40"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingLeft="@dimen/vs_40"
@@ -26,46 +21,41 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <View
-            android:layout_width="@dimen/vs_5"
-            android:layout_height="match_parent"
-            android:layout_marginTop="@dimen/vs_34"
-            android:layout_marginEnd="@dimen/vs_16"
-            android:layout_marginRight="@dimen/vs_16"
-            android:layout_marginBottom="@dimen/vs_34"
-            android:background="?attr/color_theme" />
-
-        <!-- 小贾影视仓 v23.6: 标题胶囊「定宽」——
-             之前 wrap_content 会随「线路名」长短伸缩, 来回切信号源时胶囊忽大忽小;
-             v23.5 那版用 min/max 夹, 但 620~760 之间仍随文本漂移, 而且 vs_620 根本没定义(编译不过)。
-             现在直接写死宽度: 无论线路名多长多短, 胶囊尺寸恒定, 超长尾部省略。
-
-             小贾影视仓 v27.1: 改回「短则贴字、长则封顶」——
-             胶囊里已经不再带 App 名, 只剩线路/py 名, 定宽 700 会留出一大块空紫底很难看。
-             用 minWidth(340) / maxWidth(700) 夹住, 既贴字又不会因为超长线路名把右边三个图标挤掉。 -->
-        <TextView
-            android:id="@+id/tvName"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:maxWidth="@dimen/vs_700"
-            android:minWidth="@dimen/vs_340"
-            android:background="@drawable/shape_home_title"
+        <!-- 左上圆形头像: 点击 = 线路切换(showSiteSwitch) -->
+        <FrameLayout
+            android:id="@+id/homeAvatar"
+            android:layout_width="@dimen/vs_110"
+            android:layout_height="@dimen/vs_110"
+            android:background="@drawable/shape_home_avatar"
             android:clickable="true"
-            android:ellipsize="end"
             android:focusable="true"
-            android:focusableInTouchMode="false"
-            android:gravity="left|center_vertical"
-            android:nextFocusDown="@id/homeSearchBar"
             android:nextFocusRight="@id/tvFind"
-            android:paddingLeft="@dimen/vs_30"
-            android:paddingRight="@dimen/vs_30"
-            android:singleLine="true"
-            android:text="@string/app_name"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_40"
+            android:nextFocusDown="@id/mGridViewCategory">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="线路切换"
+                android:focusable="false"
+                android:padding="@dimen/vs_28"
+                android:src="@drawable/ic_home_tv"
+                android:tint="@color/color_FFFFFF" />
+        </FrameLayout>
+
+        <View
+            android:layout_width="@dimen/vs_0"
+            android:layout_height="@dimen/vs_1"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.12"
+            android:text="点播"
+            android:textColor="@color/color_FFFFFF"
+            android:textSize="@dimen/ts_44"
             android:textStyle="bold" />
 
-        <!-- 撑开用: 把右侧「搜索 / 直播 / 设置」图标组顶到最右端 -->
         <View
             android:layout_width="@dimen/vs_0"
             android:layout_height="@dimen/vs_1"
@@ -75,66 +65,38 @@
             android:id="@+id/tvFind"
             android:layout_width="@dimen/vs_110"
             android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
+            android:nextFocusLeft="@id/homeAvatar"
             android:nextFocusRight="@id/tvMusic"
+            android:nextFocusDown="@id/mGridViewCategory"
             android:padding="@dimen/vs_22"
             android:src="@drawable/hm_search" />
 
-        <!-- 直播: 小贾影视仓 v23 —— 从首页底部 dock 上移至顶栏, 紧挨设置(用户要求)
-             小贾影视仓 v26: 80 -> 110(用户反馈"直播和设置按钮太小"), 图标内边距同步 18 -> 22,
-             保证图标本体也等比放大, 不是只放大点击区 -->
-        <ImageView
-            android:id="@+id/tvLive"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
-            android:background="@drawable/shape_top_icon_btn"
-            android:clickable="true"
-            android:focusable="true"
-            android:nextFocusLeft="@id/tvFind"
-            android:nextFocusRight="@id/tvMusic"
-            android:padding="@dimen/vs_22"
-            android:src="@drawable/hm_live" />
-
-        <!-- 音乐: 小贾影视仓 B1 —— 拉起喵音乐(com.miaomusic.app), 未安装时提示 -->
         <ImageView
             android:id="@+id/tvMusic"
             android:layout_width="@dimen/vs_110"
             android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
+            android:layout_marginStart="@dimen/vs_20"
+            android:layout_marginLeft="@dimen/vs_20"
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
-            android:nextFocusLeft="@id/tvLive"
-            android:nextFocusRight="@id/tvMenu"
-            android:nextFocusDown="@id/homeSearchBar"
+            android:nextFocusLeft="@id/tvFind"
+            android:nextFocusDown="@id/mGridViewCategory"
             android:padding="@dimen/vs_22"
             android:src="@drawable/hm_music" />
 
-        <ImageView
-            android:id="@+id/tvMenu"
-            android:layout_width="@dimen/vs_110"
-            android:layout_height="@dimen/vs_110"
-            android:layout_marginStart="@dimen/vs_24"
-            android:layout_marginLeft="@dimen/vs_24"
-            android:background="@drawable/shape_top_icon_btn"
-            android:clickable="true"
-            android:focusable="true"
-            android:nextFocusLeft="@id/tvMusic"
-            android:nextFocusDown="@id/homeSearchBar"
-            android:padding="@dimen/vs_22"
-            android:src="@drawable/hm_settings" />
+        <!-- 逻辑残留: 代码里仍会往 tvName 写线路名并做闪烁动画, 这里不占位 -->
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="@dimen/vs_0"
+            android:layout_height="@dimen/vs_0"
+            android:visibility="gone" />
 
     </LinearLayout>
 
-    <!-- 搜索框放在 contentLayout **内部**当第一行: 首页推荐区是 weight=1 弹性布局,
-         放在外面当兄弟节点会整体压缩内容区高度(v20 踩过这个坑, 见 MEMORY 高度预算铁律)。 -->
     <LinearLayout
         android:id="@+id/contentLayout"
         android:layout_width="@dimen/vs_0"
@@ -142,55 +104,24 @@
         android:clipChildren="false"
         android:clipToPadding="false"
         android:orientation="vertical"
+        android:paddingBottom="@dimen/vs_200"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/topLayout">
 
-        <!-- 通栏搜索框(独立一条, 宽度吃满, 点击直达搜索页) -->
         <LinearLayout
             android:id="@+id/homeSearchBar"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/vs_128"
-            android:layout_marginLeft="@dimen/vs_40"
-            android:layout_marginStart="@dimen/vs_40"
-            android:layout_marginTop="@dimen/vs_16"
-            android:layout_marginRight="@dimen/vs_40"
-            android:layout_marginEnd="@dimen/vs_40"
-            android:layout_marginBottom="@dimen/vs_16"
-            android:background="@drawable/shape_home_search_box"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:nextFocusDown="@id/mGridViewCategory"
-            android:nextFocusUp="@id/tvName"
-            android:orientation="horizontal"
-            android:paddingLeft="@dimen/vs_36"
-            android:paddingRight="@dimen/vs_36">
-
-            <ImageView
-                android:layout_width="@dimen/vs_36"
-                android:layout_height="@dimen/vs_36"
-                android:alpha="0.75"
-                android:contentDescription="@string/hm_search"
-                android:focusable="false"
-                app:srcCompat="@drawable/hm_search" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_18"
-                android:layout_marginStart="@dimen/vs_18"
-                android:focusable="false"
-                android:text="@string/hm_search_box_hint"
-                android:textColor="@color/color_FFFFFF_60"
-                android:textSize="@dimen/ts_30" />
-        </LinearLayout>
+            android:layout_height="0mm"
+            android:visibility="gone"
+            android:orientation="horizontal" />
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridViewCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_20"
             android:layout_marginBottom="@dimen/vs_10"
             android:clipChildren="false"
             android:clipToPadding="false"
@@ -203,5 +134,73 @@
             android:id="@+id/mViewPager"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+    </LinearLayout>
+
+    <!-- 底部 dock: 点播 / 直播 / 设置 -->
+    <LinearLayout
+        android:id="@+id/homeDock"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/vs_160"
+        android:layout_marginLeft="@dimen/vs_20"
+        android:layout_marginRight="@dimen/vs_20"
+        android:layout_marginBottom="@dimen/vs_24"
+        android:background="@drawable/shape_home_dock"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent">
+
+        <LinearLayout
+            android:id="@+id/dockVideo"
+            android:layout_width="@dimen/vs_0"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="@dimen/vs_64"
+                android:layout_height="@dimen/vs_64"
+                android:contentDescription="点播"
+                android:src="@drawable/ic_home_tv"
+                android:tint="@color/color_aurora_accent_hi" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/dockLive"
+            android:layout_width="@dimen/vs_0"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/tvLive"
+                android:layout_width="@dimen/vs_64"
+                android:layout_height="@dimen/vs_64"
+                android:background="@null"
+                android:contentDescription="直播"
+                android:src="@drawable/hm_live"
+                android:tint="@color/color_FFFFFF_60" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/dockSetting"
+            android:layout_width="@dimen/vs_0"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/tvMenu"
+                android:layout_width="@dimen/vs_64"
+                android:layout_height="@dimen/vs_64"
+                android:background="@null"
+                android:contentDescription="设置"
+                android:src="@drawable/hm_settings"
+                android:tint="@color/color_FFFFFF_60" />
+        </LinearLayout>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
