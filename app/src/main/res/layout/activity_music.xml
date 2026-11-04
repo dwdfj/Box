@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  小贾影视仓 v27.20: 顶部再下降、搜索框再宽、dock 通栏 ——
-  1) 内容顶部呼吸区 vs_104 → vs_160(叠加状态栏高度), 顶栏整体下移;
-  2) 内容左右 vs_22 → vs_14, 搜索框高度 vs_168 → vs_184, 右侧圆键 vs_132;
-  3) dock 外层左右 vs_10 → vs_4(基本贴边), 高度 vs_128 → vs_144, 字号 ts_40;
-  4) 灵动条跟着底栏一起通栏, 封面圈/播放键 vs_170, 下一曲 vs_120;
-  5) 返回键 = 玻璃圆角方块 + 矢量 chevron(vs_104);
-  6) 大标题是每天一换的 3 字短句(见 MusicActivity.dailyGreet)。
+  小贾影视仓 v27.22: 底栏结构重排 ——
+  1) 灵动条(播放条)移到 dock 上方(原来是 dock 在上面), 视觉顺序 = 内容 → 灵动条 → dock;
+  2) dock 彻底通栏(左右 0 留白) + 更高(vs_184) + 小圆角(bg_music_dock), 不再是"小胶囊";
+  3) dock 距屏幕底部留白 vs_32(再叠加导航栏高度, 见 MusicActivity.applySysBarPadding);
+  4) 灵动条整体放大: 封面圈/播放键 vs_190, 下一曲 vs_132, 歌名 ts_44, 副信息 ts_34;
+  5) 内容底部留白 vs_480, 保证最后一行不被弹层盖住。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/musicRoot"
@@ -22,7 +21,7 @@
         android:paddingLeft="@dimen/vs_14"
         android:paddingTop="@dimen/vs_160"
         android:paddingRight="@dimen/vs_14"
-        android:paddingBottom="@dimen/vs_280">
+        android:paddingBottom="@dimen/vs_480">
 
         <!-- 顶栏: 返回 + 问候 + 线路胶囊 -->
         <LinearLayout
@@ -160,7 +159,7 @@
             android:paddingBottom="@dimen/vs_20" />
     </LinearLayout>
 
-    <!-- 底部悬浮区: dock(首页/我的) + 灵动条 -->
+    <!-- 底部悬浮区: v27.22 顺序对调 —— 灵动条在上, dock 在下; dock 距底部留 vs_32 -->
     <LinearLayout
         android:id="@+id/musicBottomArea"
         android:layout_width="match_parent"
@@ -170,61 +169,27 @@
         android:orientation="vertical"
         android:paddingLeft="@dimen/vs_0"
         android:paddingRight="@dimen/vs_0"
-        android:paddingBottom="@dimen/vs_20">
-
-        <!-- 悬浮 dock: v27.21 彻底通栏(左右 0) + 高度 vs_160 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/vs_20"
-            android:background="@drawable/bg_music_pill"
-            android:orientation="horizontal"
-            android:padding="@dimen/vs_10">
-
-            <TextView
-                android:id="@+id/musicTabHome"
-                android:layout_width="0dp"
-                android:layout_height="@dimen/vs_160"
-                android:layout_weight="1"
-                android:background="@drawable/bg_music_accent_btn"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="⌂ 首页"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_44"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/musicTabMine"
-                android:layout_width="0dp"
-                android:layout_height="@dimen/vs_160"
-                android:layout_marginLeft="@dimen/vs_10"
-                android:layout_weight="1"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="♫ 我的"
-                android:textColor="@color/music_sub"
-                android:textSize="@dimen/ts_44" />
-        </LinearLayout>
+        android:paddingBottom="@dimen/vs_32">
 
         <!-- 灵动条(Mini Player) -->
         <LinearLayout
             android:id="@+id/musicPlayerBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/vs_16"
             android:background="@drawable/bg_music_player_bar"
             android:descendantFocusability="afterDescendants"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingLeft="@dimen/vs_28"
-            android:paddingTop="@dimen/vs_24"
-            android:paddingRight="@dimen/vs_16"
-            android:paddingBottom="@dimen/vs_24"
+            android:paddingLeft="@dimen/vs_32"
+            android:paddingTop="@dimen/vs_26"
+            android:paddingRight="@dimen/vs_18"
+            android:paddingBottom="@dimen/vs_26"
             android:visibility="gone">
 
             <FrameLayout
-                android:layout_width="@dimen/vs_170"
-                android:layout_height="@dimen/vs_170">
+                android:layout_width="@dimen/vs_190"
+                android:layout_height="@dimen/vs_190">
 
                 <com.github.tvbox.osc.music.CoverRingView
                     android:id="@+id/musicNowRing"
@@ -233,8 +198,8 @@
 
                 <ImageView
                     android:id="@+id/musicNowCover"
-                    android:layout_width="@dimen/vs_126"
-                    android:layout_height="@dimen/vs_126"
+                    android:layout_width="@dimen/vs_142"
+                    android:layout_height="@dimen/vs_142"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_music_circle"
                     android:scaleType="centerCrop" />
@@ -243,7 +208,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/vs_26"
+                android:layout_marginLeft="@dimen/vs_28"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -254,7 +219,7 @@
                     android:ellipsize="end"
                     android:singleLine="true"
                     android:textColor="@color/color_FFFFFF"
-                    android:textSize="@dimen/ts_40"
+                    android:textSize="@dimen/ts_44"
                     android:textStyle="bold" />
 
                 <TextView
@@ -265,19 +230,19 @@
                     android:ellipsize="end"
                     android:singleLine="true"
                     android:textColor="@color/music_sub"
-                    android:textSize="@dimen/ts_32" />
+                    android:textSize="@dimen/ts_34" />
             </LinearLayout>
 
             <com.github.tvbox.osc.music.BlobPlayButton
                 android:id="@+id/musicBlobPlay"
-                android:layout_width="@dimen/vs_170"
-                android:layout_height="@dimen/vs_170" />
+                android:layout_width="@dimen/vs_190"
+                android:layout_height="@dimen/vs_190" />
 
             <!-- v27.16: 下一曲换成独立圆形按钮(原来是一个裸 ⏭ 字符, 太单薄) -->
             <TextView
                 android:id="@+id/musicNextBtn"
-                android:layout_width="@dimen/vs_120"
-                android:layout_height="@dimen/vs_120"
+                android:layout_width="@dimen/vs_132"
+                android:layout_height="@dimen/vs_132"
                 android:layout_marginLeft="@dimen/vs_14"
                 android:background="@drawable/bg_music_circle"
                 android:focusable="true"
@@ -285,6 +250,40 @@
                 android:text="⏭"
                 android:textColor="@color/color_FFFFFF"
                 android:textSize="@dimen/ts_44" />
+        </LinearLayout>
+
+        <!-- 悬浮 dock: v27.22 通栏 + 高度 vs_184 + 小圆角, 视觉上就是"一条底栏" -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_music_dock"
+            android:orientation="horizontal"
+            android:padding="@dimen/vs_8">
+
+            <TextView
+                android:id="@+id/musicTabHome"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_184"
+                android:layout_weight="1"
+                android:background="@drawable/bg_music_accent_btn"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="⌂ 首页"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_50"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/musicTabMine"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/vs_184"
+                android:layout_marginLeft="@dimen/vs_8"
+                android:layout_weight="1"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="♫ 我的"
+                android:textColor="@color/music_sub"
+                android:textSize="@dimen/ts_50" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

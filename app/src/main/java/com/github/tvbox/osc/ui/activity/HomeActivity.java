@@ -1548,6 +1548,25 @@ public class HomeActivity extends BaseActivity {
     // 小贾影视仓 v15.4: 统一「信号源」面板 —— 左列线路(配置级) / 右列站点(SourceBean)。
     // 站点点击走原地切站(switchHomeSourceInPlace, 不重启 Activity); 线路点击=持久化+整页重载。
     // 入口: tvName 胶囊单击 / MENU 键 / 「我的」页点击; 长按 tvName 仍为强制刷新(reloadHomeFresh)。
+    // 小贾影视仓 v27.22: 首页推荐区「更多」→ 按分类名切到对应 tab。
+    // 找不到同名分类就原地不动(不弹提示, 弹了也是无效反馈)。
+    public void switchSortByName(String keyword) {
+        if (keyword == null || sortAdapter == null || mGridView == null) return;
+        int count = sortAdapter.getItemCount();
+        for (int i = 0; i < count; i++) {
+            MovieSort.SortData d = sortAdapter.getItem(i);
+            String name = (d == null || d.name == null) ? "" : d.name;
+            if (name.contains(keyword)) {
+                mGridView.setSelection(i);
+                sortFocused = i;
+                currentSelected = i;
+                if (mViewPager != null) mViewPager.setCurrentItem(i, false);
+                changeTop(i != 0);
+                return;
+            }
+        }
+    }
+
     void showSiteSwitch() {
         java.util.LinkedHashMap<String, String> lineMap = buildLineCandidates();
         if (lineMap.isEmpty()) {

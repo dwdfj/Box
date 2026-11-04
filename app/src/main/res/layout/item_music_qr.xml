@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.21: 「我的」页底部 —— 小程序码卡片 -->
+<!-- 小贾影视仓 v27.22: 「我的」页底部 —— 公众号/小程序二维码(只做关注引导, 不带任何"听歌"话术) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -12,7 +12,7 @@
         android:layout_width="@dimen/vs_220"
         android:layout_height="@dimen/vs_220"
         android:background="@drawable/bg_music_thumb"
-        android:contentDescription="小程序码"
+        android:contentDescription="二维码"
         android:padding="@dimen/vs_10"
         android:scaleType="fitCenter"
         android:src="@drawable/music_qr" />
@@ -27,7 +27,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="微信扫一扫"
+            android:text="微信扫码关注"
             android:textColor="@color/color_FFFFFF"
             android:textSize="@dimen/ts_40"
             android:textStyle="bold" />
@@ -36,7 +36,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_12"
-            android:text="用小程序听歌 · 手机电脑同步"
+            android:lineSpacingExtra="@dimen/vs_6"
+            android:text="第一时间收到新版本推送\n与接口更新通知"
             android:textColor="@color/music_sub"
             android:textSize="@dimen/ts_28" />
     </LinearLayout>

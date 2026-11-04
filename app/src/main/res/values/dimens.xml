@@ -80,6 +80,8 @@
     <dimen name="vs_128">128mm</dimen>
     <dimen name="vs_130">130mm</dimen>
     <dimen name="vs_140">140mm</dimen>
+    <!-- v27.22: 灵动条封面圈 vs_190 内嵌封面 -->
+    <dimen name="vs_142">142mm</dimen>
     <dimen name="vs_150">150mm</dimen>
     <dimen name="vs_160">160mm</dimen>
     <dimen name="vs_180">180mm</dimen>
@@ -89,6 +91,8 @@
     <dimen name="vs_190">190mm</dimen>
     <dimen name="vs_200">200mm</dimen>
     <dimen name="vs_214">214mm</dimen>
+    <!-- v27.22: 影视首页横排海报卡宽 -->
+    <dimen name="vs_230">230mm</dimen>
     <dimen name="vs_225">225mm</dimen>
     <dimen name="vs_240">240mm</dimen>
     <dimen name="vs_260">260mm</dimen>

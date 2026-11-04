@@ -104,7 +104,7 @@
         android:clipChildren="false"
         android:clipToPadding="false"
         android:orientation="vertical"
-        android:paddingBottom="@dimen/vs_200"
+        android:paddingBottom="@dimen/vs_260"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
@@ -136,14 +136,14 @@
             android:layout_height="match_parent" />
     </LinearLayout>
 
-    <!-- 底部 dock: 点播 / 直播 / 设置 -->
+    <!-- 底部 dock: 点播 / 直播 / 设置 (v27.22: 左右几乎贴边 + 更高 + 距底留白) -->
     <LinearLayout
         android:id="@+id/homeDock"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_160"
-        android:layout_marginLeft="@dimen/vs_20"
-        android:layout_marginRight="@dimen/vs_20"
-        android:layout_marginBottom="@dimen/vs_24"
+        android:layout_height="@dimen/vs_184"
+        android:layout_marginLeft="@dimen/vs_6"
+        android:layout_marginRight="@dimen/vs_6"
+        android:layout_marginBottom="@dimen/vs_36"
         android:background="@drawable/shape_home_dock"
         android:gravity="center"
         android:orientation="horizontal"

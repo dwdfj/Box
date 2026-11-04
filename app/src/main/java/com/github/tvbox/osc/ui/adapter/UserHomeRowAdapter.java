@@ -58,6 +58,24 @@ public class UserHomeRowAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHo
         }
         helper.setText(R.id.tvName, item.name);
 
+        // v27.22: 首页横排卡多一个海报内左下角日期(参考图里是上映/更新日期)。
+        // 其他卡片布局没有这个 id, getView 返回 null 就跳过。
+        TextView tvDate = helper.getView(R.id.tvDate);
+        if (tvDate != null) {
+            String date = null;
+            if (item.last != null && item.last.length() >= 8 && item.last.indexOf('-') > 0) {
+                date = item.last;
+            } else if (item.year > 0) {
+                date = String.valueOf(item.year);
+            }
+            if (TextUtils.isEmpty(date)) {
+                tvDate.setVisibility(View.GONE);
+            } else {
+                tvDate.setText(date);
+                tvDate.setVisibility(View.VISIBLE);
+            }
+        }
+
         ImageView ivThumb = helper.getView(R.id.ivThumb);
         if (!TextUtils.isEmpty(item.pic)) {
             ImgUtil.load(item.pic, ivThumb, 14);

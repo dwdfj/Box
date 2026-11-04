@@ -184,7 +184,7 @@ public class MusicActivity extends BaseActivity {
         if (bottom != null) bottom.setPadding(
                 bottom.getPaddingLeft(), bottom.getPaddingTop(),
                 bottom.getPaddingRight(),
-                navH + getResources().getDimensionPixelSize(R.dimen.vs_20));
+                navH + getResources().getDimensionPixelSize(R.dimen.vs_32));
     }
 
     private void setMode(boolean mine) {

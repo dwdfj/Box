@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v23.x 竖屏首页「沉浸海报流」(方案A)。
-     结构(自上而下, 整页在 ScrollView 内一起滚动):
-       1. 根 FrameLayout 透明: 透出 BaseActivity 设在 window 上的内置壁纸; 底部叠渐变遮罩保可读。
-       2. 顶行: 数据源模式胶囊(豆瓣热播/站点推荐/播放历史) + 计数 + 操作提示。
-       3. 精选大图 Banner: 随页面上滑一起滚走(不再吸顶固定 —— v23.x 按用户反馈改为随列表滚走)。
-       4. 3 列海报网格: 整页滚动, 网格自身不独立滚动(见 UserFragment setNestedScrollingEnabled(false))。
-     底部「更多」dock 已移除(用户要求): 历史/收藏/推送/网盘走设置页与搜索页;
-     直播入口已上移至顶栏(设置按钮旁)。
-     保留 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvFeaturedBanner/ivBanner/
-     tvBannerTitle/tvBannerMeta/btnBannerCollect/tvHotGrid。 -->
+<!--
+  小贾影视仓 v27.22: 影视首页「推荐」页按参考图重做。
+
+  结构(整页在 ScrollView 内一起滚动):
+    1. 顶行: 数据源模式胶囊 + 计数(长按胶囊切 豆瓣/站点/历史);
+    2. 大图 Banner: 剧照 + 渐变 + 片名 + 评分/年份/类型 + 三行简介 + 圆点指示器,
+       每 3.5 秒自动淡入淡出轮播(见 UserFragment.startBannerTicker);
+    3. 「正在热映电影」横排(带「更多」→ 切到电影分类);
+    4. 「热门电影」横排(带「更多」→ 切到剧集分类);
+    5. 3 列海报网格: 只在「播放历史」模式显示(推荐模式下上面两排已经铺满,
+       再重复一遍同一批海报就是噪声)。
+
+  保留 id 兼容 Java: tvModeTag/tvHotCount/tvHotHint/tvFeaturedBanner/ivBanner/
+  tvBannerTitle/tvBannerMeta/btnBannerCollect/tvHotGrid。
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -24,7 +29,6 @@
         android:background="@drawable/shape_home_scrim_bottom"
         android:focusable="false" />
 
-    <!-- 整页滚动容器: Banner 与网格一起滚, 上滑时大图自然滚出屏幕 -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -38,11 +42,12 @@
             android:clipToPadding="false"
             android:focusable="false"
             android:orientation="vertical"
-            android:paddingLeft="@dimen/vs_40"
-            android:paddingRight="@dimen/vs_40"
-            android:paddingBottom="@dimen/vs_30">
+            android:paddingLeft="@dimen/vs_32"
+            android:paddingTop="@dimen/vs_16"
+            android:paddingRight="@dimen/vs_32"
+            android:paddingBottom="@dimen/vs_280">
 
-            <!-- ① 顶行: 数据源模式胶囊 + 计数 + 操作提示 -->
+            <!-- ① 顶行: 模式胶囊 + 计数 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -91,49 +96,41 @@
                     android:textSize="@dimen/ts_20" />
             </LinearLayout>
 
-            <!-- ② 精选大图 Banner —— v26.6: 按用户要求整块关闭。
-                 上轮只隐藏了封面图, 但标题行里的「播放圆钮 + 收藏文字钮」还留在屏幕上,
-                 用户看到的就是"推荐图都没了, 播放/收藏怎么还在"。现在整块 gone, 推荐直接进网格。 -->
+            <!-- ② 大图 Banner -->
             <FrameLayout
                 android:id="@+id/tvFeaturedBanner"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_14"
+                android:layout_height="@dimen/vs_520"
+                android:layout_marginTop="@dimen/vs_16"
                 android:background="@drawable/shape_home_banner"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/tvHotGrid"
-                android:padding="@dimen/vs_2"
-                android:visibility="gone">
+                android:padding="@dimen/vs_2">
 
-                <!-- v26.4: 按用户要求去掉横屏封面大图(ivBanner 保留 id 但隐藏),
-                     整块改成"文字条"—— 标题/评分/年份/类型 + 播放/收藏, 高度从 vs_760 收到内容高度,
-                     首页能直接多看到一行海报。 -->
                 <ImageView
                     android:id="@+id/ivBanner"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_760"
+                    android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/img_loading_placeholder"
-                    android:visibility="gone" />
+                    android:src="@drawable/img_loading_placeholder" />
 
-                <!-- 渐变遮罩: 原用于压暗封面图, 去图后无意义, v26.4 隐藏 -->
+                <!-- 下三分之一压暗, 保证白色文字可读 -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_460"
+                    android:layout_height="@dimen/vs_300"
                     android:layout_gravity="bottom"
                     android:background="@drawable/shape_banner_scrim"
-                    android:focusable="false"
-                    android:visibility="gone" />
+                    android:focusable="false" />
 
-                <!-- 信息区: 标题 + 元信息 + 操作钮(去图后改为顶部对齐、紧凑排布) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top"
+                    android:layout_gravity="bottom"
                     android:focusable="false"
                     android:orientation="vertical"
-                    android:padding="@dimen/vs_32">
+                    android:paddingLeft="@dimen/vs_28"
+                    android:paddingRight="@dimen/vs_28"
+                    android:paddingBottom="@dimen/vs_44">
 
                     <TextView
                         android:id="@+id/tvBannerTitle"
@@ -144,7 +141,7 @@
                         android:maxLines="1"
                         android:text=""
                         android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_40"
+                        android:textSize="@dimen/ts_44"
                         android:textStyle="bold" />
 
                     <TextView
@@ -156,76 +153,162 @@
                         android:focusable="false"
                         android:singleLine="true"
                         android:text=""
-                        android:textColor="@color/color_FFFFFF_70"
-                        android:textSize="@dimen/ts_26"
-                        android:visibility="gone" />
+                        android:textColor="@color/color_home_gold"
+                        android:textSize="@dimen/ts_26" />
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
+                    <TextView
+                        android:id="@+id/tvBannerDesc"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/vs_24"
+                        android:layout_marginTop="@dimen/vs_10"
+                        android:ellipsize="end"
                         android:focusable="false"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <!-- 圆形播放钮(视觉, 整体 Banner 可点即播) -->
-                        <FrameLayout
-                            android:layout_width="@dimen/vs_100"
-                            android:layout_height="@dimen/vs_100"
-                            android:background="@drawable/shape_play_circle"
-                            android:focusable="false"
-                            android:gravity="center">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:focusable="false"
-                                android:text="▶"
-                                android:textColor="#FF000000"
-                                android:textSize="@dimen/ts_40" />
-                        </FrameLayout>
-
-                        <!-- 收藏钮(可聚焦) -->
-                        <TextView
-                            android:id="@+id/btnBannerCollect"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginLeft="@dimen/vs_26"
-                            android:layout_marginStart="@dimen/vs_26"
-                            android:background="@drawable/btn_focus_detail"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:nextFocusDown="@id/tvHotGrid"
-                            android:nextFocusUp="@id/tvFeaturedBanner"
-                            android:paddingLeft="@dimen/vs_40"
-                            android:paddingRight="@dimen/vs_40"
-                            android:paddingTop="@dimen/vs_14"
-                            android:paddingBottom="@dimen/vs_14"
-                            android:text="@string/hm_btn_collect"
-                            android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_30" />
-                    </LinearLayout>
+                        android:lineSpacingExtra="@dimen/vs_6"
+                        android:maxLines="3"
+                        android:text=""
+                        android:textColor="@color/color_FFFFFF_70"
+                        android:textSize="@dimen/ts_24" />
                 </LinearLayout>
+
+                <!-- 圆点指示器 -->
+                <LinearLayout
+                    android:id="@+id/bannerDots"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="@dimen/vs_16"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:orientation="horizontal" />
+
+                <!-- 收藏钮: v27.22 参考图里没有, 保留 id 但常隐(收藏走详情页) -->
+                <TextView
+                    android:id="@+id/btnBannerCollect"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|right"
+                    android:layout_margin="@dimen/vs_20"
+                    android:background="@drawable/btn_focus_detail"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:paddingLeft="@dimen/vs_24"
+                    android:paddingRight="@dimen/vs_24"
+                    android:paddingTop="@dimen/vs_10"
+                    android:paddingBottom="@dimen/vs_10"
+                    android:text="@string/hm_btn_collect"
+                    android:textColor="@android:color/white"
+                    android:textSize="@dimen/ts_24"
+                    android:visibility="gone" />
             </FrameLayout>
 
-            <!-- ③ 3 列海报网格(竖屏铺满, 整页滚动, 自身不独立滚动)
-                 小贾影视仓 v24.7.1: 换 SafeTvRecyclerView —— 懒加载页布局先于 setLayoutManager 的 NPE 守卫 -->
+            <!-- ③ 正在热映电影 -->
+            <LinearLayout
+                android:id="@+id/secHotHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_32"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="@dimen/vs_8"
+                    android:layout_height="@dimen/vs_36"
+                    android:background="@color/color_aurora_accent" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="@dimen/vs_16"
+                    android:layout_weight="1"
+                    android:focusable="false"
+                    android:text="正在热映电影"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="@dimen/ts_38"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnMoreHot"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingLeft="@dimen/vs_16"
+                    android:paddingRight="@dimen/vs_8"
+                    android:text="更多"
+                    android:textColor="@color/color_aurora_warm"
+                    android:textSize="@dimen/ts_28" />
+            </LinearLayout>
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/rowHot"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_440"
+                android:layout_marginTop="@dimen/vs_14"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:tv_selectedItemIsCentered="false" />
+
+            <!-- ④ 热门电影 -->
+            <LinearLayout
+                android:id="@+id/secHot2Header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_28"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="@dimen/vs_8"
+                    android:layout_height="@dimen/vs_36"
+                    android:background="@color/color_aurora_accent" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="@dimen/vs_16"
+                    android:layout_weight="1"
+                    android:focusable="false"
+                    android:text="热门电影"
+                    android:textColor="@color/color_FFFFFF"
+                    android:textSize="@dimen/ts_38"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnMoreHot2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingLeft="@dimen/vs_16"
+                    android:paddingRight="@dimen/vs_8"
+                    android:text="更多"
+                    android:textColor="@color/color_aurora_warm"
+                    android:textSize="@dimen/ts_28" />
+            </LinearLayout>
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/rowHot2"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/vs_440"
+                android:layout_marginTop="@dimen/vs_14"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:tv_selectedItemIsCentered="false" />
+
+            <!-- ⑤ 3 列海报网格: 仅「播放历史」模式可见 -->
             <com.github.tvbox.osc.widget.SafeTvRecyclerView
                 android:id="@+id/tvHotGrid"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/vs_20"
+                android:layout_marginTop="@dimen/vs_24"
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:descendantFocusability="afterDescendants"
-                android:nextFocusUp="@id/tvFeaturedBanner"
+                android:visibility="gone"
                 app:tv_selectedItemIsCentered="false" />
-
-            <View
-                android:layout_width="@dimen/vs_0"
-                android:layout_height="@dimen/vs_20"
-                android:focusable="false" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

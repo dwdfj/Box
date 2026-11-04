@@ -77,6 +77,16 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private TextView tvBannerMeta;                        // Banner 元信息(评分·年份·类型)
     private TextView btnBannerCollect;                    // Banner 收藏钮
 
+    // v27.22: 参考图改版 —— 简介 / 圆点 / 两条横排
+    private TextView tvBannerDesc;
+    private LinearLayout bannerDots;
+    private View secHotHeader, secHot2Header;
+    private TvRecyclerView rowHot, rowHot2;
+    private UserHomeRowAdapter rowHotAdapter, rowHot2Adapter;
+    private final List<Movie.Video> bannerPool = new ArrayList<>();
+    private int bannerIndex = 0;
+    private android.os.Handler bannerHandler;
+
     private int focusPos = 0;
 
     public static UserFragment newInstance() {
@@ -154,6 +164,22 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
         btnBannerCollect.setOnFocusChangeListener(focusChangeListener);
 
+        // v27.22: 简介 + 圆点指示器
+        tvBannerDesc = findViewById(R.id.tvBannerDesc);
+        bannerDots = findViewById(R.id.bannerDots);
+
+        // v27.22: 两条横排(正在热映电影 / 热门电影) + 「更多」跳对应分类页
+        secHotHeader = findViewById(R.id.secHotHeader);
+        secHot2Header = findViewById(R.id.secHot2Header);
+        rowHot = findViewById(R.id.rowHot);
+        rowHot2 = findViewById(R.id.rowHot2);
+        setupRow(rowHot, 0);
+        setupRow(rowHot2, 1);
+        View moreHot = findViewById(R.id.btnMoreHot);
+        if (moreHot != null) moreHot.setOnClickListener(v -> switchSort("电影"));
+        View moreHot2 = findViewById(R.id.btnMoreHot2);
+        if (moreHot2 != null) moreHot2.setOnClickListener(v -> switchSort("剧"));
+
         // ---- 海报网格(小贾影视仓 v23 竖屏: 4 列 → 3 列, 卡片够大才看得清片名) ----
         tvHotListForGrid = findViewById(R.id.tvHotGrid);
         tvHotListForGrid.setHasFixedSize(false);
@@ -216,6 +242,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         homeHotVodAdapter.registerAdapterDataObserver(new androidx.recyclerview.widget.RecyclerView.AdapterDataObserver() {
             @Override
             public void onChanged() {
+                // v27.22: Banner / 两条横排 / 网格显隐都跟着数据走
+                refreshSections();
                 if (homeHotVodAdapter == null || homeHotVodAdapter.getData().isEmpty()) return;
                 tvHotListForGrid.post(new Runnable() {
                     @Override
@@ -232,6 +260,176 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
 
         initHomeHotVod(homeHotVodAdapter);
+    }
+
+    // ===== v27.22: 横排 + Banner 轮播 =====
+
+    /** 建一条横排: 横向布局管理器 + 竖版海报卡 + 点击进详情 / 焦点放大 */
+    private void setupRow(TvRecyclerView rv, final int which) {
+        if (rv == null) return;
+        rv.setHasFixedSize(false);
+        rv.setLayoutManager(new com.owen.tvrecyclerview.widget.V7LinearLayoutManager(
+                mContext, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
+        rv.setSpacingWithMargins(AutoSizeUtils.dp2px(mContext, 6f), AutoSizeUtils.dp2px(mContext, 6f));
+        UserHomeRowAdapter ad = new UserHomeRowAdapter(false, R.layout.item_home_poster_row);
+        ad.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                if (ApiConfig.get().getSourceBeanList().isEmpty()) return;
+                openVod((Movie.Video) adapter.getItem(position));
+            }
+        });
+        rv.setAdapter(ad);
+        rv.setOnItemListener(new TvRecyclerView.OnItemListener() {
+            @Override
+            public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
+                if (itemView != null) {
+                    itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(200)
+                            .setInterpolator(new DecelerateInterpolator()).start();
+                }
+            }
+
+            @Override
+            public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
+                if (itemView != null) {
+                    itemView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(220)
+                            .setInterpolator(new DecelerateInterpolator()).start();
+                }
+            }
+
+            @Override
+            public void onItemClick(TvRecyclerView parent, View itemView, int position) {
+            }
+        });
+        if (which == 0) rowHotAdapter = ad;
+        else rowHot2Adapter = ad;
+    }
+
+    /** 「更多」→ 切到名称匹配的分类页(找不到就原地不动, 不弹无意义提示) */
+    private void switchSort(String keyword) {
+        if (keyword == null || !(mActivity instanceof HomeActivity)) return;
+        ((HomeActivity) mActivity).switchSortByName(keyword);
+    }
+
+    /**
+     * 数据变化后重排首页:
+     * 推荐模式 = 大图 Banner + 正在热映 + 热门电影; 播放历史模式 = 退回 3 列网格。
+     */
+    private void refreshSections() {
+        if (tvBannerDesc == null || rowHotAdapter == null) return; // 视图已销毁
+        List<Movie.Video> data = homeHotVodAdapter == null ? null : homeHotVodAdapter.getData();
+        if (data == null) data = new ArrayList<>();
+        boolean history = (Hawk.get(HawkConfig.HOME_REC, 0) == 2);
+        int n = data.size();
+
+        if (tvFeaturedBanner != null) {
+            tvFeaturedBanner.setVisibility(history || data.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+        List<Movie.Video> hot = new ArrayList<>(data.subList(0, Math.min(10, n)));
+        List<Movie.Video> hot2 = n > 10 ? new ArrayList<>(data.subList(10, Math.min(20, n)))
+                : new ArrayList<Movie.Video>();
+        rowHotAdapter.setNewData(history ? new ArrayList<Movie.Video>() : hot);
+        rowHot2Adapter.setNewData(history ? new ArrayList<Movie.Video>() : hot2);
+        setSectionVisible(secHotHeader, rowHot, !history && !hot.isEmpty());
+        setSectionVisible(secHot2Header, rowHot2, !history && !hot2.isEmpty());
+        if (tvHotListForGrid != null) {
+            tvHotListForGrid.setVisibility(history ? View.VISIBLE : View.GONE);
+        }
+
+        bannerPool.clear();
+        if (!history) bannerPool.addAll(data.subList(0, Math.min(5, n)));
+        showBanner(0);
+        startBannerTicker();
+    }
+
+    private void setSectionVisible(View header, View row, boolean show) {
+        int v = show ? View.VISIBLE : View.GONE;
+        if (header != null) header.setVisibility(v);
+        if (row != null) row.setVisibility(v);
+    }
+
+    /** 把 bannerPool 里第 pos 条铺到 Banner 上(带淡出淡入) */
+    private void showBanner(int pos) {
+        if (ivBanner == null || tvBannerTitle == null) return;
+        if (bannerPool.isEmpty()) {
+            updateDots(-1);
+            return;
+        }
+        bannerIndex = ((pos % bannerPool.size()) + bannerPool.size()) % bannerPool.size();
+        final Movie.Video vod = bannerPool.get(bannerIndex);
+        final int idx = bannerIndex;
+        currentVideo = vod;
+        ivBanner.animate().alpha(0f).setDuration(140).withEndAction(new Runnable() {
+            @Override
+            public void run() {
+                if (ivBanner == null || tvBannerTitle == null) return;
+                if (!TextUtils.isEmpty(vod.pic)) {
+                    ImgUtil.load(vod.pic, ivBanner, 14);
+                } else {
+                    ivBanner.setImageResource(R.drawable.img_loading_placeholder);
+                }
+                tvBannerTitle.setText(vod.name == null ? "" : vod.name);
+                tvBannerMeta.setText(bannerMeta(vod));
+                if (tvBannerDesc != null) tvBannerDesc.setText(bannerDesc(vod));
+                if (btnBannerCollect != null) btnBannerCollect.setVisibility(View.GONE);
+                updateDots(idx);
+                ivBanner.animate().alpha(1f).setDuration(260).start();
+            }
+        }).start();
+    }
+
+    private String bannerMeta(Movie.Video vod) {
+        List<String> metas = new ArrayList<>();
+        if (isPureNumber(vod.note)) metas.add("★ " + vod.note);
+        else if (!TextUtils.isEmpty(vod.note)) metas.add(vod.note);
+        if (vod.year > 0) metas.add(vod.year + "");
+        if (!TextUtils.isEmpty(vod.type)) metas.add(vod.type);
+        else if (!TextUtils.isEmpty(vod.area)) metas.add(vod.area);
+        return TextUtils.join(" · ", metas);
+    }
+
+    private String bannerDesc(Movie.Video vod) {
+        String d = cleanDesc(vod.des);
+        if (TextUtils.isEmpty(d)) d = cleanDesc(vod.actor);
+        if (!TextUtils.isEmpty(d)) return d;
+        return "暂无简介";
+    }
+
+    private void updateDots(int active) {
+        if (bannerDots == null) return;
+        bannerDots.removeAllViews();
+        if (bannerPool.size() <= 1) return;
+        int size = AutoSizeUtils.mm2px(mContext, 9);
+        for (int i = 0; i < bannerPool.size(); i++) {
+            View dot = new View(mContext);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            lp.leftMargin = size / 2;
+            lp.rightMargin = size / 2;
+            dot.setBackgroundResource(i == active
+                    ? R.drawable.shape_home_dot_on : R.drawable.shape_home_dot_off);
+            bannerDots.addView(dot, lp);
+        }
+    }
+
+    private void startBannerTicker() {
+        stopBannerTicker();
+        if (bannerPool.size() <= 1) return;
+        bannerHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        bannerHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (ivBanner == null) return;
+                showBanner(bannerIndex + 1);
+                if (bannerHandler != null) bannerHandler.postDelayed(this, 3500);
+            }
+        }, 3500);
+    }
+
+    private void stopBannerTicker() {
+        if (bannerHandler != null) {
+            bannerHandler.removeCallbacksAndMessages(null);
+            bannerHandler = null;
+        }
     }
 
     // ===== 左侧 Banner 联动 =====
@@ -285,13 +483,9 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvBannerMeta.setText(TextUtils.join(" · ", metas));
             tvBannerMeta.setVisibility(View.VISIBLE);
         }
-        // 收藏钮: 仅站点/历史类有真实 id+sourceKey 的内容可收藏(豆瓣热播无 id, 播放即全网搜)
-        if (vod.id != null && !vod.id.isEmpty() && vod.sourceKey != null && !vod.sourceKey.isEmpty()) {
-            btnBannerCollect.setVisibility(View.VISIBLE);
-            refreshCollectState(vod);
-        } else {
-            btnBannerCollect.setVisibility(View.GONE);
-        }
+        // v27.22: 参考图里 Banner 只有"图 + 片名 + 评分 + 简介 + 圆点", 没有收藏钮,
+        // 收藏入口统一放详情页 —— 这里恒隐, 避免又冒出一个没人点的按钮。
+        if (btnBannerCollect != null) btnBannerCollect.setVisibility(View.GONE);
     }
 
     private void resetFeatured() {
@@ -668,6 +862,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     @Override
     public void onDestroyView() {
+        stopBannerTicker();
         // v15.6.1: tvHotListForGrid/homeHotVodAdapter 是静态字段, 若不置空会一直钉住已销毁的
         // RecyclerView 连同其 Context(Activity) 一起泄漏 —— 每次切线路重建 fragments 就多漏一份。
         // HomeActivity 访问均已判空, 置空安全。
@@ -675,11 +870,25 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvHotListForGrid.setAdapter(null);
             tvHotListForGrid = null;
         }
+        if (rowHot != null) {
+            rowHot.setAdapter(null);
+            rowHot = null;
+        }
+        if (rowHot2 != null) {
+            rowHot2.setAdapter(null);
+            rowHot2 = null;
+        }
         homeHotVodAdapter = null;
+        rowHotAdapter = null;
+        rowHot2Adapter = null;
         tvFeaturedBanner = null;
         ivBanner = null;
         tvBannerTitle = null;
         tvBannerMeta = null;
+        tvBannerDesc = null;
+        bannerDots = null;
+        secHotHeader = null;
+        secHot2Header = null;
         btnBannerCollect = null;
         super.onDestroyView();
     }
