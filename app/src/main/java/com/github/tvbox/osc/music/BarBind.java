@@ -20,7 +20,16 @@ public final class BarBind implements MusicPlayer.Listener {
     private final TextView name, info, nextBtn;
     private final BlobPlayButton blob;
     private final CoverRingView ring;
+    /** v27.24: 灵动条上的音质胶囊(播放时显示当前档位, 由页面挂点击弹层)。 */
+    private TextView qualityChip;
     private ObjectAnimator spin;
+
+    public void setQualityChip(TextView chip) {
+        this.qualityChip = chip;
+        if (chip != null) {
+            chip.setText(MusicPlayer.qualityLabel(MusicPlayer.get().preferredQuality()));
+        }
+    }
 
     public BarBind(LinearLayout bar, ImageView cover, TextView name, TextView info,
                    BlobPlayButton blob, TextView nextBtn) {
@@ -132,6 +141,12 @@ public final class BarBind implements MusicPlayer.Listener {
         StringBuilder sb = new StringBuilder(song.singer == null ? "" : song.singer);
         if (song.album != null && !song.album.isEmpty()) sb.append(" · ").append(song.album);
         info.setText(sb.toString());
+        // v27.24: 音质胶囊跟着实际取链档位走(取不到就显示当前偏好档)
+        if (qualityChip != null) {
+            String q = (quality == null || quality.isEmpty())
+                    ? MusicPlayer.get().preferredQuality() : quality;
+            qualityChip.setText(MusicPlayer.qualityLabel(q));
+        }
         // v27.16: 没有封面(或图 404)时铺一张「歌名首字渐变图」, 不再留黑块
         android.graphics.drawable.Drawable fallback =
                 new android.graphics.drawable.BitmapDrawable(

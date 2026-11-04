@@ -106,7 +106,7 @@ public class HomeActivity extends BaseActivity {
     private ImageView tvMenu;
     private ImageView tvLive;
     // 小贾影视仓 B1: 顶栏音乐入口 -> 拉起喵音乐
-    private ImageView tvMusic;
+    private View tvMusic;
     // 喵音乐包名(B1 约定): 未安装时 Toast 提示
     public static final String MIAO_MUSIC_PKG = "com.miaomusic.app";
     // 小贾影视仓 v20: 首页通栏搜索框(取代原顶栏"打开应用"位置, 原抽屉入口已移除)

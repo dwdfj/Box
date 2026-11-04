@@ -157,7 +157,23 @@ public class MusicActivity extends BaseActivity {
                 findViewById(R.id.musicNextBtn),
                 (com.github.tvbox.osc.music.CoverRingView) findViewById(R.id.musicNowRing));
         bar.bind(this);
-
+        // v27.24: 灵动条音质胶囊 —— 显示当前档位, 点开改档并立即用新档重取当前曲
+        TextView qualityChip = findViewById(R.id.musicPlayerQuality);
+        if (qualityChip != null) {
+            bar.setQualityChip(qualityChip);
+            qualityChip.setOnClickListener(v -> com.github.tvbox.osc.music.MusicQualityDialog.show(this, () -> {
+                String q = MusicPlayer.get().preferredQuality();
+                qualityChip.setText(MusicPlayer.qualityLabel(q));
+                MusicApi.Song cur = MusicPlayer.get().current();
+                if (cur != null) {
+                    MusicPlayer.get().playQueue(MusicPlayer.get().queue(),
+                            Math.max(0, MusicPlayer.get().queue().indexOf(cur)));
+                    setStatus("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
+                } else {
+                    setStatus("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
+                }
+            }));
+        }
         sourceBtn.setText(MusicPlayer.get().lineName());
         loadHall();
     }
@@ -181,10 +197,14 @@ public class MusicActivity extends BaseActivity {
                     content.getPaddingRight(), content.getPaddingBottom());
         }
         View bottom = findViewById(R.id.musicBottomArea);
-        if (bottom != null) bottom.setPadding(
-                bottom.getPaddingLeft(), bottom.getPaddingTop(),
-                bottom.getPaddingRight(),
-                navH + getResources().getDimensionPixelSize(R.dimen.vs_32));
+        if (bottom != null) {
+            // v27.24: 同样要「布局原留白 + 导航栏高度」相加 —— 原来直接写 vs_32,
+            // 把 XML 里越改越大的离底距离又顶回去了, 所以用户怎么调都觉得 dock 贴着底边。
+            int baseBottom = bottom.getPaddingBottom();
+            bottom.setPadding(
+                    bottom.getPaddingLeft(), bottom.getPaddingTop(),
+                    bottom.getPaddingRight(), navH + baseBottom);
+        }
     }
 
     private void setMode(boolean mine) {

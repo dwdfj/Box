@@ -168,8 +168,22 @@ public class MusicPlayer {
         MusicApi.Song s = queue.get(pos);
         loading = true;
         qualityIdx = 0;
+        ensureCover(s); // v27.24: 队列里的歌可能来自历史/洛雪, 没有封面 —— 播前补一次
         notifyStatus("已点「" + s.name + "」，取链中…");
         attemptDirect(s, 0);
+    }
+
+    /** v27.24: 封面兜底 —— 只补没有封面的曲目, 补到后刷新灵动条/播放页, 不打断播放。 */
+    private void ensureCover(final MusicApi.Song s) {
+        if (s == null || s.songmid == null) return;
+        if (s.cover != null && !s.cover.isEmpty()) return;
+        List<MusicApi.Song> one = new ArrayList<>();
+        one.add(s);
+        MusicApi.fillCovers(one, (err, data) -> {
+            if (s.cover != null && !s.cover.isEmpty() && s == current) {
+                notifyPlaying(current, lastSourceName == null ? lineName() : lastSourceName, lastQuality);
+            }
+        });
     }
 
     public boolean hasNext() {

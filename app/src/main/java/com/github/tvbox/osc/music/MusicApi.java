@@ -202,6 +202,70 @@ public class MusicApi {
             return;
         }
         ids.append("]");
+        // v27.24: 先走 v3 接口 —— 老的 /api/song/detail 在部分网络下会返回空 songs 或 403,
+        // 那时整页封面就只剩首字渐变图。v3 的 al.picUrl 稳定, 批量一次补齐。
+        get("https://music.163.com/api/v3/song/detail?c=" + enc(ids.toString()),
+                new Parser<List<Song>>() {
+                    @Override
+                    public List<Song> parse(org.json.JSONObject root) throws Exception {
+                        org.json.JSONArray arr = root.optJSONArray("songs");
+                        if (arr == null) return songs;
+                        Map<String, org.json.JSONObject> byId = new HashMap<>();
+                        for (int i = 0; i < arr.length(); i++) {
+                            org.json.JSONObject s = arr.optJSONObject(i);
+                            if (s != null) byId.put(String.valueOf(s.optLong("id")), s);
+                        }
+                        for (Song song : songs) {
+                            if (song == null) continue;
+                            org.json.JSONObject d = byId.get(song.songmid);
+                            if (d == null) continue;
+                            org.json.JSONObject al = d.optJSONObject("al");
+                            if (al == null) continue;
+                            if (song.cover == null || song.cover.isEmpty()) {
+                                song.cover = al.optString("picUrl", "");
+                            }
+                            if (song.albumId == null || song.albumId.isEmpty()) {
+                                long aid = al.optLong("id", 0);
+                                song.albumId = aid == 0 ? "" : String.valueOf(aid);
+                            }
+                            if (song.album == null || song.album.isEmpty()) {
+                                song.album = al.optString("name", "");
+                            }
+                        }
+                        return songs;
+                    }
+                }, new Callback<List<Song>>() {
+                    @Override
+                    public void onResult(String error, List<Song> data) {
+                        if (hasMissingCover(songs)) fillCoversLegacy(songs, cb);
+                        else cb.onResult(null, songs);
+                    }
+                });
+    }
+
+    private static boolean hasMissingCover(List<Song> songs) {
+        for (Song s : songs) {
+            if (s != null && (s.cover == null || s.cover.isEmpty())) return true;
+        }
+        return false;
+    }
+
+    /** 老接口兜底(v3 也拿不到时再试一次; 两路都失败就交给首字占位图)。 */
+    private static void fillCoversLegacy(final List<Song> songs, final Callback<List<Song>> cb) {
+        final StringBuilder ids = new StringBuilder("[");
+        int need = 0;
+        for (Song s : songs) {
+            if (s == null || s.songmid == null) continue;
+            if (s.cover != null && !s.cover.isEmpty()) continue;
+            if (need > 0) ids.append(",");
+            ids.append("\"").append(s.songmid).append("\"");
+            need++;
+        }
+        if (need == 0) {
+            cb.onResult(null, songs);
+            return;
+        }
+        ids.append("]");
         postForm("https://music.163.com/api/song/detail",
                 "ids=" + enc(ids.toString()) + "&csrf_token=",
                 new Parser<List<Song>>() {

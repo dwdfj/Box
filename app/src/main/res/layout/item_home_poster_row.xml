@@ -19,7 +19,7 @@
         <FrameLayout
             android:id="@+id/mItemFrame"
             android:layout_width="@dimen/vs_280"
-            android:layout_height="@dimen/vs_400"
+            android:layout_height="@dimen/vs_420"
             android:background="@drawable/shape_home_poster"
             android:focusable="false">
 

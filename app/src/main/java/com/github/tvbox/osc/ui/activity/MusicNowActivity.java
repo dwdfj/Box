@@ -277,7 +277,9 @@ public class MusicNowActivity extends BaseActivity {
     private void bind(MusicApi.Song s, String src, String q) {
         nameView.setText(s.name);
         singerView.setText(s.singer + (s.album == null || s.album.isEmpty() ? "" : " · " + s.album));
-        qualityView.setText(q == null ? "" : MusicPlayer.qualityLabel(q));
+        // v27.24: q 为空时不要留成空白胶囊 —— 退回当前偏好档(用户至少能看到"FLAC/320K")
+        String shownQ = (q == null || q.isEmpty()) ? MusicPlayer.get().preferredQuality() : q;
+        qualityView.setText(MusicPlayer.qualityLabel(shownQ));
         if (src != null && !src.isEmpty()) lineView.setText(src);
         // v27.16: 无论有没有封面都画 —— 没封面时用歌名首字渐变图, 不留空盘
         loadDisc(s.cover, s.name);
