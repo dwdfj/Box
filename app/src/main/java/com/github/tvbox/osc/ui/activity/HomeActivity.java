@@ -1644,7 +1644,19 @@ public class HomeActivity extends BaseActivity {
             {"肥猫·39站", "http://xn--z7x900a.net/tv"},                                // 929~2293ms(punycode; 中文域名 okhttp 会直接判非法 URL)
             // v27.5: 专项动漫仓 —— 新方式1(网络单仓, 零内置风险); 实测 200 OK/8.7KB, 全 drpy/csp 动漫站
             {"动漫城·二次元", "https://www.yingm.cc/dm/dm.json"},
-            {"菜泥丝·37站", "https://tv.xn--yhqu5zs87a.top"}                          // 1366~3030ms
+            {"菜泥丝·37站", "https://tv.xn--yhqu5zs87a.top"},                          // 1366~3030ms
+            // v27.17: Voyage 影视专线 —— 从 voyage.apk 破甲出的 10 条 MacCMS V10 采集站,
+            // 单独做成一条可切换线路(内置 ext/xj_cms.json), 不进综合线路里和大佬仓抢位。
+            // 2026-11-04 实测: 8/10 域名活着, 其中 7 条能取到真 m3u8; 刺桐/星球当前 SSL/重置,
+            // 先留着 —— 恢复后自动可用, 不用再改代码。
+            {"🎬Voyage影视专线", "clan://localhost/feimao/ext/xj_cms.json"},
+            // v27.17: 动漫专线 —— 替代原内置的三个动漫站。
+            // 死因(2026-11-04 实测): 曼波 omofun1.top / omofun.tv 全域名 DNS 解析失败;
+            //   魔都 agedm.org 连接被拒、hgcartoon.com 域名没了; 喵呜同批。
+            // 它们的上游域名是加密在加固 jar 里的, 外置改不了 —— 只能换源。
+            // 这条专线用 10 个活着的苹果CMS采集站, 每个都有「国产/日韩/欧美动漫」真分类,
+            // 实测动漫分类下有片且首片能取到 m3u8。
+            {"🎌动漫专线", "clan://localhost/feimao/ext/xj_anime.json"}
     };
 
     // 小贾影视仓 v15.4: 候选线路(预置+历史+当前), 返回 显示名->地址(按地址去重, 保留插入序)
