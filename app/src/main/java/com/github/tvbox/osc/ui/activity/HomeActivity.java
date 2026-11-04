@@ -107,6 +107,11 @@ public class HomeActivity extends BaseActivity {
     private ImageView tvLive;
     // 小贾影视仓 B1: 顶栏音乐入口 -> 拉起喵音乐
     private View tvMusic;
+    // v27.33: 短剧专区入口(顶栏胶囊) —— 一键切到内置短剧线路, 在短剧线路里变成「返回」
+    private View tvDrama;
+    private TextView tvDramaLabel;
+    // v27.33: 内置短剧线路地址(与 PRESET_LINES 中同一条, 单独提出来给专区入口用)
+    static final String DRAMA_LINE_URL = "clan://localhost/feimao/ext/xj_cms.json";
     // 喵音乐包名(B1 约定): 未安装时 Toast 提示
     public static final String MIAO_MUSIC_PKG = "com.miaomusic.app";
     // 小贾影视仓 v20: 首页通栏搜索框(取代原顶栏"打开应用"位置, 原抽屉入口已移除)
@@ -191,6 +196,8 @@ public class HomeActivity extends BaseActivity {
         this.tvMenu = findViewById(R.id.tvMenu);
         this.tvLive = findViewById(R.id.tvLive);
         this.tvMusic = findViewById(R.id.tvMusic);
+        this.tvDrama = findViewById(R.id.tvDrama);
+        this.tvDramaLabel = findViewById(R.id.tvDramaLabel);
         this.homeSearchBar = findViewById(R.id.homeSearchBar);
         this.contentLayout = findViewById(R.id.contentLayout);
         this.mGridView = findViewById(R.id.mGridViewCategory);
@@ -397,6 +404,27 @@ public class HomeActivity extends BaseActivity {
                 return true;
             }
         });
+        // v27.33: 短剧专区 —— 单击进/出内置短剧线路, 长按直接开信号源面板(选里面的具体站)
+        tvDrama.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FastClickCheckUtil.check(view);
+                String cur = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+                if (DRAMA_LINE_URL.equals(cur)) {
+                    exitDramaZone();
+                } else {
+                    enterDramaZone(cur);
+                }
+            }
+        });
+        tvDrama.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                showSiteSwitch();
+                return true;
+            }
+        });
+        updateDramaEntry();
         // Button : Settings >> To go into App Settings ----------------
         tvMenu.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
@@ -1905,6 +1933,46 @@ public class HomeActivity extends BaseActivity {
     // 原地二次 initViewPager 会再 append 一套新 fragment → 页数翻倍、tag 冲突、状态错乱 → 闪退/卡死。
     // 重启后 Activity/Fragment 全新建造, 从机制上杜绝该问题。useCache=true 时配置走磁盘缓存秒读、
     // main jar 走 md5 缓存直接 dex, 切换体感仍接近秒切。
+    // ===== v27.33: 短剧专区 =====
+    // 入口只是一次"带记忆的线路切换": 记住原线路 -> 切到内置短剧线路; 在短剧线路里再点一次即还原。
+    // 不改 buildLineCandidates/信号源面板, 所以老路径完全不受影响。
+    private void enterDramaZone(String currentLine) {
+        try {
+            if (currentLine != null && !currentLine.isEmpty() && !DRAMA_LINE_URL.equals(currentLine)) {
+                Hawk.put(HawkConfig.LINE_BACKUP, currentLine);
+            }
+            // 首页推荐切到「当前站点推荐」: 豆瓣推荐的是常规影视, 在短剧站里点进去搜不到片。
+            Hawk.put(HawkConfig.DRAMA_REC_BACKUP, Hawk.get(HawkConfig.HOME_REC, 0));
+            Hawk.put(HawkConfig.HOME_REC, 1);
+        } catch (Throwable ignored) {
+        }
+        applyLineSelection("短剧专区", DRAMA_LINE_URL);
+    }
+
+    private void exitDramaZone() {
+        String back = "";
+        try {
+            back = Hawk.get(HawkConfig.LINE_BACKUP, "");
+            Hawk.put(HawkConfig.HOME_REC, Hawk.get(HawkConfig.DRAMA_REC_BACKUP, 0));
+        } catch (Throwable ignored) {
+        }
+        if (back == null || back.isEmpty() || DRAMA_LINE_URL.equals(back)) {
+            back = getString(R.string.app_source);
+        }
+        applyLineSelection(getLineName(back), back);
+    }
+
+    /** 顶栏胶囊文案: 在短剧线路里显示「返回」, 其余时候显示「短剧」。 */
+    private void updateDramaEntry() {
+        if (tvDrama == null || tvDramaLabel == null) return;
+        String cur = Hawk.get(HawkConfig.API_URL, getString(R.string.app_source));
+        boolean inDrama = DRAMA_LINE_URL.equals(cur);
+        tvDramaLabel.setText(inDrama ? "返回" : "短剧");
+        tvDrama.setBackgroundResource(inDrama
+                ? R.drawable.shape_top_icon_btn
+                : R.drawable.shape_top_drama_capsule);
+    }
+
     void reloadHome() {
         restartHome(true);
     }

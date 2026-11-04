@@ -15,6 +15,10 @@ public class HawkConfig {
     public static final String API_HISTORY = "api_history";
     // 小贾影视仓 v23.9.1: 最近一次成功加载的线路。拉取新线路失败时自动切回这条, 主页永不困死在重试弹窗。
     public static final String LAST_GOOD_API = "last_good_api";
+    // v27.33: 进「短剧专区」前的线路地址 —— 专区里点顶栏「返回」时原样还原。
+    public static final String LINE_BACKUP = "line_backup";
+    // v27.33: 进专区前的首页推荐模式(0 豆瓣/1 站点推荐/2 历史), 退出专区时还原。
+    public static final String DRAMA_REC_BACKUP = "drama_rec_backup";
     // 小贾影视仓 v24.1: jar 缓存文件的 md5 结果缓存(键后缀拼 文件名+lastModified+length),
     // 免得每次切线路都对 3MB 的 csp jar 重新算一遍哈希。
     public static final String JAR_FILE_MD5 = "jar_file_md5";

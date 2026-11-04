@@ -3,7 +3,7 @@
  "sites": [
   {
    "key": "xjCmsJisu",
-   "name": "🚀极速·短剧",
+   "name": "🚀极速",
    "type": 1,
    "api": "https://jszyapi.com/api.php/provide/vod",
    "searchable": 1,
@@ -15,7 +15,7 @@
   },
   {
    "key": "xjCmsLiangzi",
-   "name": "⚡量子·短剧",
+   "name": "⚡量子",
    "type": 1,
    "api": "https://cj.lziapi.com/api.php/provide/vod",
    "searchable": 1,
@@ -27,7 +27,7 @@
   },
   {
    "key": "xjCmsRuyi",
-   "name": "🍀如意·短剧",
+   "name": "🍀如意",
    "type": 1,
    "api": "https://cj.rytvapi.com/api.php/provide/vod",
    "searchable": 1,
@@ -39,10 +39,10 @@
   },
   {
    "key": "xjCmsWujin",
-   "name": "♾无尽·短剧",
+   "name": "♾无尽",
    "type": 1,
    "api": "https://api.wujinapi.me/api.php/provide/vod",
-   "searchable": 1,
+   "searchable": 0,
    "quickSearch": 1,
    "filterable": 1,
    "header": {
@@ -51,7 +51,7 @@
   },
   {
    "key": "xjCmsBaofeng",
-   "name": "🌪暴风·短剧",
+   "name": "🌪暴风",
    "type": 1,
    "api": "https://bfzyapi.com/api.php/provide/vod",
    "searchable": 1,
@@ -63,7 +63,7 @@
   },
   {
    "key": "xjCmsDytt",
-   "name": "🎬天堂·短剧",
+   "name": "🎬天堂",
    "type": 1,
    "api": "https://caiji.dyttzyapi.com/api.php/provide/vod",
    "searchable": 1,
@@ -75,7 +75,7 @@
   },
   {
    "key": "xjCmsYouzhi",
-   "name": "💎优质·短剧",
+   "name": "💎优质",
    "type": 1,
    "api": "https://api.yyzy-tv.vip/inc/apijson.php",
    "searchable": 1,
@@ -87,7 +87,7 @@
   },
   {
    "key": "xjCmsXigua",
-   "name": "🍉西瓜·短剧",
+   "name": "🍉西瓜",
    "type": 1,
    "api": "https://caiji.xgzyapi.com/api.php/provide/vod",
    "searchable": 1,

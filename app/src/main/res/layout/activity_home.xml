@@ -51,6 +51,36 @@
             android:layout_height="@dimen/vs_1"
             android:layout_weight="1" />
 
+        <!-- v27.33: 短剧专区入口 —— 一键进内置短剧线路(clan://localhost/feimao/ext/xj_cms.json),
+             不改变「信号源」面板里的常规切换路径; 在短剧线路里这颗胶囊变成「返回」 -->
+        <LinearLayout
+            android:id="@+id/tvDrama"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/vs_130"
+            android:layout_marginEnd="@dimen/vs_16"
+            android:layout_marginRight="@dimen/vs_16"
+            android:background="@drawable/shape_top_drama_capsule"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:nextFocusLeft="@id/homeAvatar"
+            android:nextFocusRight="@id/tvFind"
+            android:nextFocusDown="@id/mGridViewCategory"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/vs_34"
+            android:paddingRight="@dimen/vs_34">
+
+            <TextView
+                android:id="@+id/tvDramaLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:text="短剧"
+                android:textColor="@color/color_FFFFFF"
+                android:textSize="@dimen/ts_30"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <ImageView
             android:id="@+id/tvFind"
             android:layout_width="@dimen/vs_110"
@@ -58,7 +88,7 @@
             android:background="@drawable/shape_top_icon_btn"
             android:clickable="true"
             android:focusable="true"
-            android:nextFocusLeft="@id/homeAvatar"
+            android:nextFocusLeft="@id/tvDrama"
             android:nextFocusRight="@id/tvMusic"
             android:nextFocusDown="@id/mGridViewCategory"
             android:padding="@dimen/vs_22"
