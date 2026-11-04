@@ -1,5 +1,5 @@
 {
- "spider": "./jar/aidaox-20260824-080800.jar",
+ "spider": "feimao/jar/aidaox-20260824-080800.jar",
  "sites": [
   {
    "key": "xjCmsWujin",

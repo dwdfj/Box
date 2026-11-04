@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.29: 设置页专用按钮底 —— 与「信号源 · 线路 / 站点」面板的 shape_chip_select 同一套观感:
+     默认=墨灰实底 + 1px 淡白描边, 聚焦=主题紫半透 + 3px 白描边, 按下=紫实底。
+     旧底 shape_setting_model_focus 只有聚焦才有边框, 平时和壁纸糊在一起, 用户根本看不出"这是一排可以点的东西"。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_14" />
+            <stroke android:width="@dimen/vs_3" android:color="@color/color_FFFFFF" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_14" />
+            <stroke android:width="@dimen/vs_3" android:color="@color/color_FFFFFF" />
+            <solid android:color="?attr/color_theme_60" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_14" />
+            <stroke android:width="@dimen/vs_1" android:color="@color/color_FFFFFF_20" />
+            <solid android:color="@color/color_aurora_line" />
+        </shape>
+    </item>
+</selector>

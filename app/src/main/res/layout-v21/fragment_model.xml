@@ -29,7 +29,7 @@
                 android:clipToPadding="false"
                 android:orientation="horizontal"
                 android:paddingLeft="@dimen/vs_50"
-                android:paddingTop="@dimen/vs_20"
+                android:paddingTop="@dimen/vs_32"
                 android:paddingRight="@dimen/vs_50"
                 android:paddingBottom="@dimen/vs_20">
 
@@ -41,37 +41,43 @@
                     android:layout_marginEnd="@dimen/vs_12"
                     android:layout_marginRight="@dimen/vs_12"
                     android:layout_marginBottom="@dimen/vs_8"
-                    android:background="?attr/color_theme" />
+                    android:background="@color/color_theme" />
 
                 <TextView
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/vs_50"
+                    android:layout_height="@dimen/vs_130"
                     android:drawablePadding="@dimen/vs_10"
                     android:gravity="center"
                     android:text="@string/act_settings"
                     android:textColor="@android:color/white"
-                    android:textSize="@dimen/ts_34"
+                    android:textSize="@dimen/ts_50"
                     android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:layout_marginLeft="@dimen/vs_24"
+                android:layout_marginRight="@dimen/vs_24"
+                android:layout_marginBottom="@dimen/vs_40"
+                android:background="@drawable/shape_dialog_bg_main"
                 android:orientation="vertical"
-                android:paddingLeft="@dimen/vs_30"
-                android:paddingRight="@dimen/vs_30">
+                android:paddingLeft="@dimen/vs_24"
+                android:paddingTop="@dimen/vs_24"
+                android:paddingRight="@dimen/vs_24"
+                android:paddingBottom="@dimen/vs_16">
 
                 <LinearLayout
                     android:id="@+id/llDebug"
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
-                    android:background="@drawable/shape_setting_model_focus"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
+                    android:background="@drawable/shape_setting_chip"
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingLeft="@dimen/vs_20"
-                    android:paddingRight="@dimen/vs_20"
+                    android:paddingLeft="@dimen/vs_36"
+                    android:paddingRight="@dimen/vs_36"
                     android:visibility="gone">
 
                     <TextView
@@ -79,7 +85,7 @@
                         android:layout_height="wrap_content"
                         android:text="调试模式"
                         android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        android:textSize="@dimen/ts_40" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -92,7 +98,7 @@
                         android:layout_height="wrap_content"
                         android:text="关"
                         android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        android:textSize="@dimen/ts_40" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -101,13 +107,13 @@
                         android:layout_marginLeft="@dimen/vs_10"
                         android:text=">"
                         android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_24" />
+                        android:textSize="@dimen/ts_40" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal"
                     android:visibility="visible">
@@ -115,19 +121,19 @@
                     <LinearLayout
                         android:id="@+id/llApi"
                         android:layout_width="wrap_content"
-                        android:layout_height="@dimen/vs_50"
+                        android:layout_height="@dimen/vs_130"
                         android:layout_marginStart="@dimen/vs_5"
                         android:layout_marginLeft="@dimen/vs_5"
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
-                        android:layout_marginBottom="@dimen/vs_10"
+                        android:layout_marginBottom="@dimen/vs_24"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -135,7 +141,7 @@
                             android:layout_marginRight="@dimen/vs_10"
                             android:text="@string/mn_config"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -149,7 +155,7 @@
                             android:ellipsize="middle"
                             android:singleLine="true"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -160,7 +166,7 @@
                         android:layout_marginLeft="@dimen/vs_5"
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="horizontal"
@@ -177,8 +183,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_5"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_16"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -195,7 +201,7 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:paddingLeft="@dimen/vs_5"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -206,7 +212,7 @@
                             android:gravity="center"
                             android:text="@string/act_home"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_26"
+                            android:textSize="@dimen/ts_40"
                             android:textStyle="bold" />
 
                         <TextView
@@ -228,7 +234,7 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:paddingLeft="@dimen/vs_5"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -239,7 +245,7 @@
                             android:gravity="center"
                             android:text="@string/act_player"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_26"
+                            android:textSize="@dimen/ts_40"
                             android:textStyle="bold" />
 
                         <TextView
@@ -252,8 +258,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -266,19 +272,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_home"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -292,7 +298,7 @@
                             android:ellipsize="middle"
                             android:singleLine="true"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -301,7 +307,7 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                         <LinearLayout
@@ -313,19 +319,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_preview"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -337,7 +343,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -346,15 +352,15 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -375,19 +381,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_home_show"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -399,7 +405,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -408,7 +414,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -418,19 +424,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_icon"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -442,7 +448,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -451,7 +457,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -473,19 +479,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_ratio"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -497,7 +503,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -506,7 +512,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -516,19 +522,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_bgplay"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -540,7 +546,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -549,7 +555,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -558,8 +564,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -580,19 +586,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_home_type"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -604,7 +610,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -613,7 +619,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -623,19 +629,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_history_num"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -647,7 +653,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -656,7 +662,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -678,19 +684,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_play_type"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -702,7 +708,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -711,7 +717,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -721,19 +727,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/dia_media_setting_title"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -745,7 +751,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -754,7 +760,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -763,8 +769,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -777,19 +783,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_live_boot"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -801,7 +807,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -810,7 +816,7 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -818,27 +824,27 @@
                             android:layout_height="match_parent"
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
-                            android:layout_marginEnd="@dimen/vs_5"
-                            android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
                             android:orientation="horizontal">
                         <LinearLayout
                                 android:id="@+id/llVideoPurify"
                                 android:layout_width="@dimen/vs_0"
                                 android:layout_height="match_parent"
+                                android:layout_marginEnd="@dimen/vs_5"
+                                android:layout_marginRight="@dimen/vs_5"
                                 android:layout_weight="1"
-                                android:background="@drawable/shape_setting_model_focus"
+                                android:background="@drawable/shape_setting_chip"
                                 android:focusable="true"
                                 android:gravity="center_vertical"
                                 android:orientation="horizontal"
-                                android:paddingLeft="@dimen/vs_20"
-                                android:paddingRight="@dimen/vs_20">
+                                android:paddingLeft="@dimen/vs_36"
+                                android:paddingRight="@dimen/vs_36">
                             <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="@string/mn_purify"
                                     android:textColor="@android:color/white"
-                                    android:textSize="@dimen/ts_24" />
+                                    android:textSize="@dimen/ts_40" />
                             <TextView
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
@@ -848,7 +854,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:textColor="@android:color/white"
-                                    android:textSize="@dimen/ts_24" />
+                                    android:textSize="@dimen/ts_40" />
                             <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
@@ -856,7 +862,7 @@
                                     android:layout_marginLeft="@dimen/vs_10"
                                     android:text=">"
                                     android:textColor="@android:color/white"
-                                    android:textSize="@dimen/ts_24" />
+                                    android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -865,8 +871,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_5"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_16"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -883,7 +889,7 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:paddingLeft="@dimen/vs_5"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -894,7 +900,7 @@
                             android:gravity="center"
                             android:text="@string/act_system"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_26"
+                            android:textSize="@dimen/ts_40"
                             android:textStyle="bold" />
 
                         <TextView
@@ -916,13 +922,13 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:paddingLeft="@dimen/vs_10"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -934,8 +940,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -957,19 +963,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_locale"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -981,7 +987,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -990,7 +996,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1000,19 +1006,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_theme"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1024,7 +1030,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -1033,7 +1039,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -1056,19 +1062,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_wall_change"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1082,7 +1088,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1092,19 +1098,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_wall_reset"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1118,7 +1124,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -1127,8 +1133,8 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -1141,19 +1147,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_render"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -1165,7 +1171,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -1174,7 +1180,7 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>                
 
                     <LinearLayout
@@ -1186,19 +1192,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_search"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -1210,7 +1216,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -1219,15 +1225,15 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
-                    android:layout_marginBottom="@dimen/vs_10"
+                    android:layout_height="@dimen/vs_130"
+                    android:layout_marginBottom="@dimen/vs_24"
                     android:focusable="false"
                     android:orientation="horizontal">
 
@@ -1240,19 +1246,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_webview"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -1265,7 +1271,7 @@
                             android:layout_height="wrap_content"
                             android:text="系统自带"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -1274,7 +1280,7 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -1286,19 +1292,19 @@
                         android:layout_marginEnd="@dimen/vs_5"
                         android:layout_marginRight="@dimen/vs_5"
                         android:layout_weight="1"
-                        android:background="@drawable/shape_setting_model_focus"
+                        android:background="@drawable/shape_setting_chip"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingLeft="@dimen/vs_20"
-                        android:paddingRight="@dimen/vs_20">
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_36">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mn_dns"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -1310,7 +1316,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -1319,14 +1325,14 @@
                             android:layout_marginLeft="@dimen/vs_10"
                             android:text=">"
                             android:textColor="@android:color/white"
-                            android:textSize="@dimen/ts_24" />
+                            android:textSize="@dimen/ts_40" />
                     </LinearLayout>
 
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_50"
+                    android:layout_height="@dimen/vs_130"
                     android:layout_marginBottom="@dimen/vs_30"
                     android:focusable="false"
                     android:orientation="horizontal">
@@ -1349,19 +1355,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_backup"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1375,7 +1381,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1385,19 +1391,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_reset"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1411,7 +1417,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -1433,19 +1439,19 @@
                             android:layout_marginEnd="@dimen/vs_5"
                             android:layout_marginRight="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_fastsearch"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1457,7 +1463,7 @@
 	                            android:layout_width="wrap_content"
 	                            android:layout_height="wrap_content"
 	                            android:textColor="@android:color/white"
-	                            android:textSize="@dimen/ts_24" />    
+	                            android:textSize="@dimen/ts_40" />    
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -1466,7 +1472,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -1476,19 +1482,19 @@
                             android:layout_marginStart="@dimen/vs_5"
                             android:layout_marginLeft="@dimen/vs_5"
                             android:layout_weight="1"
-                            android:background="@drawable/shape_setting_model_focus"
+                            android:background="@drawable/shape_setting_chip"
                             android:focusable="true"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingLeft="@dimen/vs_20"
-                            android:paddingRight="@dimen/vs_20">
+                            android:paddingLeft="@dimen/vs_36"
+                            android:paddingRight="@dimen/vs_36">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/mn_about"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1502,7 +1508,7 @@
                                 android:layout_marginLeft="@dimen/vs_10"
                                 android:text=">"
                                 android:textColor="@android:color/white"
-                                android:textSize="@dimen/ts_24" />
+                                android:textSize="@dimen/ts_40" />
                         </LinearLayout>
 
                     </LinearLayout>
