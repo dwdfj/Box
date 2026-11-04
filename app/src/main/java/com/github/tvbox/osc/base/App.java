@@ -64,6 +64,12 @@ public class App extends MultiDexApplication {
         super.onCreate();
         // 小贾影视仓 v27.3: music 包全局上下文(MusicPlayer 单例用)
         com.github.tvbox.osc.music.AppContextHolder.init(this);
+        // 小贾影视仓 v27.32: 悬浮播放球 —— 注册 Activity 生命周期, 每次页面 onResume 把球挂到窗口最上层。
+        // 必须在首个 Activity 创建之前注册, 所以放在 onCreate 里; 内部全部 try/catch, 失败只丢这一个功能。
+        try {
+            com.github.tvbox.osc.music.BallHost.install(this);
+        } catch (Throwable ignored) {
+        }
         // 小贾影视仓 v15.1: 全局崩溃日志 —— 任何未捕获异常(含切线路闪退)追加写入私有目录 xj_crash.log,
         // 便于线上诊断。捕获后仍交给系统默认处理器(照常弹崩溃/重启)。
         try {
