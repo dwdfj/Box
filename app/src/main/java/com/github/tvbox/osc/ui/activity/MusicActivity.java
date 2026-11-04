@@ -44,6 +44,26 @@ public class MusicActivity extends BaseActivity {
 
     private static final String[] WEEK = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
 
+    /**
+     * v27.19: 首页大标题改成「每天一句简短问候」——
+     * 按 年积日 % 4 取一条, 同一天固定、隔天必换; 每段时段各备 4 句, 都是 3 个字,
+     * 不会因为字数变多把右侧线路胶囊挤出去。
+     */
+    private static final String[][] GREET_POOL = {
+            {"夜深了", "还没睡", "夜猫子", "早点睡"},   // 00:00 - 05:00
+            {"早上好", "新一天", "早安呀", "今天好"},   // 05:00 - 12:00
+            {"下午好", "午后好", "歇一会", "午安啦"},   // 12:00 - 18:00
+            {"晚上好", "晚风起", "放松下", "夜听时"}    // 18:00 - 24:00
+    };
+
+    /** 按日期挑当日问候语 —— 同一天刷新不变, 隔天自动换。 */
+    private static String dailyGreet(int hour, Calendar c) {
+        int slot = hour < 5 ? 0 : hour < 12 ? 1 : hour < 18 ? 2 : 3;
+        int dayOfYear = c.get(Calendar.DAY_OF_YEAR);
+        String[] pool = GREET_POOL[slot];
+        return pool[dayOfYear % pool.length];
+    }
+
     private static class Row {
         int type;
         String sectionTitle;
@@ -103,7 +123,8 @@ public class MusicActivity extends BaseActivity {
         greetSubText = (c.get(Calendar.MONTH) + 1) + "月" + c.get(Calendar.DAY_OF_MONTH) + "日 " + WEEK[c.get(Calendar.DAY_OF_WEEK) - 1];
         greetSub.setText(greetSubText);
         int h = c.get(Calendar.HOUR_OF_DAY);
-        greetTitle = h < 5 ? "夜深了" : h < 12 ? "早上好" : h < 18 ? "下午好" : "晚上好";
+        // v27.19: 大标题不再是固定的「早上好/晚上好」, 改成每天一换的简短问候
+        greetTitle = dailyGreet(h, c);
         greet.setText(greetTitle);
 
         RecyclerView rv = findViewById(R.id.musicRows);

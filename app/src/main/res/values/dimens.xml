@@ -152,4 +152,6 @@
     <dimen name="vs_126">126mm</dimen>
     <!-- v26.4: 播放页标题行三个图标钮(全屏/投屏/收藏)放大 -->
     <dimen name="vs_132">132mm</dimen>
+    <dimen name="vs_168">168mm</dimen>
+    <dimen name="vs_170">170mm</dimen>
 </resources>
