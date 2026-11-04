@@ -132,6 +132,32 @@ public class ImgUtil {
         load(url, view, roundingRadius, newWidth, newHeight, false);
     }
 
+    /**
+     * 小贾影视仓 v27.28: Banner 环境底图。
+     * 只解到 120px 再被 ImageView 拉伸铺满整块 Banner, 天然就是一层柔和虚化,
+     * 既不会像原图那样抢海报的视觉, 也不用引入 RenderScript/第三方模糊库。
+     */
+    public static void loadAmbient(String url, ImageView view, int roundingRadius) {
+        if (TextUtils.isEmpty(url)) {
+            view.setImageResource(R.drawable.img_loading_placeholder);
+            return;
+        }
+        // 圆角是相对 120px 小图算的: 大图上的 radius 按 Banner 宽度等比缩小
+        int r = Math.max(1, Math.round(roundingRadius / 10f));
+        RequestOptions requestOptions = new RequestOptions()
+                .format(DecodeFormat.PREFER_RGB_565)
+                .diskCacheStrategy(getDiskCacheStrategy(4))
+                .dontAnimate()
+                .override(120, 120)
+                .transform(new CenterCrop(), new RoundedCorners(r));
+        Glide.with(App.getInstance())
+                .asBitmap()
+                .load(getUrl(url))
+                .error(R.drawable.img_loading_placeholder)
+                .apply(requestOptions)
+                .into(view);
+    }
+
     public static void load(String url, ImageView view, int roundingRadius, int newWidth, int newHeight,
                             boolean highQuality) {
         // 小贾影视仓: 删除 setScaleType(CENTER) 防止搜索封面在加载前后缩放跳变("闪烁跳动"根因)

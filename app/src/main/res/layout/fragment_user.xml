@@ -96,7 +96,11 @@
                     android:textSize="@dimen/ts_20" />
             </LinearLayout>
 
-            <!-- ② 大图 Banner -->
+            <!-- ② 大图 Banner (v27.28 结构重做)
+                 豆瓣只给竖版海报(3:4)。把它 centerCrop 进 2.3:1 的横条, 上下要裁掉 60% ——
+                 这就是「显示不全」的根因; 底部那条 300 高的纯黑渐变又压住大半张图, 就是「不清晰」。
+                 现在改为: 整块铺同一张海报做环境底图(低透明度) + 左侧完整竖版海报(fitCenter 不裁切)
+                 + 右侧文字。横条的观感还在, 海报却是完整的, 并且走原图最高档尺寸直出。 -->
             <FrameLayout
                 android:id="@+id/tvFeaturedBanner"
                 android:layout_width="match_parent"
@@ -111,75 +115,91 @@
                     android:id="@+id/ivBanner"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:alpha="0.40"
                     android:scaleType="centerCrop"
                     android:src="@drawable/img_loading_placeholder" />
 
-                <!-- 下三分之一压暗, 保证白色文字可读 -->
+                <!-- 左浅右深的薄纱: 底图不至于抢戏, 右侧文字始终压得住 -->
                 <View
                     android:layout_width="match_parent"
-                    android:layout_height="@dimen/vs_300"
-                    android:layout_gravity="bottom"
-                    android:background="@drawable/shape_banner_scrim"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/shape_banner_veil"
                     android:focusable="false" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
+                    android:layout_height="match_parent"
                     android:focusable="false"
-                    android:orientation="vertical"
-                    android:paddingLeft="@dimen/vs_28"
-                    android:paddingRight="@dimen/vs_28"
-                    android:paddingBottom="@dimen/vs_44">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/tvBannerTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:focusable="false"
-                        android:maxLines="1"
-                        android:text=""
-                        android:textColor="@android:color/white"
-                        android:textSize="@dimen/ts_44"
-                        android:textStyle="bold" />
+                    <!-- 完整竖版海报: 与卡片等高, 3:4 不裁切 -->
+                    <ImageView
+                        android:id="@+id/ivBannerPoster"
+                        android:layout_width="@dimen/vs_380"
+                        android:layout_height="@dimen/vs_480"
+                        android:layout_marginLeft="@dimen/vs_20"
+                        android:layout_marginStart="@dimen/vs_20"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/img_loading_placeholder" />
 
-                    <TextView
-                        android:id="@+id/tvBannerMeta"
-                        android:layout_width="match_parent"
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/vs_8"
-                        android:ellipsize="end"
+                        android:layout_weight="1"
                         android:focusable="false"
-                        android:singleLine="true"
-                        android:text=""
-                        android:textColor="@color/color_home_gold"
-                        android:textSize="@dimen/ts_26" />
+                        android:orientation="vertical"
+                        android:paddingLeft="@dimen/vs_36"
+                        android:paddingRight="@dimen/vs_32">
 
-                    <TextView
-                        android:id="@+id/tvBannerDesc"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/vs_10"
-                        android:ellipsize="end"
-                        android:focusable="false"
-                        android:lineSpacingExtra="@dimen/vs_6"
-                        android:maxLines="3"
-                        android:text=""
-                        android:textColor="@color/color_FFFFFF_70"
-                        android:textSize="@dimen/ts_24" />
+                        <TextView
+                            android:id="@+id/tvBannerTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:focusable="false"
+                            android:maxLines="1"
+                            android:text=""
+                            android:textColor="@android:color/white"
+                            android:textSize="@dimen/ts_44"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvBannerMeta"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/vs_10"
+                            android:ellipsize="end"
+                            android:focusable="false"
+                            android:singleLine="true"
+                            android:text=""
+                            android:textColor="@color/color_home_gold"
+                            android:textSize="@dimen/ts_26" />
+
+                        <TextView
+                            android:id="@+id/tvBannerDesc"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/vs_12"
+                            android:ellipsize="end"
+                            android:focusable="false"
+                            android:lineSpacingExtra="@dimen/vs_6"
+                            android:maxLines="3"
+                            android:text=""
+                            android:textColor="@color/color_FFFFFF_70"
+                            android:textSize="@dimen/ts_24" />
+
+                        <!-- 圆点指示器 -->
+                        <LinearLayout
+                            android:id="@+id/bannerDots"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/vs_20"
+                            android:focusable="false"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal" />
+                    </LinearLayout>
                 </LinearLayout>
-
-                <!-- 圆点指示器 -->
-                <LinearLayout
-                    android:id="@+id/bannerDots"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|center_horizontal"
-                    android:layout_marginBottom="@dimen/vs_16"
-                    android:focusable="false"
-                    android:gravity="center"
-                    android:orientation="horizontal" />
 
                 <!-- 收藏钮: v27.22 参考图里没有, 保留 id 但常隐(收藏走详情页) -->
                 <TextView

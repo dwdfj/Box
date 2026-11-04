@@ -72,7 +72,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private TextView tvHotCount;
     private TextView tvHotHint;
     private FrameLayout tvFeaturedBanner;                 // 左侧精选大图 Banner(可点即播)
-    private ImageView ivBanner;                           // Banner 剧照
+    private ImageView ivBanner;                           // Banner 环境底图(虚化, 只做气氛)
+    private ImageView ivBannerPoster;                     // Banner 主海报(完整竖版, 不裁切)
     private TextView tvBannerTitle;                       // Banner 标题
     private TextView tvBannerMeta;                        // Banner 元信息(评分·年份·类型)
     private TextView btnBannerCollect;                    // Banner 收藏钮
@@ -150,6 +151,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         // ---- 左侧精选大图 Banner ----
         tvFeaturedBanner = findViewById(R.id.tvFeaturedBanner);
         ivBanner = findViewById(R.id.ivBanner);
+        ivBannerPoster = findViewById(R.id.ivBannerPoster);
         tvBannerTitle = findViewById(R.id.tvBannerTitle);
         tvBannerMeta = findViewById(R.id.tvBannerMeta);
         btnBannerCollect = findViewById(R.id.btnBannerCollect);
@@ -459,7 +461,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     /** 把 bannerPool 里第 pos 条铺到 Banner 上(带淡出淡入) */
     private void showBanner(int pos) {
-        if (ivBanner == null || tvBannerTitle == null) return;
+        if (ivBannerPoster == null || tvBannerTitle == null) return;
         if (bannerPool.isEmpty()) {
             updateDots(-1);
             return;
@@ -468,23 +470,42 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         final Movie.Video vod = bannerPool.get(bannerIndex);
         final int idx = bannerIndex;
         currentVideo = vod;
-        ivBanner.animate().alpha(0f).setDuration(140).withEndAction(new Runnable() {
+        ivBannerPoster.animate().alpha(0f).setDuration(140).withEndAction(new Runnable() {
             @Override
             public void run() {
-                if (ivBanner == null || tvBannerTitle == null) return;
-                if (!TextUtils.isEmpty(vod.pic)) {
-                    ImgUtil.loadHq(vod.pic, ivBanner, bannerRadius());
-                } else {
-                    ivBanner.setImageResource(R.drawable.img_loading_placeholder);
-                }
+                if (ivBannerPoster == null || tvBannerTitle == null) return;
+                bindBannerMedia(vod);
                 tvBannerTitle.setText(vod.name == null ? "" : vod.name);
                 tvBannerMeta.setText(bannerMeta(vod));
                 if (tvBannerDesc != null) tvBannerDesc.setText(bannerDesc(vod));
                 if (btnBannerCollect != null) btnBannerCollect.setVisibility(View.GONE);
                 updateDots(idx);
-                ivBanner.animate().alpha(1f).setDuration(260).start();
+                ivBannerPoster.animate().alpha(1f).setDuration(260).start();
             }
         }).start();
+    }
+
+    /**
+     * v27.28: Banner 出图。
+     * 主海报用 fitCenter 完整显示(豆瓣海报是 3:4, 之前 centerCrop 进 2.3:1 的横条会裁掉上下 60%,
+     * 用户看到的就是"显示不全"); 底图用同一张图缩到 120px 拉伸做环境虚化, 负责填满横条的留白。
+     */
+    private void bindBannerMedia(Movie.Video vod) {
+        if (ivBanner == null || ivBannerPoster == null) return;
+        String pic = bannerPic(vod);
+        if (TextUtils.isEmpty(pic)) {
+            ivBanner.setImageResource(R.drawable.img_loading_placeholder);
+            ivBannerPoster.setImageResource(R.drawable.img_loading_placeholder);
+            return;
+        }
+        ImgUtil.loadAmbient(pic, ivBanner, bannerRadius());
+        ImgUtil.loadHq(pic, ivBannerPoster, posterRadius());
+    }
+
+    /** Banner 只认最清楚的那一档: 豆瓣 m 档 540 宽撑不满 480 高的海报卡, 统一升到 l(1080) */
+    private String bannerPic(Movie.Video vod) {
+        if (vod == null) return "";
+        return doubanHd(vod.pic, "l");
     }
 
     private String bannerMeta(Movie.Video vod) {
@@ -551,7 +572,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         // 它读的静态 homeHotVodAdapter 已被新 Fragment 重新赋值(非空), 但本 Fragment 的 ivBanner 已被
         // onDestroyView 置 null, Glide into(null) 直接抛 NPE("Argument must not be null") 闪退。
         // 视图已销毁就静默返回(新 Fragment 会自己刷新 Banner)。
-        if (ivBanner == null || tvBannerTitle == null) {
+        if (ivBannerPoster == null || tvBannerTitle == null) {
             return;
         }
         if (homeHotVodAdapter == null || homeHotVodAdapter.getData().isEmpty()) {
@@ -566,12 +587,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             resetFeatured();
             return;
         }
-        // 剧照
-        if (!TextUtils.isEmpty(vod.pic)) {
-            ImgUtil.loadHq(vod.pic, ivBanner, bannerRadius());
-        } else {
-            ivBanner.setImageResource(R.drawable.img_loading_placeholder);
-        }
+        // 剧照: v27.28 完整竖版海报 + 环境底图
+        bindBannerMedia(vod);
         // 片名
         tvBannerTitle.setText(vod.name == null ? "" : vod.name);
         // 元信息: 评分 · 年份 · 类型 · 地区
@@ -603,6 +620,9 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             tvBannerTitle.setText("");
             tvBannerMeta.setVisibility(View.GONE);
             ivBanner.setImageResource(R.drawable.img_loading_placeholder);
+            if (ivBannerPoster != null) {
+                ivBannerPoster.setImageResource(R.drawable.img_loading_placeholder);
+            }
             btnBannerCollect.setVisibility(View.GONE);
         }
     }
@@ -933,10 +953,19 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
      */
     private static String doubanHd(String url, String size) {
         if (TextUtils.isEmpty(url) || TextUtils.isEmpty(size)) return url;
-        if (url.contains("/s_ratio_poster/")) {
-            return url.replace("/s_ratio_poster/", "/" + size + "_ratio_poster/");
+        // v27.28: 之前只认 s 档, 已经是 m 的图再要 l 会原样返回 —— m 只有 540 宽, 撑不满海报卡
+        return url.replace("/s_ratio_poster/", "/" + size + "_ratio_poster/")
+                .replace("/m_ratio_poster/", "/" + size + "_ratio_poster/")
+                .replace("/l_ratio_poster/", "/" + size + "_ratio_poster/");
+    }
+
+    /** Banner 主海报圆角(px) —— 与卡片圆角保持一致的观感 */
+    private int posterRadius() {
+        try {
+            return getResources().getDimensionPixelSize(R.dimen.vs_30);
+        } catch (Throwable t) {
+            return 24;
         }
-        return url;
     }
 
     /** Banner 圆角(px) —— 与 shape_home_banner 一致, 图片自身也要切出圆弧。 */
@@ -1018,6 +1047,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         rowHot2Adapter = null;
         tvFeaturedBanner = null;
         ivBanner = null;
+        ivBannerPoster = null;
         tvBannerTitle = null;
         tvBannerMeta = null;
         tvBannerDesc = null;
