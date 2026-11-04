@@ -84,6 +84,12 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private TvRecyclerView rowHot, rowHot2;
     private UserHomeRowAdapter rowHotAdapter, rowHot2Adapter;
     private final List<Movie.Video> bannerPool = new ArrayList<>();
+    // v27.23: 「热门电影 / 热门剧集」两排各自取豆瓣独立榜单 ——
+    // 原来两排是把同一个推荐列表切成 0~10 / 10~20, 推荐列表不足 10 条时第二排直接空掉,
+    // 而且切出来的"剧集"里混着电影。现在 movie/tv 各请求一次, 两排永远有内容、且类型正确。
+    private final List<Movie.Video> movieRow = new ArrayList<>();
+    private final List<Movie.Video> tvRow = new ArrayList<>();
+    private boolean rowsRequested = false;
     private int bannerIndex = 0;
     private android.os.Handler bannerHandler;
 
@@ -260,6 +266,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         });
 
         initHomeHotVod(homeHotVodAdapter);
+        // v27.23: 两排「热门电影 / 热门剧集」独立取豆瓣榜单, 不再依赖推荐列表长度
+        loadRecommendRows();
     }
 
     // ===== v27.22: 横排 + Banner 轮播 =====
@@ -313,33 +321,134 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
 
     /**
      * 数据变化后重排首页:
-     * 推荐模式 = 大图 Banner + 正在热映 + 热门电影; 播放历史模式 = 退回 3 列网格。
+     * 推荐模式 = 大图 Banner + 热门电影 + 热门剧集; 播放历史模式 = 退回 3 列网格。
      */
     private void refreshSections() {
         if (tvBannerDesc == null || rowHotAdapter == null) return; // 视图已销毁
         List<Movie.Video> data = homeHotVodAdapter == null ? null : homeHotVodAdapter.getData();
         if (data == null) data = new ArrayList<>();
         boolean history = (Hawk.get(HawkConfig.HOME_REC, 0) == 2);
+        // v27.23: 历史模式但本地一条记录都没有(旧版豆瓣失败时会自动切到这个模式) → 按推荐模式渲染,
+        // 否则首页就是整页空白, 用户看到的就是"推荐 电影 剧集 什么都没有"。
+        if (history && data.isEmpty()) history = false;
         int n = data.size();
 
-        if (tvFeaturedBanner != null) {
-            tvFeaturedBanner.setVisibility(history || data.isEmpty() ? View.GONE : View.VISIBLE);
+        // 两排: 优先用豆瓣「电影 / 剧集」独立榜单; 两条请求都失败才退回推荐列表切片
+        List<Movie.Video> hot = movieRow.isEmpty() ? slice(data, 0, 10) : new ArrayList<>(movieRow);
+        List<Movie.Video> hot2 = tvRow.isEmpty() ? slice(data, 10, 20) : new ArrayList<>(tvRow);
+        if (history) {
+            hot.clear();
+            hot2.clear();
         }
-        List<Movie.Video> hot = new ArrayList<>(data.subList(0, Math.min(10, n)));
-        List<Movie.Video> hot2 = n > 10 ? new ArrayList<>(data.subList(10, Math.min(20, n)))
-                : new ArrayList<Movie.Video>();
-        rowHotAdapter.setNewData(history ? new ArrayList<Movie.Video>() : hot);
-        rowHot2Adapter.setNewData(history ? new ArrayList<Movie.Video>() : hot2);
-        setSectionVisible(secHotHeader, rowHot, !history && !hot.isEmpty());
-        setSectionVisible(secHot2Header, rowHot2, !history && !hot2.isEmpty());
+        rowHotAdapter.setNewData(hot);
+        rowHot2Adapter.setNewData(hot2);
+        setSectionVisible(secHotHeader, rowHot, !hot.isEmpty());
+        setSectionVisible(secHot2Header, rowHot2, !hot2.isEmpty());
         if (tvHotListForGrid != null) {
             tvHotListForGrid.setVisibility(history ? View.VISIBLE : View.GONE);
         }
 
         bannerPool.clear();
-        if (!history) bannerPool.addAll(data.subList(0, Math.min(5, n)));
+        if (!history) {
+            List<Movie.Video> src = n > 0 ? data : movieRow;
+            bannerPool.addAll(src.subList(0, Math.min(5, src.size())));
+        }
+        if (tvFeaturedBanner != null) {
+            tvFeaturedBanner.setVisibility(bannerPool.isEmpty() ? View.GONE : View.VISIBLE);
+        }
         showBanner(0);
         startBannerTicker();
+    }
+
+    private List<Movie.Video> slice(List<Movie.Video> src, int from, int to) {
+        List<Movie.Video> r = new ArrayList<>();
+        if (src == null) return r;
+        if (src.size() > from) r.addAll(src.subList(from, Math.min(to, src.size())));
+        return r;
+    }
+
+    // ===== v27.23: 豆瓣「电影 / 剧集」两排独立数据 =====
+
+    private void loadRecommendRows() {
+        if (rowsRequested) return;
+        rowsRequested = true;
+        fetchDoubanRow("movie", movieRow);
+        fetchDoubanRow("tv", tvRow);
+    }
+
+    /**
+     * 取豆瓣「热门」榜单(type=movie / tv)。
+     * 失败就静默 —— refreshSections 会退回推荐列表切片, 页面上仍有内容。
+     */
+    private void fetchDoubanRow(final String type, final List<Movie.Video> target) {
+        // tag=热门 (%E7%83%AD%E9%97%A8), 不要加年份过滤: 新版豆瓣按年份筛经常返回空数组
+        String url = "https://movie.douban.com/j/search_subjects?type=" + type
+                + "&tag=%E7%83%AD%E9%97%A8&sort=recommend&page_limit=20&page_start=0";
+        try {
+            OkGo.<String>get(url).headers("User-Agent", UA.random()).execute(new AbsCallback<String>() {
+                @Override
+                public void onSuccess(Response<String> response) {
+                    final ArrayList<Movie.Video> list = parseDoubanList(response.body());
+                    if (list.isEmpty() || mActivity == null) return;
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (tvBannerDesc == null) return; // 视图已销毁
+                            target.clear();
+                            target.addAll(list);
+                            refreshSections();
+                        }
+                    });
+                }
+
+                @Override
+                public String convertResponse(okhttp3.Response response) throws Throwable {
+                    return response.body().string();
+                }
+            });
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    /** 兼容两种豆瓣响应: new_search_subjects 的 data[] 与 search_subjects 的 subjects[] */
+    private ArrayList<Movie.Video> parseDoubanList(String json) {
+        ArrayList<Movie.Video> result = new ArrayList<>();
+        if (TextUtils.isEmpty(json)) return result;
+        try {
+            JsonObject obj = new Gson().fromJson(json, JsonObject.class);
+            if (obj == null) return result;
+            JsonArray array = obj.has("data") ? obj.getAsJsonArray("data")
+                    : obj.has("subjects") ? obj.getAsJsonArray("subjects") : null;
+            if (array == null) return result;
+            for (JsonElement ele : array) {
+                if (!ele.isJsonObject()) continue;
+                JsonObject o = (JsonObject) ele;
+                String title = optString(o, "title");
+                if (TextUtils.isEmpty(title)) continue;
+                Movie.Video vod = new Movie.Video();
+                vod.name = title;
+                vod.note = optString(o, "rate");
+                String cover = optString(o, "cover");
+                if (TextUtils.isEmpty(cover)) cover = optString(o, "cover_url");
+                if (!TextUtils.isEmpty(cover)) {
+                    vod.pic = cover + "@User-Agent=" + UA.random() + "@Referer=https://www.douban.com/";
+                }
+                result.add(vod);
+            }
+        } catch (Throwable ignored) {
+        }
+        return result;
+    }
+
+    private String optString(JsonObject o, String key) {
+        try {
+            JsonElement e = o.get(key);
+            if (e == null || e.isJsonNull()) return "";
+            return e.getAsString();
+        } catch (Throwable th) {
+            return "";
+        }
     }
 
     private void setSectionVisible(View header, View row, boolean show) {
@@ -729,7 +838,9 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
                 }
             }
             final boolean staleShown = showedStale;
-            String doubanHotURL = "https://movie.douban.com/j/new_search_subjects?sort=U&range=0,10&tags=&playable=1&start=0&year_range=" + year + "," + year;
+            // v27.23: 去掉 year_range 过滤 —— 按「今年」筛豆瓣经常返回空数组,
+            // 首屏推荐就整块空白(用户反馈"推荐 电影 剧集怎么都没有")。不带年份永远有 20 条。
+            String doubanHotURL = "https://movie.douban.com/j/new_search_subjects?sort=U&range=0,10&tags=&playable=1&start=0";
             String userAgent = UA.random();
             OkGo.<String>get(doubanHotURL).headers("User-Agent", userAgent).execute(new AbsCallback<String>() {
                 @Override

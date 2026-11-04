@@ -32,30 +32,20 @@
             android:nextFocusRight="@id/tvFind"
             android:nextFocusDown="@id/mGridViewCategory">
 
+            <!-- v27.23: 图标可本地更换(长按头像 → 选本地图片), 默认仍用矢量图标 -->
             <ImageView
+                android:id="@+id/homeAvatarIcon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="线路切换"
                 android:focusable="false"
                 android:padding="@dimen/vs_28"
+                android:scaleType="centerCrop"
                 android:src="@drawable/ic_home_tv"
                 android:tint="@color/color_FFFFFF" />
         </FrameLayout>
 
-        <View
-            android:layout_width="@dimen/vs_0"
-            android:layout_height="@dimen/vs_1"
-            android:layout_weight="1" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:letterSpacing="0.12"
-            android:text="点播"
-            android:textColor="@color/color_FFFFFF"
-            android:textSize="@dimen/ts_44"
-            android:textStyle="bold" />
-
+        <!-- v27.23: 顶部「点播」二字已按用户要求去掉, 只留头像 + 右侧两个圆键 -->
         <View
             android:layout_width="@dimen/vs_0"
             android:layout_height="@dimen/vs_1"
@@ -104,7 +94,7 @@
         android:clipChildren="false"
         android:clipToPadding="false"
         android:orientation="vertical"
-        android:paddingBottom="@dimen/vs_260"
+        android:paddingBottom="@dimen/vs_340"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
@@ -136,14 +126,14 @@
             android:layout_height="match_parent" />
     </LinearLayout>
 
-    <!-- 底部 dock: 点播 / 直播 / 设置 (v27.22: 左右几乎贴边 + 更高 + 距底留白) -->
+    <!-- 底部 dock: 点播 / 直播 / 设置 (v27.23: 离底部更远, 不再贴着导航条) -->
     <LinearLayout
         android:id="@+id/homeDock"
         android:layout_width="match_parent"
         android:layout_height="@dimen/vs_184"
         android:layout_marginLeft="@dimen/vs_6"
         android:layout_marginRight="@dimen/vs_6"
-        android:layout_marginBottom="@dimen/vs_36"
+        android:layout_marginBottom="@dimen/vs_72"
         android:background="@drawable/shape_home_dock"
         android:gravity="center"
         android:orientation="horizontal"

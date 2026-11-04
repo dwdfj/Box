@@ -285,11 +285,18 @@ public class HomeActivity extends BaseActivity {
             }
         });
         // 小贾影视仓 v27.21: 顶栏左上圆形头像 = 线路切换入口(原「线路名胶囊」缩进圆形头像)
+        // v27.23: 长按头像 = 换成自己的本地图片(存 private 目录, 路径记 Hawk)
         View homeAvatar = findViewById(R.id.homeAvatar);
+        homeAvatarIcon = findViewById(R.id.homeAvatarIcon);
+        applyHomeAvatar();
         if (homeAvatar != null) {
             homeAvatar.setOnClickListener(v -> {
                 FastClickCheckUtil.check(v);
                 showSiteSwitch();
+            });
+            homeAvatar.setOnLongClickListener(v -> {
+                showAvatarMenu();
+                return true;
             });
         }
         // v27.21: 底部 dock —— 点播回到首个分类 / 直播 / 设置
@@ -427,6 +434,10 @@ public class HomeActivity extends BaseActivity {
     private static final int REQ_PICK_LOCAL_API = 0x5150;
     // 小贾影视仓 v21: 本地 .py 单源选择请求码(信号源面板"加载本地 .py"按钮发起)
     private static final int REQ_PICK_LOCAL_PY = 0x5151;
+    // 小贾影视仓 v27.23: 首页左上角图标本地更换(长按头像 → 选本地图片)
+    private static final int REQ_PICK_AVATAR = 0x5152;
+    private static final String HAWK_HOME_AVATAR = "home_avatar_path";
+    private ImageView homeAvatarIcon;
     private void initViewModel() {
         sourceViewModel = new ViewModelProvider(this).get(SourceViewModel.class);
         sourceViewModel.sortResult.observe(this, new Observer<AbsSortXml>() {
@@ -1918,6 +1929,11 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        // v27.23: 左上角图标本地更换
+        if (requestCode == REQ_PICK_AVATAR) {
+            handleAvatarPicked(resultCode, data);
+            return;
+        }
         // 小贾影视仓 v21: 本地 .py 单源选择结果
         if (requestCode == REQ_PICK_LOCAL_PY) {
             handleLocalPyPicked(resultCode, data);
@@ -1957,6 +1973,97 @@ public class HomeActivity extends BaseActivity {
 
     // 小贾影视仓 v21 / v23: 选择本地 .py 源(信号源面板「加载本地 .py」触发)。
     // v23 起允许**一次多选** —— 短剧源 + 小说源 + 影视源可以一起加载, 不用一个一个来。
+    // ===== v27.23: 首页左上角图标本地更换 =====
+
+    private void showAvatarMenu() {
+        final String[] items = new String[]{"选择本地图片", "恢复默认图标"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("左上角图标")
+                .setItems(items, (d, which) -> {
+                    if (which == 0) {
+                        pickHomeAvatar();
+                    } else {
+                        Hawk.put(HAWK_HOME_AVATAR, "");
+                        applyHomeAvatar();
+                        Toast.makeText(this, "已恢复默认图标", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .show();
+    }
+
+    private void pickHomeAvatar() {
+        try {
+            Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("image/*");
+            startActivityForResult(i, REQ_PICK_AVATAR);
+        } catch (Throwable th) {
+            th.printStackTrace();
+            Toast.makeText(this, "打不开图片选择器: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** 有本地图就显示本地图(铺满圆形), 否则回到默认矢量图标 + 白色染色 */
+    private void applyHomeAvatar() {
+        if (homeAvatarIcon == null) return;
+        String path = Hawk.get(HAWK_HOME_AVATAR, "");
+        android.graphics.Bitmap bm = null;
+        if (path != null && !path.isEmpty()) {
+            try {
+                java.io.File f = new java.io.File(path);
+                if (f.exists()) {
+                    android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    android.graphics.BitmapFactory.decodeFile(path, opts);
+                    int sample = 1;
+                    int max = Math.max(opts.outWidth, opts.outHeight);
+                    while (max / sample > 512) sample *= 2;
+                    android.graphics.BitmapFactory.Options decode = new android.graphics.BitmapFactory.Options();
+                    decode.inSampleSize = sample;
+                    bm = android.graphics.BitmapFactory.decodeFile(path, decode);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        int pad = getResources().getDimensionPixelSize(R.dimen.vs_28);
+        if (bm != null) {
+            homeAvatarIcon.setPadding(0, 0, 0, 0);
+            // 本地照片不要被 XML 里的 android:tint(白色) 洗成白块
+            homeAvatarIcon.setImageTintList(null);
+            homeAvatarIcon.setImageBitmap(bm);
+        } else {
+            homeAvatarIcon.setPadding(pad, pad, pad, pad);
+            homeAvatarIcon.setImageResource(R.drawable.ic_home_tv);
+            homeAvatarIcon.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(R.color.color_FFFFFF)));
+        }
+    }
+
+    private void handleAvatarPicked(int resultCode, Intent data) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        try {
+            java.io.InputStream is = getContentResolver().openInputStream(data.getData());
+            if (is == null) {
+                Toast.makeText(this, "读不到这张图片", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String path = getFilesDir().getAbsolutePath() + "/home_avatar.img";
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(path);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+            is.close();
+            fos.flush();
+            fos.close();
+            Hawk.put(HAWK_HOME_AVATAR, path);
+            applyHomeAvatar();
+            Toast.makeText(this, "图标已更换(长按可再换)", Toast.LENGTH_SHORT).show();
+        } catch (Throwable th) {
+            th.printStackTrace();
+            Toast.makeText(this, "图片读取失败: " + th.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     void pickLocalPy() {
         try {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
