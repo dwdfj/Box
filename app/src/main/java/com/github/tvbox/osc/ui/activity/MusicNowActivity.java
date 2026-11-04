@@ -194,7 +194,10 @@ public class MusicNowActivity extends BaseActivity {
         });
 
         // 下载(v27.26: 先弹「下载位置」层, 当场就能换文件夹, 不再需要先摸索另一个「目录」键)
-        downloadView.setOnClickListener(v -> MusicDownloadDialog.show(this, REQ_PICK_DIR, this::startDownload));
+        downloadView.setOnClickListener(v -> {
+            pendingSong = p.current();                    // 若用户先去改目录, 回来直接接着下
+            MusicDownloadDialog.show(this, REQ_PICK_DIR, this::startDownload);
+        });
 
         // 存储位置(第五个键): 直接开系统文件夹选择器
         findViewById(R.id.musicNowFolder).setOnClickListener(v ->
@@ -258,6 +261,7 @@ public class MusicNowActivity extends BaseActivity {
                     startDownload(s);
                 }
             } else {
+                pendingSong = null;
                 statusView.setText("未更改下载目录");
             }
         }
