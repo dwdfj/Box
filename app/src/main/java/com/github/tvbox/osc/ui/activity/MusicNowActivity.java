@@ -224,18 +224,19 @@ public class MusicNowActivity extends BaseActivity {
             statusView.setText("线路已切到 " + name + "，正在用新线路重取…");
         });
 
-        // 音质切换(v27.16: 全屏页顶栏的音质胶囊, 点一下切下一档, 立即用新档位重取当前曲)
-        qualityView.setOnClickListener(v -> {
-            String q = p.cycleQuality();
-            qualityView.setText(MusicPlayer.qualityLabel(q));
-            MusicApi.Song cur = p.current();
-            if (cur != null) {
-                p.playQueue(p.queue(), Math.max(0, p.queue().indexOf(cur)));
-                statusView.setText("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
-            } else {
-                statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
-            }
-        });
+        // 音质切换(v27.18: 弹层选档 —— 中文档位名 + 说明, 含母带; 选完立即用新档重取当前曲)
+        qualityView.setOnClickListener(v ->
+                com.github.tvbox.osc.music.MusicQualityDialog.show(this, () -> {
+                    String q = p.preferredQuality();
+                    qualityView.setText(MusicPlayer.qualityLabel(q));
+                    MusicApi.Song cur = p.current();
+                    if (cur != null) {
+                        p.playQueue(p.queue(), Math.max(0, p.queue().indexOf(cur)));
+                        statusView.setText("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
+                    } else {
+                        statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
+                    }
+                }));
 
         refreshModeAndFav();
         lineView.setText(p.lineName());

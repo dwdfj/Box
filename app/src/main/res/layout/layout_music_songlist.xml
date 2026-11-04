@@ -9,12 +9,12 @@
         android:id="@+id/songListTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingLeft="@dimen/vs_30"
-        android:paddingTop="@dimen/vs_20"
+        android:paddingLeft="@dimen/vs_28"
+        android:paddingTop="@dimen/vs_32"
         android:paddingBottom="@dimen/vs_10"
         android:text="最近播放"
         android:textColor="@color/color_FFFFFF"
-        android:textSize="@dimen/ts_40"
+        android:textSize="@dimen/ts_44"
         android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView

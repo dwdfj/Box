@@ -12,6 +12,7 @@
     <dimen name="ts_24">40mm</dimen>
     <dimen name="ts_26">44mm</dimen>
     <dimen name="ts_30">50mm</dimen>
+    <dimen name="ts_32">52mm</dimen>
     <dimen name="ts_34">56mm</dimen>
     <dimen name="ts_36">60mm</dimen>
     <dimen name="ts_40">64mm</dimen>

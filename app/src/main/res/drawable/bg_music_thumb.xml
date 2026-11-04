@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.18: 每日推荐卡内的封面缩略图(圆角方块) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#26304A" />
+    <corners android:radius="9dp" />
+</shape>

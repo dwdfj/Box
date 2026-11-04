@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.18: 音质选择弹层 —— 中文档位名(母带/Hi-Res/FLAC/320K/128K), 带说明与勾选 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_music_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/vs_32">
+
+    <View
+        android:layout_width="@dimen/vs_72"
+        android:layout_height="@dimen/vs_6"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="@dimen/vs_18"
+        android:background="@drawable/bg_music_thumb" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_32"
+        android:layout_marginTop="@dimen/vs_24"
+        android:text="音质选择"
+        android:textColor="@color/color_FFFFFF"
+        android:textSize="@dimen/ts_40"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/qualityHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_32"
+        android:layout_marginTop="@dimen/vs_8"
+        android:textColor="@color/music_sub"
+        android:textSize="@dimen/ts_26" />
+
+    <LinearLayout
+        android:id="@+id/qualityList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/vs_12"
+        android:orientation="vertical" />
+</LinearLayout>

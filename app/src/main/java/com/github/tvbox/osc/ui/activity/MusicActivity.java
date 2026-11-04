@@ -55,6 +55,8 @@ public class MusicActivity extends BaseActivity {
     private final List<MusicApi.Sheet> banners = new ArrayList<>();
     private final List<MusicApi.Sheet> topListCache = new ArrayList<>();
     private final List<MusicApi.Sheet> hotSheetCache = new ArrayList<>();
+    /** v27.18: 首页「推荐歌曲」区 —— 取每日推荐第一张榜单里的前几首, 用来填满下方留白。 */
+    private final List<MusicApi.Song> dailySongs = new ArrayList<>();
     private RowsAdapter rowsAdapter;
     private TextView statusView, sourceBtn, tabHome, tabMine;
     private BarBind bar;
@@ -63,7 +65,7 @@ public class MusicActivity extends BaseActivity {
     /** v27.8: 页面自身监听器 —— 取链/播放/错误全部上屏。 */
     private final MusicPlayer.Listener pageListener = new MusicPlayer.Listener() {
         @Override public void onStatus(String s) { setStatus(s); }
-        @Override public void onPlaying(MusicApi.Song s, String src, String q) { setStatus("▶ " + s.name + " · " + src + " · " + q); }
+        @Override public void onPlaying(MusicApi.Song s, String src, String q) { setStatus("▶ " + s.name + " · " + src + " · " + MusicPlayer.qualityLabel(q)); }
         @Override public void onPaused() { setStatus("已暂停"); }
         @Override public void onError(String s) { setStatus(s); }
     };
@@ -147,9 +149,15 @@ public class MusicActivity extends BaseActivity {
         int statusH = sysBarHeight(this, true);
         int navH = sysBarHeight(this, false);
         View content = findViewById(R.id.musicContent);
-        if (content != null) content.setPadding(
-                content.getPaddingLeft(), statusH,
-                content.getPaddingRight(), content.getPaddingBottom());
+        if (content != null) {
+            // v27.18 修: 原来这里直接用 statusH 覆盖了 XML 的 paddingTop —— 布局里留的
+            // vs_96 呼吸区被吃掉, 结果就是「顶栏贴着状态栏、返回键显得很小」。
+            // 正确做法是「状态栏高度 + 布局自带留白」相加。
+            int baseTop = content.getPaddingTop();
+            content.setPadding(
+                    content.getPaddingLeft(), statusH + baseTop,
+                    content.getPaddingRight(), content.getPaddingBottom());
+        }
         View bottom = findViewById(R.id.musicBottomArea);
         if (bottom != null) bottom.setPadding(
                 bottom.getPaddingLeft(), bottom.getPaddingTop(),
@@ -194,6 +202,7 @@ public class MusicActivity extends BaseActivity {
                 topListCache.addAll(data);
             }
             rebuildRows();
+            loadDailySongs();
             MusicApi.hotSheets("全部", (err2, data2) -> {
                 if (data2 != null && !data2.isEmpty()) {
                     hotSheetCache.clear();
@@ -205,6 +214,17 @@ public class MusicActivity extends BaseActivity {
                 setStatus(topListCache.isEmpty() && hotSheetCache.isEmpty()
                         ? "加载失败: " + (err != null ? err : err2) : "为你推荐");
             });
+        });
+    }
+
+    /** v27.18: 拉每日推荐第一张榜单的歌曲 —— 卡片上的三张缩略图与「推荐歌曲」列表共用。 */
+    private void loadDailySongs() {
+        if (topListCache.isEmpty()) return;
+        MusicApi.sheetDetail(topListCache.get(0).id, (err, data) -> {
+            if (data == null || data.isEmpty()) return;
+            dailySongs.clear();
+            dailySongs.addAll(data.subList(0, Math.min(6, data.size())));
+            rebuildRows();
         });
     }
 
@@ -249,6 +269,14 @@ public class MusicActivity extends BaseActivity {
                 }
             }
             if (!hotSheetCache.isEmpty()) rows.add(sectionRow("精品歌单", hotSheetCache));
+            // v27.18: 推荐歌曲 —— 补满「精品歌单」下面的空档, 也让首页有直接可点的歌
+            if (!dailySongs.isEmpty()) {
+                Row songs = new Row();
+                songs.type = TYPE_SONG_ROW;
+                songs.sectionTitle = "推荐歌曲";
+                songs.songs = dailySongs;
+                rows.add(songs);
+            }
         }
         rowsAdapter.notifyDataSetChanged();
         if (!rows.isEmpty()) {
@@ -356,6 +384,7 @@ public class MusicActivity extends BaseActivity {
     /** 每日推荐卡: 取官方榜单第一张, 点播放键直接进榜单。 */
     class DailyHolder extends RecyclerView.ViewHolder {
         final TextView week, day, title, desc, play;
+        final ImageView thumb1, thumb2, thumb3;
 
         DailyHolder(View v) {
             super(v);
@@ -364,6 +393,9 @@ public class MusicActivity extends BaseActivity {
             title = v.findViewById(R.id.dailyTitle);
             desc = v.findViewById(R.id.dailyDesc);
             play = v.findViewById(R.id.dailyPlay);
+            thumb1 = v.findViewById(R.id.dailyThumb1);
+            thumb2 = v.findViewById(R.id.dailyThumb2);
+            thumb3 = v.findViewById(R.id.dailyThumb3);
             FocusScale.attach(v, 1.02f);
             v.setOnClickListener(v1 -> {
                 if (!topListCache.isEmpty()) openSheet(topListCache.get(0));
@@ -377,10 +409,18 @@ public class MusicActivity extends BaseActivity {
             Calendar c = Calendar.getInstance();
             week.setText(WEEK[c.get(Calendar.DAY_OF_WEEK) - 1]);
             day.setText(String.valueOf(c.get(Calendar.DAY_OF_MONTH)));
-            if (!topListCache.isEmpty()) {
-                MusicApi.Sheet s = topListCache.get(0);
-                title.setText("每日推荐 · " + s.name);
-                desc.setText(s.sub == null ? "为你精选" : s.sub);
+            // v27.18: 标题去掉「· 飙升榜」后缀 —— 榜单名对用户没意义, 还让标题显得啰嗦
+            title.setText("每日推荐");
+            desc.setText(dailySongs.isEmpty() ? "每天更新" : "每天更新 · " + dailySongs.size() + " 首");
+            ImageView[] thumbs = {thumb1, thumb2, thumb3};
+            for (int i = 0; i < thumbs.length; i++) {
+                if (i < dailySongs.size()) {
+                    thumbs[i].setVisibility(View.VISIBLE);
+                    com.github.tvbox.osc.music.CoverFallback.load(
+                            thumbs[i], dailySongs.get(i).cover, dailySongs.get(i).name);
+                } else {
+                    thumbs[i].setVisibility(View.GONE);
+                }
             }
         }
     }

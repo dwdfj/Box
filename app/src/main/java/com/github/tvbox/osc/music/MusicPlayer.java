@@ -449,6 +449,24 @@ public class MusicPlayer {
         return qs[preferQ];
     }
 
+    /** v27.18: 当前线路可选的音质档位 —— 音质弹层用它判断哪些档位置灰。 */
+    public String[] availableQualities() {
+        return qualities();
+    }
+
+    /** v27.18: 直接指定音质档位(线路不支持的档位忽略并返回 false)。 */
+    public boolean setQuality(String q) {
+        String[] qs = qualities();
+        for (int i = 0; i < qs.length; i++) {
+            if (android.text.TextUtils.equals(qs[i], q)) {
+                preferQ = i;
+                saveCfg();
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 当前音质偏好; 换线路后档位表变了就收敛到该线路第一档。 */
     public String preferredQuality() {
         String[] qs = qualities();
@@ -462,6 +480,10 @@ public class MusicPlayer {
         if ("master".equals(q)) return "母带";
         if ("hires".equals(q)) return "Hi-Res";
         if ("lossless".equals(q)) return "无损";
+        // v27.18: 320k/128k 统一大写, 顶栏胶囊别再出现小写数字串
+        if ("320k".equals(q)) return "320K";
+        if ("128k".equals(q)) return "128K";
+        if ("flac".equals(q)) return "FLAC";
         return q;
     }
 
