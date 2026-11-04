@@ -806,10 +806,24 @@ public class SearchActivity extends BaseActivity {
             if (!bean.isSearchable()) {
                 continue;
             }
-            if (!equals && mCheckSources != null && !mCheckSources.containsKey(bean.getKey())) {
+            // v27.31: 原判断少了 isEmpty —— Hawk 里存着空表时 containsKey 全 false, 所有站点被过滤掉,
+            // 搜索只剩一句"请选择搜索站点", 用户看到的就是"搜索功能没了"。
+            if (!equals && mCheckSources != null && !mCheckSources.isEmpty()
+                    && !mCheckSources.containsKey(bean.getKey())) {
                 continue;
             }
             siteKey.add(bean.getKey());
+        }
+        if (siteKey.size() <= 0 && !equals) {
+            // v27.31: 勾选表里存的站点在当前线路已不存在(换线路/配置删站) -> 全空。
+            // 退回"全部可搜站点", 总比只弹一句提示、让用户以为搜索坏了要好。
+            for (SourceBean bean : searchRequestList) {
+                if (bean.isSearchable()) {
+                    siteKey.add(bean.getKey());
+                }
+            }
+        }
+        for (int i = 0; i < siteKey.size(); i++) {
             allRunCount.incrementAndGet();
         }
         if (siteKey.size() <= 0) {

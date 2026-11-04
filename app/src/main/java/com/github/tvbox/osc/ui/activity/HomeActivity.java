@@ -1161,10 +1161,11 @@ public class HomeActivity extends BaseActivity {
         }
 
         // takagen99: Icon Placement
-        if (Hawk.get(HawkConfig.HOME_SEARCH_POSITION, true)) {
+        // v27.31: 搜索键恒显 —— HOME_SEARCH_POSITION 默认 false(「下方」), 但「下方」那套搜索栏
+        // (homeSearchBar) 早就是 gone + 0mm 的空壳, 结果整机一个搜索入口都没有, 用户反馈"首页搜索没了"。
+        // 这个开关已经没有对应的第二套布局, 直接恒定显示, 不再受它控制。
+        if (tvFind != null) {
             tvFind.setVisibility(View.VISIBLE);
-        } else {
-            tvFind.setVisibility(View.GONE);
         }
         if (Hawk.get(HawkConfig.HOME_MENU_POSITION, true)) {
             tvMenu.setVisibility(View.VISIBLE);
@@ -1404,7 +1405,12 @@ public class HomeActivity extends BaseActivity {
     private int topBarDesignMt = 0;
     private AnimatorSet topAnimator;
 
-    private void changeTop(boolean hide) {
+    private void changeTop(boolean hideReq) {
+        // v27.31: 顶栏里装着「搜索 / 音乐 / 头像」三个入口。原逻辑切到非首个分类 tab 时
+        // （changeTop(sortFocused != 0)）会把整条顶栏 alpha→0、height→1mm 收起，
+        // 搜索键随之消失 —— 这就是用户反馈的"影视首页搜索功能没有了"。
+        // 顶栏改为常驻，不再按分类隐藏。
+        final boolean hide = false;
         ViewObj viewObj = new ViewObj(topLayout, (ViewGroup.MarginLayoutParams) topLayout.getLayoutParams());
         AnimatorSet animatorSet = new AnimatorSet();
         topAnimator = animatorSet; // v24.4: 供 restoreTopBar 取消在飞的动画, 避免与复位互相打架
