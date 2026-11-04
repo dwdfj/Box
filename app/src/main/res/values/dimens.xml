@@ -154,4 +154,6 @@
     <dimen name="vs_132">132mm</dimen>
     <dimen name="vs_168">168mm</dimen>
     <dimen name="vs_170">170mm</dimen>
+    <dimen name="vs_144">144mm</dimen>
+    <dimen name="vs_184">184mm</dimen>
 </resources>
