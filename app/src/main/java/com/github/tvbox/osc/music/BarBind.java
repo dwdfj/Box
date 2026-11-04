@@ -80,10 +80,20 @@ public final class BarBind implements MusicPlayer.Listener {
         MusicApi.Song cur = p.current();
         if (cur != null) {
             show(cur, "", "");
-            if (!p.isPlaying()) onPaused();
+            // v27.26: 原来只处理了「暂停」分支, 从影视页回到音乐页时歌在放、播放键却还是 ▶。
+            // 这里按真实播放状态同步, 返回页面(onResume)也走同一套逻辑。
+            syncPlayState();
         }
         bar.removeCallbacks(progressTick);
         bar.post(progressTick);
+    }
+
+    /** 用播放器的真实状态刷新播放键/封面旋转 —— 页面每次回到前台都调用。 */
+    public void syncPlayState() {
+        MusicPlayer p = MusicPlayer.get();
+        if (nextBtn != null) nextBtn.setVisibility(p.hasNext() ? View.VISIBLE : View.GONE);
+        if (p.isPlaying()) startSpin();
+        else onPaused();
     }
 
     /** 页面销毁时解除监听, 防止 Activity 泄漏。 */

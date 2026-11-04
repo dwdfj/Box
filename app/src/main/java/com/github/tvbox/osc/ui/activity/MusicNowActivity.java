@@ -16,6 +16,7 @@ import com.github.tvbox.osc.music.LyricView;
 import com.github.tvbox.osc.music.MusicApi;
 import com.github.tvbox.osc.music.MusicDirect;
 import com.github.tvbox.osc.music.MusicDownloadDir;
+import com.github.tvbox.osc.music.MusicDownloadDialog;
 import com.github.tvbox.osc.music.MusicDownloader;
 import com.github.tvbox.osc.music.MusicPlayer;
 
@@ -192,43 +193,12 @@ public class MusicNowActivity extends BaseActivity {
             statusView.setText(fav ? "已加入收藏" : "已取消收藏");
         });
 
-        // 下载(v27.25: 图标不再显示百分比文字, 进度走状态行)
-        downloadView.setOnClickListener(v -> {
-            MusicApi.Song cur = p.current();
-            if (cur == null) return;
-            downloadView.setEnabled(false);
-            downloadView.setAlpha(0.45f);
-            String where = MusicDownloadDir.label();
-            statusView.setText("开始下载…" + (where == null ? "" : " → " + where));
-            MusicDownloader.download(cur, p.preferredQuality(), new MusicDownloader.Cb() {
-                @Override
-                public void onProgress(float f) {
-                    // v27.15: 回调在下载线程, 必须切回主线程才能碰 View(否则 CalledFromWrongThread 闪退)
-                    ui(() -> statusView.setText("下载中 " + (int) (f * 100) + "%"));
-                }
+        // 下载(v27.26: 先弹「下载位置」层, 当场就能换文件夹, 不再需要先摸索另一个「目录」键)
+        downloadView.setOnClickListener(v -> MusicDownloadDialog.show(this, REQ_PICK_DIR, this::startDownload));
 
-                @Override
-                public void onDone(String path) {
-                    ui(() -> {
-                        downloadView.setEnabled(true);
-                        downloadView.setAlpha(1f);
-                        statusView.setText("已保存: " + path);
-                    });
-                }
-
-                @Override
-                public void onFail(String err) {
-                    ui(() -> {
-                        downloadView.setEnabled(true);
-                        downloadView.setAlpha(1f);
-                        statusView.setText("下载失败: " + err);
-                    });
-                }
-            });
-        });
-
-        // 下载目录(自选文件夹)
-        findViewById(R.id.musicNowFolder).setOnClickListener(v -> MusicDownloadDir.pick(this, REQ_PICK_DIR));
+        // 存储位置(第五个键): 直接开系统文件夹选择器
+        findViewById(R.id.musicNowFolder).setOnClickListener(v ->
+                MusicDownloadDir.pick(this, REQ_PICK_DIR));
 
         // v27.25: 底部「线路」按钮取消(顶栏已有线路胶囊), 位置留给「下载目录」
 
@@ -281,10 +251,62 @@ public class MusicNowActivity extends BaseActivity {
                 MusicDownloadDir.save(this, data);
                 String name = MusicDownloadDir.label();
                 statusView.setText("下载目录已设为: " + (name == null ? "自选目录" : name));
+                // 选完目录直接把刚才那首下下去, 不用再点一次下载
+                if (pendingSong != null) {
+                    MusicApi.Song s = pendingSong;
+                    pendingSong = null;
+                    startDownload(s);
+                }
             } else {
                 statusView.setText("未更改下载目录");
             }
         }
+    }
+
+    /** 弹「下载位置」时记住要下的那首 —— 用户若先去改目录, 回来就自动接着下。 */
+    private MusicApi.Song pendingSong;
+
+    private void startDownload() {
+        MusicApi.Song cur = MusicPlayer.get().current();
+        if (cur == null) return;
+        startDownload(cur);
+    }
+
+    private void startDownload(final MusicApi.Song song) {
+        final MusicPlayer p = MusicPlayer.get();
+        if (song == null) return;
+        pendingSong = song;
+        downloadView.setEnabled(false);
+        downloadView.setAlpha(0.45f);
+        String where = MusicDownloadDir.label();
+        statusView.setText("开始下载…" + (where == null ? "" : " → " + where));
+        MusicDownloader.download(song, p.preferredQuality(), new MusicDownloader.Cb() {
+            @Override
+            public void onProgress(float f) {
+                // v27.15: 回调在下载线程, 必须切回主线程才能碰 View(否则 CalledFromWrongThread 闪退)
+                ui(() -> statusView.setText("下载中 " + (int) (f * 100) + "%"));
+            }
+
+            @Override
+            public void onDone(String path) {
+                ui(() -> {
+                    pendingSong = null;
+                    downloadView.setEnabled(true);
+                    downloadView.setAlpha(1f);
+                    statusView.setText("已保存: " + path);
+                });
+            }
+
+            @Override
+            public void onFail(String err) {
+                ui(() -> {
+                    pendingSong = null;
+                    downloadView.setEnabled(true);
+                    downloadView.setAlpha(1f);
+                    statusView.setText("下载失败: " + err);
+                });
+            }
+        });
     }
 
     /** 唱片/歌词互斥显示; showLyric=true 进歌词, false 回唱片。 */

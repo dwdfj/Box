@@ -607,24 +607,45 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
-    // 无壁纸版唯一的绘制路径: 墨黑渐变背景(不读盘、不解码 Bitmap)
+    // 无壁纸版唯一的绘制路径: 现画一张极光渐变底图(不读盘、不解码任何图片文件)
     private void applyThemeColorBackground() {
         try {
-            // 小贾影视仓 v27.0: 原来是「主色纯色铺满整屏」—— 主色可能是亮金/亮紫,
-            // 满屏铺开又亮又刺眼, 而且首页所有文字按钮都压在同一块饱和色上, 完全没有层次。
-            // 改成墨黑三段渐变(顶部带一点极光紫 → 中段墨黑 → 底部更深), 与 Aurora 主题同源:
-            // 深色底能托住海报和白色文字, 竖向渐变又给了页面一点纵深, 不是死黑一片。
-            int top = 0xFF16132B;
-            int mid = 0xFF0B0C12;
-            int bottom = 0xFF070810;
+            // 小贾影视仓 v27.26: 原来只是一层三段纯色渐变, 用户看着像"没配图的黑屏"。
+            // 现在用 Canvas 现画一张壁纸: 竖向渐变(极光紫 → 墨黑 → 更深的黑) + 右上一团紫、
+            // 左下一团蓝的柔光, 屏幕上有纵深和光晕, 但仍是一张纯计算出来的底图 ——
+            // 无壁纸版体积不变、不依赖网络、不读 sdcard。
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int bw = Math.max(64, dm.widthPixels / 3);   // 渐变图 1/3 分辨率足够, 省内存
+            int bh = Math.max(64, dm.heightPixels / 3);
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                    bw, bh, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(bmp);
+            android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            int top = 0xFF1A1740, mid = 0xFF0C0D16, bottom = 0xFF06070E;
             try {
                 top = getResources().getColor(R.color.color_aurora_top);
             } catch (Throwable ignored) {
             }
-            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable(
-                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{top, mid, bottom});
-            getWindow().setBackgroundDrawable(g);
+            p.setShader(new android.graphics.LinearGradient(0, 0, 0, bh,
+                    new int[]{top, mid, bottom}, new float[]{0f, 0.46f, 1f},
+                    android.graphics.Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, bw, bh, p);
+
+            p.setShader(new android.graphics.RadialGradient(bw * 0.86f, -bh * 0.02f, bh * 0.34f,
+                    new int[]{0x5CA06BFF, 0x00000000}, null,
+                    android.graphics.Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, bw, bh, p);
+            p.setShader(new android.graphics.RadialGradient(bw * 0.10f, bh * 0.90f, bh * 0.30f,
+                    new int[]{0x4A3D6BFF, 0x00000000}, null,
+                    android.graphics.Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, bw, bh, p);
+            p.setShader(null);
+
+            android.graphics.drawable.BitmapDrawable d =
+                    new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
+            d.setGravity(android.view.Gravity.FILL);
+            getWindow().setBackgroundDrawable(d);
         } catch (Throwable t) {
             getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xFF0B0C12));
         }

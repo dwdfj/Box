@@ -235,6 +235,13 @@ public class MusicActivity extends BaseActivity {
     private String greetSubText = "";
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // v27.26: 从影视页/播放页回到音乐页时, 灵动条的播放键要跟真实状态一致(之前是 ▶ 却没在播/在播却显示 ▶)
+        if (bar != null) bar.syncPlayState();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (bar != null) bar.unbind();

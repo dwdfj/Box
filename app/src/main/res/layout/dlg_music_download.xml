@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小贾影视仓 v27.26: 下载位置弹层 —— 点「下载」先确认存哪儿, 可以直接改文件夹 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_music_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/vs_32">
+
+    <View
+        android:layout_width="@dimen/vs_72"
+        android:layout_height="@dimen/vs_6"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="@dimen/vs_18"
+        android:background="@drawable/bg_music_thumb" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_32"
+        android:layout_marginTop="@dimen/vs_24"
+        android:text="下载"
+        android:textColor="@color/color_FFFFFF"
+        android:textSize="@dimen/ts_40"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/dlHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/vs_32"
+        android:layout_marginRight="@dimen/vs_32"
+        android:layout_marginTop="@dimen/vs_8"
+        android:textColor="@color/music_sub"
+        android:textSize="@dimen/ts_26" />
+
+    <LinearLayout
+        android:id="@+id/dlList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/vs_12"
+        android:orientation="vertical" />
+</LinearLayout>
