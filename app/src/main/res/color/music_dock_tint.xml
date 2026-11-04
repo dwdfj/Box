@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v27.25: dock 图标着色 —— 选中纯白, 未选中 55% 白(苹果 dock 的"非当前图标略微压暗") -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:color="#8CFFFFFF" />
+</selector>

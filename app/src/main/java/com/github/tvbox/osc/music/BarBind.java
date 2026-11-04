@@ -17,7 +17,9 @@ import com.github.tvbox.osc.R;
 public final class BarBind implements MusicPlayer.Listener {
     private final LinearLayout bar;
     private final ImageView cover;
-    private final TextView name, info, nextBtn;
+    private final TextView name, info;
+    /** v27.25: 下一曲从文字按钮换成矢量图标 ImageView。 */
+    private final View nextBtn;
     private final BlobPlayButton blob;
     private final CoverRingView ring;
     /** v27.24: 灵动条上的音质胶囊(播放时显示当前档位, 由页面挂点击弹层)。 */
@@ -32,12 +34,12 @@ public final class BarBind implements MusicPlayer.Listener {
     }
 
     public BarBind(LinearLayout bar, ImageView cover, TextView name, TextView info,
-                   BlobPlayButton blob, TextView nextBtn) {
+                   BlobPlayButton blob, View nextBtn) {
         this(bar, cover, name, info, blob, nextBtn, null);
     }
 
     public BarBind(LinearLayout bar, ImageView cover, TextView name, TextView info,
-                   BlobPlayButton blob, TextView nextBtn, CoverRingView ring) {
+                   BlobPlayButton blob, View nextBtn, CoverRingView ring) {
         this.bar = bar;
         this.cover = cover;
         this.name = name;

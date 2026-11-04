@@ -57,19 +57,20 @@ public final class MusicQualityDialog {
 
         TextView hint = dlg.findViewById(R.id.qualityHint);
         if (hint != null) {
-            hint.setText("当前线路 " + p.lineName() + (contains(avail, "master") ? " · 支持母带" : " · 不支持母带"));
+            // v27.25: 不再只说"不支持母带" —— 直接告诉用户每档都能点, 缺的档位会自动切线路
+            hint.setText("当前线路 " + p.lineName() + " · 点任意档位即可切换");
         }
 
         LinearLayout list = dlg.findViewById(R.id.qualityList);
         if (list != null) {
             for (final String[] tier : TIERS) {
-                list.addView(buildRow(act, dlg, p, tier, contains(avail, tier[0]),
-                        TextUtils.equals(cur, tier[0]), onPicked));
+                list.addView(buildRow(act, dlg, p, tier,
+                        contains(avail, tier[0]), TextUtils.equals(cur, tier[0]), onPicked));
             }
-            // 笒音线路只有 lossless 一档，固定五档里没有它，补一行免得用户以为没得选
-            if (contains(avail, "lossless") && !contains(avail, "master")) {
+            // 笒音线路的主档是 lossless, 固定五档里没有它 —— 补一行, 否则用户看不到"当前在放的是什么"
+            if (contains(avail, "lossless")) {
                 list.addView(buildRow(act, dlg, p,
-                        new String[]{"lossless", "无损 · 母带级", "该线路固定档位"},
+                        new String[]{"lossless", "无损", "该线路固定档位 · 母带级音源"},
                         true, TextUtils.equals(cur, "lossless"), onPicked));
             }
         }
@@ -128,13 +129,23 @@ public final class MusicQualityDialog {
         TextView name = new TextView(act);
         name.setText(tier[1]);
         name.setTextSize(0, act.getResources().getDimension(R.dimen.ts_30));
-        name.setTextColor(enabled ? 0xFFF2F4F8 : 0xFF4E5872);
+        name.setTextColor(0xFFF2F4F8);
         col.addView(name);
 
         TextView desc = new TextView(act);
-        desc.setText(enabled ? tier[2] : "当前线路不支持");
+        // v27.25: 不再是「点了没反应」的置灰项 —— 当前线路没有的档位会写明"点选自动切线路"
+        int altLine = enabled ? -1 : p.lineSupporting(tier[0]);
+        String descText;
+        if (enabled) {
+            descText = tier[2];
+        } else if (altLine >= 0) {
+            descText = tier[2] + " · 点选自动切到「" + MusicDirect.NAMES[altLine] + "」";
+        } else {
+            descText = tier[2] + " · 暂无线路支持";
+        }
+        desc.setText(descText);
         desc.setTextSize(0, act.getResources().getDimension(R.dimen.ts_24));
-        desc.setTextColor(enabled ? 0xFF8A93A8 : 0xFF4E5872);
+        desc.setTextColor(0xFF8A93A8);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         dlp.topMargin = act.getResources().getDimensionPixelSize(R.dimen.vs_4);
@@ -142,15 +153,13 @@ public final class MusicQualityDialog {
         col.addView(desc);
 
         row.addView(col);
-        row.setEnabled(enabled);
-        row.setAlpha(enabled ? 1f : 0.55f);
+        row.setEnabled(true);
+        row.setAlpha(1f);
 
         row.setOnClickListener(v -> {
-            if (!enabled) return;
-            if (p.setQuality(tier[0])) {
-                dlg.dismiss();
-                if (onPicked != null) onPicked.run();
-            }
+            if (!p.selectQuality(tier[0])) return;
+            dlg.dismiss();
+            if (onPicked != null) onPicked.run();
         });
         return row;
     }

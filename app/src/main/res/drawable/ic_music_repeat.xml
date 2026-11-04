@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v27.25: 循环播放(两段环形箭头) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M6.4,8.6 h9.4 a2.6,2.6 0 0 1 2.6,2.6 v1.2 M15.2,6.2 L17.8,8.6 L15.2,11"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M17.6,15.4 H8.2 a2.6,2.6 0 0 1 -2.6,-2.6 v-1.2 M8.8,17.8 L6.2,15.4 L8.8,13"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.9" />
+</vector>

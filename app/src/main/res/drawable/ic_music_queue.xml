@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v27.25: 播放队列(三横线 + 右侧播放三角) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M3.6,7.2 L14.4,7.2 M3.6,12 L14.4,12 M3.6,16.8 L10.6,16.8"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M16.6,14.2 L21.2,17 L16.6,19.8 Z" />
+</vector>

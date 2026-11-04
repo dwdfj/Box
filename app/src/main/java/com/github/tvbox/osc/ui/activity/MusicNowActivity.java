@@ -15,6 +15,7 @@ import com.github.tvbox.osc.music.LrcParser;
 import com.github.tvbox.osc.music.LyricView;
 import com.github.tvbox.osc.music.MusicApi;
 import com.github.tvbox.osc.music.MusicDirect;
+import com.github.tvbox.osc.music.MusicDownloadDir;
 import com.github.tvbox.osc.music.MusicDownloader;
 import com.github.tvbox.osc.music.MusicPlayer;
 
@@ -26,10 +27,12 @@ import java.util.List;
  * 模式/上一曲/Blob 播放/下一曲/队列 + 收藏/下载/线路。
  */
 public class MusicNowActivity extends BaseActivity {
+    /** v27.25: 选下载目录的系统文件夹选择器请求码。 */
+    private static final int REQ_PICK_DIR = 0x4D31;
+
     private TextView nameView, singerView, qualityView, posView, durView, statusView;
-    private TextView lineView, modeView, favView, downloadView;
-    /** v27.16: 模式图标下的标签(图标只放符号, 模式名放这里)。 */
-    private TextView modeLabel;
+    private TextView lineView, modeLabel;
+    private ImageView favView, downloadView, modeView;
     private SeekBar progress;
     private com.github.tvbox.osc.music.RotatingCoverView disc;
     private View discArea;
@@ -101,8 +104,13 @@ public class MusicNowActivity extends BaseActivity {
         int statusH = MusicActivity.sysBarHeight(this, true);
         int navH = MusicActivity.sysBarHeight(this, false);
         android.widget.LinearLayout root = findViewById(R.id.musicNowRoot);
-        if (root != null) root.setPadding(root.getPaddingLeft(), statusH,
-                root.getPaddingRight(), navH);
+        if (root != null) {
+            // v27.25: 原来是 statusH 直接覆盖, 把布局里 vs_44 的顶栏呼吸区顶掉了 ——
+            // 用户看到的就是「返回键贴着状态栏」。改成相加。
+            int baseTop = root.getPaddingTop();
+            root.setPadding(root.getPaddingLeft(), statusH + baseTop,
+                    root.getPaddingRight(), navH + root.getPaddingBottom());
+        }
 
         MusicPlayer p = MusicPlayer.get();
         p.addListener(listener);
@@ -175,33 +183,35 @@ public class MusicNowActivity extends BaseActivity {
                     p.playQueue(p.queue(), p.queue().indexOf(music));
                 }));
 
-        // 收藏
+        // 收藏(v27.25: 矢量图标, 已收藏换实心)
         favView.setOnClickListener(v -> {
             MusicApi.Song cur = p.current();
             if (cur == null) return;
             boolean fav = p.toggleFavorite(cur);
-            favView.setText(fav ? "♥" : "♡");
+            favView.setImageResource(fav ? R.drawable.ic_music_heart_on : R.drawable.ic_music_heart);
             statusView.setText(fav ? "已加入收藏" : "已取消收藏");
         });
 
-        // 下载
+        // 下载(v27.25: 图标不再显示百分比文字, 进度走状态行)
         downloadView.setOnClickListener(v -> {
             MusicApi.Song cur = p.current();
             if (cur == null) return;
-            downloadView.setText("⇩ 0%");
             downloadView.setEnabled(false);
+            downloadView.setAlpha(0.45f);
+            String where = MusicDownloadDir.label();
+            statusView.setText("开始下载…" + (where == null ? "" : " → " + where));
             MusicDownloader.download(cur, p.preferredQuality(), new MusicDownloader.Cb() {
                 @Override
                 public void onProgress(float f) {
                     // v27.15: 回调在下载线程, 必须切回主线程才能碰 View(否则 CalledFromWrongThread 闪退)
-                    ui(() -> downloadView.setText("⇩ " + (int) (f * 100) + "%"));
+                    ui(() -> statusView.setText("下载中 " + (int) (f * 100) + "%"));
                 }
 
                 @Override
                 public void onDone(String path) {
                     ui(() -> {
-                        downloadView.setText("✓");
                         downloadView.setEnabled(true);
+                        downloadView.setAlpha(1f);
                         statusView.setText("已保存: " + path);
                     });
                 }
@@ -209,30 +219,31 @@ public class MusicNowActivity extends BaseActivity {
                 @Override
                 public void onFail(String err) {
                     ui(() -> {
-                        downloadView.setText("⇩");
                         downloadView.setEnabled(true);
+                        downloadView.setAlpha(1f);
                         statusView.setText("下载失败: " + err);
                     });
                 }
             });
         });
 
-        // 换线路
-        findViewById(R.id.musicNowLineBtn).setOnClickListener(v -> {
-            String name = p.nextLine();
-            lineView.setText(name);
-            statusView.setText("线路已切到 " + name + "，正在用新线路重取…");
-        });
+        // 下载目录(自选文件夹)
+        findViewById(R.id.musicNowFolder).setOnClickListener(v -> MusicDownloadDir.pick(this, REQ_PICK_DIR));
+
+        // v27.25: 底部「线路」按钮取消(顶栏已有线路胶囊), 位置留给「下载目录」
 
         // 音质切换(v27.18: 弹层选档 —— 中文档位名 + 说明, 含母带; 选完立即用新档重取当前曲)
         qualityView.setOnClickListener(v ->
                 com.github.tvbox.osc.music.MusicQualityDialog.show(this, () -> {
                     String q = p.preferredQuality();
                     qualityView.setText(MusicPlayer.qualityLabel(q));
+                    // v27.25: 所选档位当前线路没有时会自动换线路, 顶栏线路胶囊同步刷新
+                    lineView.setText(p.lineName());
                     MusicApi.Song cur = p.current();
                     if (cur != null) {
                         p.playQueue(p.queue(), Math.max(0, p.queue().indexOf(cur)));
-                        statusView.setText("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
+                        statusView.setText("音质切至 " + MusicPlayer.qualityLabel(q)
+                                + "（" + p.lineName() + "），正在重取");
                     } else {
                         statusView.setText("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
                     }
@@ -257,7 +268,22 @@ public class MusicNowActivity extends BaseActivity {
         if (modeLabel != null) modeLabel.setText(MusicPlayer.MODE_NAMES[p.repeatMode()]);
         if (favView != null) {
             MusicApi.Song cur = p.current();
-            favView.setText(cur != null && p.isFavorite(cur) ? "♥" : "♡");
+            favView.setImageResource(cur != null && p.isFavorite(cur)
+                    ? R.drawable.ic_music_heart_on : R.drawable.ic_music_heart);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PICK_DIR) {
+            if (resultCode == RESULT_OK) {
+                MusicDownloadDir.save(this, data);
+                String name = MusicDownloadDir.label();
+                statusView.setText("下载目录已设为: " + (name == null ? "自选目录" : name));
+            } else {
+                statusView.setText("未更改下载目录");
+            }
         }
     }
 

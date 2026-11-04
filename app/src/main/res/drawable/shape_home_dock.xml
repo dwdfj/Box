@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.22: 首页底部 dock 底(墨黑玻璃) —— 圆角收到 vs_28,
-     满宽长条形态, 不再像悬空小胶囊 -->
+<!-- v27.25: 影视首页 dock —— 与音乐页 dock 同款苹果药丸 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#D20E1017" />
-    <corners android:radius="@dimen/vs_28" />
+    <gradient
+        android:angle="270"
+        android:endColor="#D90B0D14"
+        android:startColor="#E6171B26" />
+    <corners android:radius="99dp" />
     <stroke
-        android:width="1mm"
-        android:color="#26FFFFFF" />
+        android:width="1dp"
+        android:color="#3DFFFFFF" />
 </shape>

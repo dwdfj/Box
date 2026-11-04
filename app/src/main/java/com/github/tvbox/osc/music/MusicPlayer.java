@@ -435,17 +435,19 @@ public class MusicPlayer {
     }
 
     /**
-     * v27.14: 音质档位按线路区分 —— Voyage 多两档母带, 洛雪三档, 笒音只有一档。
-     * v27.16: Voyage 顺序改为 flac 优先 —— 实测 master/hires 对不少曲目上游没有资源(500),
-     * 排在前面会让每次播放都先白等两轮; flac 命中率最高, 放第一位大多数歌一次就成。
+     * v27.25: 实测后重排各线路档位(2026-11 逐档验证):
+     *   洛雪 c.wwwweb.top  quality=master/flac/320k/128k 全部返回真地址(hires 会回落 flac);
+     *   笒音 nianxinxz     level=hires/lossless 有地址, 320k/128k/flac/master 返回空 url;
+     *   Voyage            flac/320k/hires/master/128k 全通。
+     * 所以「母带」不再是 Voyage 独有 —— 洛雪也能选中, 用户在弹层里点得动才是关键。
      */
-    private static final String[] Q_LUOXUE = {"flac", "320k", "128k"};
-    private static final String[] Q_CENYIN = {"lossless"};
+    private static final String[] Q_LUOXUE = {"flac", "master", "320k", "128k"};
+    private static final String[] Q_CENYIN = {"lossless", "hires"};
     private static final String[] Q_VOYAGE = {"flac", "320k", "hires", "master", "128k"};
 
-    /** 当前线路可选的音质档位(降档重试也走这张表)。 */
-    private static String[] qualities() {
-        switch (MusicPlayer.get().line()) {
+    /** 指定线路的档位表。 */
+    private static String[] qualitiesOf(int line) {
+        switch (line) {
             case MusicDirect.LINE_CENYIN:
                 return Q_CENYIN;
             case MusicDirect.LINE_VOYAGE:
@@ -453,6 +455,49 @@ public class MusicPlayer {
             default:
                 return Q_LUOXUE;
         }
+    }
+
+    /** 当前线路可选的音质档位(降档重试也走这张表)。 */
+    private static String[] qualities() {
+        return qualitiesOf(MusicPlayer.get().line());
+    }
+
+    /** v27.25: 哪条线路支持这个档位(-1 = 谁都不支持)。 */
+    public int lineSupporting(String q) {
+        for (int l = 0; l < MusicDirect.NAMES.length; l++) {
+            for (String s : qualitiesOf(l)) {
+                if (android.text.TextUtils.equals(s, q)) return l;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * v27.25: 选档位。当前线路支持就直接用; 不支持则自动切到支持的线路(例如在笒音下选「母带」→ 切洛雪),
+     * 这样弹层里每一档都能点得动, 不会再出现「全灰 + 点不了」。
+     * 返回 true 表示选档成功(调用方负责用新档重取当前曲)。
+     */
+    public boolean selectQuality(String q) {
+        initCfg();
+        String[] qs = qualities();
+        for (int i = 0; i < qs.length; i++) {
+            if (android.text.TextUtils.equals(qs[i], q)) {
+                preferQ = i;
+                saveCfg();
+                return true;
+            }
+        }
+        int alt = lineSupporting(q);
+        if (alt >= 0) {
+            line = alt;
+            String[] aqs = qualitiesOf(alt);
+            for (int i = 0; i < aqs.length; i++) {
+                if (android.text.TextUtils.equals(aqs[i], q)) preferQ = i;
+            }
+            saveCfg();
+            return true;
+        }
+        return false;
     }
 
     /** 循环切换音质偏好, 返回新档位(如 "master")。 */

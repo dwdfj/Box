@@ -235,12 +235,14 @@ public final class MusicDirect {
     }
 
     /**
-     * 笒音只有 lossless 一档可用 —— 实测 level=320k/128k 都返回 {"code":200,"msg":"解析成功"}
-     * 但 url 为 null(空响应), 所以笒音线路一律按 lossless 请求, 否则会连报三次失败。
-     * 洛雪按用户选的音质原样请求(flac/320k/128k 三档都通)。
+     * 笒音档位映射(2026-11 实测): level=lossless / hires 有地址,
+     * 320k / 128k / flac / master 都返回 {"code":200,"url":""} —— 空串等于没取到。
+     * 所以只有这两档原样传, 其余一律按 lossless 请求, 避免连报几次失败。
      */
     private static String mapLevel(String q, int ep) {
-        if (ep == LINE_CENYIN) return "lossless";
+        if (ep == LINE_CENYIN) {
+            return ("hires".equals(q) || "lossless".equals(q)) ? q : "lossless";
+        }
         return q;
     }
 

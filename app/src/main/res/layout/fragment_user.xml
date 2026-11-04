@@ -24,7 +24,7 @@
     <!-- 底部渐变遮罩: 壁纸照常透出, 仅压暗下方信息区保证可读性 -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="@dimen/vs_600"
+        android:layout_height="@dimen/vs_520"
         android:layout_gravity="bottom"
         android:background="@drawable/shape_home_scrim_bottom"
         android:focusable="false" />
@@ -244,7 +244,7 @@
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/rowHot"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_520"
+                android:layout_height="@dimen/vs_600"
                 android:layout_marginTop="@dimen/vs_14"
                 android:clipChildren="false"
                 android:clipToPadding="false"
@@ -292,7 +292,7 @@
             <com.owen.tvrecyclerview.widget.TvRecyclerView
                 android:id="@+id/rowHot2"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/vs_520"
+                android:layout_height="@dimen/vs_600"
                 android:layout_marginTop="@dimen/vs_14"
                 android:clipChildren="false"
                 android:clipToPadding="false"

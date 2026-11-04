@@ -79,7 +79,9 @@ public class MusicActivity extends BaseActivity {
     /** v27.18: 首页「推荐歌曲」区 —— 取每日推荐第一张榜单里的前几首, 用来填满下方留白。 */
     private final List<MusicApi.Song> dailySongs = new ArrayList<>();
     private RowsAdapter rowsAdapter;
-    private TextView statusView, sourceBtn, tabHome, tabMine;
+    private TextView statusView, sourceBtn;
+    /** v27.25: dock 两个图标钮(苹果 dock 形态, 无文字标签)。 */
+    private android.widget.ImageView tabHome, tabMine;
     private BarBind bar;
     private boolean mineMode = false;
 
@@ -117,6 +119,8 @@ public class MusicActivity extends BaseActivity {
         sourceBtn = findViewById(R.id.musicSourceBtn);
         tabHome = findViewById(R.id.musicTabHome);
         tabMine = findViewById(R.id.musicTabMine);
+        // v27.25: dock 用 selector 画选中态, 初始「首页」为选中
+        tabHome.setSelected(true);
 
         TextView greetSub = findViewById(R.id.musicGreetSub);
         TextView greet = findViewById(R.id.musicPaneTitle);
@@ -164,11 +168,13 @@ public class MusicActivity extends BaseActivity {
             qualityChip.setOnClickListener(v -> com.github.tvbox.osc.music.MusicQualityDialog.show(this, () -> {
                 String q = MusicPlayer.get().preferredQuality();
                 qualityChip.setText(MusicPlayer.qualityLabel(q));
+                // v27.25: 选到当前线路没有的档位时会自动换线路, 顶部胶囊要跟着变
+                sourceBtn.setText(MusicPlayer.get().lineName());
                 MusicApi.Song cur = MusicPlayer.get().current();
                 if (cur != null) {
                     MusicPlayer.get().playQueue(MusicPlayer.get().queue(),
                             Math.max(0, MusicPlayer.get().queue().indexOf(cur)));
-                    setStatus("音质切至 " + MusicPlayer.qualityLabel(q) + "，正在重取");
+                    setStatus("音质切至 " + MusicPlayer.qualityLabel(q) + "（" + MusicPlayer.get().lineName() + "），正在重取");
                 } else {
                     setStatus("音质偏好已切至 " + MusicPlayer.qualityLabel(q));
                 }
@@ -210,10 +216,9 @@ public class MusicActivity extends BaseActivity {
     private void setMode(boolean mine) {
         if (mineMode == mine) return;
         mineMode = mine;
-        tabHome.setBackgroundResource(mine ? android.R.color.transparent : R.drawable.bg_music_accent_btn);
-        tabMine.setBackgroundResource(mine ? R.drawable.bg_music_accent_btn : android.R.color.transparent);
-        tabMine.setTextColor(getResources().getColor(mine ? R.color.color_FFFFFF : R.color.music_sub));
-        tabHome.setTextColor(getResources().getColor(mine ? R.color.music_sub : R.color.color_FFFFFF));
+        // v27.25: 选中态 = 白色高亮方块 + 纯白图标(背景/着色都走 selector, 不再手动换 drawable)
+        tabHome.setSelected(!mine);
+        tabMine.setSelected(mine);
         // v27.16: 「我的」不是副本首页 —— 标题与状态行跟着换, 否则两个 tab 长得一样分不清
         TextView title = findViewById(R.id.musicPaneTitle);
         if (title != null) title.setText(mine ? "我的" : greetTitle);

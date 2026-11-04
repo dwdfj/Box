@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小贾影视仓 v27.22: 首页/我的 底部 dock 底 —— 通栏长条(圆角收到 vs_28),
-     避免原来的全圆角胶囊在满宽时看起来"两头被啃掉一块、显得窄" -->
+<!-- v27.25: 音乐页 dock —— 苹果式「悬浮药丸」: 半透明深玻璃 + 顶部微亮渐变 + 全圆角 + 细白描边 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#CC0E1017" />
-    <corners android:radius="@dimen/vs_28" />
-    <stroke android:width="1dp" android:color="#26FFFFFF" />
+    <gradient
+        android:angle="270"
+        android:endColor="#D90B0D14"
+        android:startColor="#E6171B26" />
+    <corners android:radius="99dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#3DFFFFFF" />
 </shape>
