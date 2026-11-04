@@ -57,15 +57,25 @@ public final class MusicDownloader {
         Response resp = null;
         try {
             String ext = url.contains(".flac") ? ".flac" : url.contains(".m4a") ? ".m4a" : ".mp3";
-            // v27.24: 不再写公共 Music/ 目录 —— Android 10+ 分区存储下 getExternalStoragePublicDirectory
-            // 没有权限 mkdirs, 用户看到的就是「无法创建目录」。改存应用专属外部目录, 免任何权限:
-            // Android/data/<包名>/files/Music/小贾影视仓/
-            android.content.Context ctx = AppContextHolder.get();
-            File baseDir = ctx.getExternalFilesDir(Environment.DIRECTORY_MUSIC);
-            if (baseDir == null) baseDir = new File(ctx.getFilesDir(), "Music");
-            File dir = new File(baseDir, "小贾影视仓");
-            if (!dir.exists() && !dir.mkdirs()) {
-                throw new java.io.IOException("无法创建目录: " + dir.getAbsolutePath());
+            // v27.24: 不再只写公共 Music/ 目录 —— Android 10+ 分区存储下 getExternalStoragePublicDirectory
+            // 没权限时 mkdirs 直接失败, 用户看到的就是「无法创建目录」。
+            // 策略: 有权限就存公共 Music/小贾影视仓(文件管理器好找), 没权限自动落到应用专属目录
+            //       Android/data/<包名>/files/Music/小贾影视仓/
+            File dir = null;
+            try {
+                File pub = new File(Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_MUSIC), "小贾影视仓");
+                if (pub.exists() || pub.mkdirs()) dir = pub;
+            } catch (Throwable ignored) {
+            }
+            if (dir == null) {
+                android.content.Context ctx = AppContextHolder.get();
+                File baseDir = ctx.getExternalFilesDir(Environment.DIRECTORY_MUSIC);
+                if (baseDir == null) baseDir = new File(ctx.getFilesDir(), "Music");
+                dir = new File(baseDir, "小贾影视仓");
+                if (!dir.exists() && !dir.mkdirs()) {
+                    throw new java.io.IOException("无法创建目录: " + dir.getAbsolutePath());
+                }
             }
             String base = (song.name == null ? "未知" : song.name)
                     + (song.singer == null || song.singer.isEmpty() ? "" : "-" + song.singer);
